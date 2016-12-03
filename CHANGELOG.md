@@ -5,7 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
-## [Unreleased]
+## [Unreleased](https://github.com/python-social-auth/social-app-django/commits/master)
+
+### Changed
+- Avoid usage of SubfieldBase on 1.8 and 1.9 versions (port of [#1008](https://github.com/omab/python-social-auth/pull/1008)
+  by tom-dalton-fanduel)
+
+## [0.0.1](https://github.com/python-social-auth/social-app-django/releases/tag/0.0.1) - 2016-11-27
 
 ### Chaged
 - Split from the monolitic [python-social-auth](https://github.com/omab/python-social-auth)
