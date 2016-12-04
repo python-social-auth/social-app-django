@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## [Unreleased](https://github.com/python-social-auth/social-app-django/commits/master)
 
 ### Changed
+- Fixed use of old private API [port of [#822](https://github.com/omab/python-social-auth/pull/822)
+  by eranmarom)
 - Add ON DELETE CASCADE for user fk (port of [#1015](https://github.com/omab/python-social-auth/pull/1015)
   by artofhuman)
 - Avoid usage of SubfieldBase on 1.8 and 1.9 versions (port of [#1008](https://github.com/omab/python-social-auth/pull/1008)

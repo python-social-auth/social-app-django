@@ -4,12 +4,23 @@ from django.db.models import Model
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.auth import authenticate
 from django.shortcuts import redirect
-from django.template import TemplateDoesNotExist, RequestContext, loader
+from django.template import TemplateDoesNotExist, RequestContext, loader, engines
 from django.utils.encoding import force_text
 from django.utils.functional import Promise
 from django.utils.translation import get_language
 
 from social_core.strategy import BaseStrategy, BaseTemplateStrategy
+
+
+def render_template_string(request, html, context=None):
+    """Take a template in the form of a string and render it for the
+    given context"""
+    context = context or {}
+    try:
+        template = loader.get_template_from_string(html)
+    except AttributeError:  # get_template_from_string was removed in 1.8
+        template = engines['django'].from_string(html)
+    return template.render(RequestContext(request, context))
 
 
 class DjangoTemplateStrategy(BaseTemplateStrategy):
@@ -18,8 +29,7 @@ class DjangoTemplateStrategy(BaseTemplateStrategy):
         return template.render(RequestContext(self.strategy.request, context))
 
     def render_string(self, html, context):
-        template = loader.get_template_from_string(html)
-        return template.render(RequestContext(self.strategy.request, context))
+        return render_template_string(self.stratgy.request, html, context)
 
 
 class DjangoStrategy(BaseStrategy):
@@ -85,9 +95,9 @@ class DjangoStrategy(BaseStrategy):
         context = context or {}
         try:
             template = loader.get_template(tpl)
+            return template.render(RequestContext(self.request, context))
         except TemplateDoesNotExist:
-            template = loader.get_template_from_string(html)
-        return template.render(RequestContext(self.request, context))
+            return render_template_string(self.request, html, context)
 
     def authenticate(self, backend, *args, **kwargs):
         kwargs['strategy'] = self
