@@ -7,8 +7,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased](https://github.com/python-social-auth/social-app-django/commits/master)
 
+### Added
+- Add setting to fine-tune admin search fields (port of [#1035](https://github.com/omab/python-social-auth/pull/1035)
+  by atugushev)
+
 ### Changed
-- Fixed use of old private API [port of [#822](https://github.com/omab/python-social-auth/pull/822)
+- Fixed use of old private API (port of [#822](https://github.com/omab/python-social-auth/pull/822)
   by eranmarom)
 - Add ON DELETE CASCADE for user fk (port of [#1015](https://github.com/omab/python-social-auth/pull/1015)
   by artofhuman)
