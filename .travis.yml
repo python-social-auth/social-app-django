@@ -7,7 +7,6 @@ env:
   - TOX_ENV=py35-django-18
   - TOX_ENV=py34-django-18
   - TOX_ENV=py33-django-18
-  - TOX_ENV=py32-django-18
   - TOX_ENV=py27-django-18
   - TOX_ENV=py35-django-19
   - TOX_ENV=py34-django-19
