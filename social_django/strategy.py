@@ -3,7 +3,7 @@ from django.http import HttpResponse
 from django.db.models import Model
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.auth import authenticate
-from django.shortcuts import redirect
+from django.shortcuts import redirect, resolve_url
 from django.template import TemplateDoesNotExist, RequestContext, loader, engines
 from django.utils.encoding import force_text
 from django.utils.functional import Promise
@@ -43,8 +43,10 @@ class DjangoStrategy(BaseStrategy):
     def get_setting(self, name):
         value = getattr(settings, name)
         # Force text on URL named settings that are instance of Promise
-        if name.endswith('_URL') and isinstance(value, Promise):
-            value = force_text(value)
+        if name.endswith('_URL'):
+            if isinstance(value, Promise):
+                value = force_text(value)
+            value = resolve_url(value)
         return value
 
     def request_data(self, merge=True):

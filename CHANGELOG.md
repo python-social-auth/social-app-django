@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## [Unreleased](https://github.com/python-social-auth/social-app-django/commits/master)
 
 ### Added
+- Let Django resolve URL when getting from settings (port of [#905](https://github.com/omab/python-social-auth/pull/905)
+  by webjunkie)
 - Add setting to fine-tune admin search fields (port of [#1035](https://github.com/omab/python-social-auth/pull/1035)
   by atugushev)
 
