@@ -73,7 +73,14 @@ class DjangoStrategy(BaseStrategy):
 
     def request_port(self):
         """Port in use for this request"""
-        return self.request.META['SERVER_PORT']
+        try:  # django >= 1.9
+            return self.request.get_port()
+        except AttributeError:  # django < 1.9
+            host_parts = self.request.get_host().split(':')
+            try:
+                return host_parts[1]
+            except IndexError:
+                return self.request.META['SERVER_PORT']
 
     def request_get(self):
         """Request GET data"""

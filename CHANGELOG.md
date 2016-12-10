@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
   by atugushev)
 
 ### Changed
+- Django strategy should respect X-Forwarded-Port (port of [#841](https://github.com/omab/python-social-auth/pull/841)
+  by omarkhan)
 - Fixed use of old private API (port of [#822](https://github.com/omab/python-social-auth/pull/822)
   by eranmarom)
 - Add ON DELETE CASCADE for user fk (port of [#1015](https://github.com/omab/python-social-auth/pull/1015)
