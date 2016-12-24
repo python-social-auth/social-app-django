@@ -28,7 +28,7 @@ ASSOCIATION_HANDLE_LENGTH = getattr(
 class Migration(migrations.Migration):
     replaces = [
         ('default', '0001_initial'),
-        ('social_core', '0001_initial')
+        ('social_auth', '0001_initial')
     ]
 
     dependencies = [
