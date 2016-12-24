@@ -1,5 +1,7 @@
 # Python Social Auth - Django
 
+[![Build Status](https://travis-ci.org/python-social-auth/social-app-django.svg?branch=master)](https://travis-ci.org/python-social-auth/social-app-django)
+
 Python Social Auth is an easy to setup social authentication/registration
 mechanism with support for several frameworks and auth providers.
 
