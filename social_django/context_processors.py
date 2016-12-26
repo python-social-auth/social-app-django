@@ -1,3 +1,5 @@
+from six.moves.urllib_parse import quote
+
 from django.contrib.auth import REDIRECT_FIELD_NAME
 from django.utils.functional import SimpleLazyObject
 
@@ -38,7 +40,12 @@ def login_redirect(request):
     value = request.method == 'POST' and \
                 request.POST.get(REDIRECT_FIELD_NAME) or \
                 request.GET.get(REDIRECT_FIELD_NAME)
-    querystring = value and (REDIRECT_FIELD_NAME + '=' + value) or ''
+    if value:
+        value = quote(value)
+        querystring = REDIRECT_FIELD_NAME + '=' + value
+    else:
+        querystring = ''
+
     return {
         'REDIRECT_FIELD_NAME': REDIRECT_FIELD_NAME,
         'REDIRECT_FIELD_VALUE': value,
