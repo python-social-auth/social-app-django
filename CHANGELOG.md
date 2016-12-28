@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased](https://github.com/python-social-auth/social-app-django/commits/master)
 
+## [0.1.0](https://github.com/python-social-auth/social-app-django/releases/tag/0.1.0) - 2016-12-28
+
 ### Added
 - Let Django resolve URL when getting from settings (port of [#905](https://github.com/omab/python-social-auth/pull/905)
   by webjunkie)
