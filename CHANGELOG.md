@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## [Unreleased](https://github.com/python-social-auth/social-app-django/commits/master)
 
 ### Changed
+- Monkey patch BaseAuth to load the current strategy to workaround django load_backend() call
 - Remove usage of set/get current strategy methods
 - Remove usage of `social_auth` related name since it should be consider a simple helper.
 
