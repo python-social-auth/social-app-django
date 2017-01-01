@@ -101,9 +101,11 @@ class DjangoUserMixin(UserMixin):
 
     @classmethod
     def get_social_auth_for_user(cls, user, provider=None, id=None):
-        qs = user.social_auth.all()
+        qs = cls.objects.filter(user=user)
+
         if provider:
             qs = qs.filter(provider=provider)
+
         if id:
             qs = qs.filter(id=id)
         return qs
