@@ -6,8 +6,7 @@ from django.conf import settings
 from django.core.urlresolvers import reverse
 from django.http import Http404
 
-from social_core.utils import setting_name, module_member, get_strategy, \
-                              set_current_strategy_getter
+from social_core.utils import setting_name, module_member, get_strategy
 from social_core.exceptions import MissingBackend
 from social_core.backends.utils import get_backend
 
@@ -67,6 +66,3 @@ class BackendWrapper(object):
 
     def get_user(self, user_id):
         return Strategy(storage=Storage).get_user(user_id)
-
-
-set_current_strategy_getter(load_strategy)
