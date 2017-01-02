@@ -9,7 +9,7 @@ from social_core.utils import setting_name
 
 from .storage import DjangoUserMixin, DjangoAssociationMixin, \
                      DjangoNonceMixin, DjangoCodeMixin, \
-                     BaseDjangoStorage
+                     DjangoPartialMixin, BaseDjangoStorage
 from .fields import JSONField
 from .managers import UserSocialAuthManager
 
@@ -111,11 +111,22 @@ class Code(models.Model, DjangoCodeMixin):
         unique_together = ('email', 'code')
 
 
+class Partial(models.Model, DjangoPartialMixin):
+    token = models.CharField(max_length=32, db_index=True)
+    next_step = models.PositiveSmallIntegerField(default=0)
+    backend = models.CharField(max_length=32)
+    data = JSONField()
+
+    class Meta:
+        db_table = 'social_auth_partial'
+
+
 class DjangoStorage(BaseDjangoStorage):
     user = UserSocialAuth
     nonce = Nonce
     association = Association
     code = Code
+    partial = Partial
 
     @classmethod
     def is_integrity_error(cls, exception):

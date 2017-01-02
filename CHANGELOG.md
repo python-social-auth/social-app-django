@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased](https://github.com/python-social-auth/social-app-django/commits/master)
 
+### Added
+- Partial pipeline DB storage implementation
+
 ### Changed
 - Monkey patch BaseAuth to load the current strategy to workaround django load_backend() call
 - Remove usage of set/get current strategy methods

@@ -6,7 +6,7 @@ from django.db import transaction
 from django.db.utils import IntegrityError
 
 from social_core.storage import UserMixin, AssociationMixin, NonceMixin, \
-                                CodeMixin, BaseStorage
+                                CodeMixin, PartialMixin, BaseStorage
 
 
 class DjangoUserMixin(UserMixin):
@@ -166,6 +166,21 @@ class DjangoCodeMixin(CodeMixin):
             return cls.objects.get(code=code)
         except cls.DoesNotExist:
             return None
+
+
+class DjangoPartialMixin(PartialMixin):
+    @classmethod
+    def load(cls, token):
+        try:
+            return cls.objects.get(token=token)
+        except cls.DoesNotExist:
+            return None
+
+    @classmethod
+    def destroy(cls, token):
+        partial = cls.load(token)
+        if partial:
+            partial.delete()
 
 
 class BaseDjangoStorage(BaseStorage):
