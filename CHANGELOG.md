@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 - Partial pipeline DB storage implementation
+- Explicit app_label definition in model classes
 
 ### Changed
 - Monkey patch BaseAuth to load the current strategy to workaround django load_backend() call
