@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased](https://github.com/python-social-auth/social-app-django/commits/master)
 
+## [1.0.0](https://github.com/python-social-auth/social-app-django/releases/tag/1.0.0) - 2017-01-22
+
 ### Added
 - Partial pipeline DB storage implementation
 - Explicit app_label definition in model classes
