@@ -1,6 +1,7 @@
 # Python Social Auth - Django
 
 [![Build Status](https://travis-ci.org/python-social-auth/social-app-django.svg?branch=master)](https://travis-ci.org/python-social-auth/social-app-django)
+[![Donate](https://img.shields.io/badge/Donate-PayPal-orange.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=matiasaguirre%40gmail%2ecom&lc=US&item_name=Python%20Social%20Auth&no_note=0&currency_code=USD&bn=PP%2dDonationsBF%3abtn_donate_SM%2egif%3aNonHostedGuest)
 
 Python Social Auth is an easy to setup social authentication/registration
 mechanism with support for several frameworks and auth providers.
@@ -41,3 +42,10 @@ This project follows [Semantic Versioning 2.0.0](http://semver.org/spec/v2.0.0.h
 ## License
 
 This project follows the BSD license. See the [LICENSE](LICENSE) for details.
+
+## Donations
+
+This project is maintened on my spare time, consider donating to keep
+it improving.
+
+[![Donate](https://img.shields.io/badge/Donate-PayPal-orange.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=matiasaguirre%40gmail%2ecom&lc=US&item_name=Python%20Social%20Auth&no_note=0&currency_code=USD&bn=PP%2dDonationsBF%3abtn_donate_SM%2egif%3aNonHostedGuest)
