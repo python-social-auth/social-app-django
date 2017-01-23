@@ -61,7 +61,15 @@ class DjangoUserMixin(UserMixin):
         if 'username' in kwargs and username_field not in kwargs:
             kwargs[username_field] = kwargs.pop('username')
         try:
-            user = cls.user_model().objects.create_user(*args, **kwargs)
+            if hasattr(transaction, 'atomic'):
+                # In Django versions that have an "atomic" transaction decorator / context
+                # manager, there's a transaction wrapped around this call.
+                # If the create fails below due to an IntegrityError, ensure that the transaction
+                # stays undamaged by wrapping the create in an atomic.
+                with transaction.atomic():
+                    user = cls.user_model().objects.create_user(*args, **kwargs)
+            else:
+                user = cls.user_model().objects.create_user(*args, **kwargs)
         except IntegrityError:
             # User might have been created on a different thread, try and find them.
             # If we don't, re-raise the IntegrityError.
