@@ -7,7 +7,6 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
     replaces = [
-        ('default', '0005_auto_20160727_2333'),
         ('social_auth', '0005_auto_20160727_2333')
     ]
 
