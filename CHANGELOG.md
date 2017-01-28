@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Remove usage of set/get current strategy methods
 - Remove usage of `social_auth` related name since it should be consider a simple helper.
 - Remove migration replacement to nonexistent reference
+- Ensure atomic transaction if active
 
 ## [0.1.0](https://github.com/python-social-auth/social-app-django/releases/tag/0.1.0) - 2016-12-28
 
