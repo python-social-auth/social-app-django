@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased](https://github.com/python-social-auth/social-app-django/commits/master)
 
+### Changed
+- Remove migration replacement to nonexistent reference
+- Ensure atomic transaction if active
+
 ## [1.0.0](https://github.com/python-social-auth/social-app-django/releases/tag/1.0.0) - 2017-01-22
 
 ### Added
@@ -17,8 +21,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Monkey patch BaseAuth to load the current strategy to workaround django load_backend() call
 - Remove usage of set/get current strategy methods
 - Remove usage of `social_auth` related name since it should be consider a simple helper.
-- Remove migration replacement to nonexistent reference
-- Ensure atomic transaction if active
 
 ## [0.1.0](https://github.com/python-social-auth/social-app-django/releases/tag/0.1.0) - 2016-12-28
 
