@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased](https://github.com/python-social-auth/social-app-django/commits/master)
 
+## [1.0.1](https://github.com/python-social-auth/social-app-django/releases/tag/1.0.1) - 2017-01-29
+
 ### Changed
 - Remove migration replacement to nonexistent reference
 - Ensure atomic transaction if active
