@@ -114,6 +114,11 @@ class DjangoStrategy(BaseStrategy):
         kwargs['backend'] = backend
         return authenticate(*args, **kwargs)
 
+    def clean_authenticate_args(self, request=None, *args, **kwargs):
+        """Cleanup request argument if present, which is passed to
+        authenticate as for Django 1.11"""
+        return args, kwargs
+
     def session_get(self, name, default=None):
         return self.session.get(name, default)
 

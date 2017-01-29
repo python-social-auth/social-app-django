@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased](https://github.com/python-social-auth/social-app-django/commits/master)
 
+### Added
+- Authenticate cleanup method override to discard request parameter
+  getting passed starting from Django 1.11
+
 ## [1.0.1](https://github.com/python-social-auth/social-app-django/releases/tag/1.0.1) - 2017-01-29
 
 ### Changed
