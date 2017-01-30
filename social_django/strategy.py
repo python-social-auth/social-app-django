@@ -117,6 +117,8 @@ class DjangoStrategy(BaseStrategy):
     def clean_authenticate_args(self, request=None, *args, **kwargs):
         """Cleanup request argument if present, which is passed to
         authenticate as for Django 1.11"""
+        if request is not None:
+            kwargs['request'] = request
         return args, kwargs
 
     def session_get(self, name, default=None):
