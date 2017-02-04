@@ -28,6 +28,7 @@ contribution should be followed if you want to submit a pull request.
   coding style that is used already.
 * If possible, submit tests to your patch / new feature so it can be tested easily.
 * Assure nothing is broken by running all the tests.
+* Add a meaningful entry to the `CHANGELOG.md` document.
 
 ## Submit Changes
 
