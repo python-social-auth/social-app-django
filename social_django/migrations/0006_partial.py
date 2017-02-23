@@ -8,6 +8,11 @@ import social_django.storage
 
 
 class Migration(migrations.Migration):
+    
+    replaces = [
+        ('default', '0006_partial'),
+        ('social_auth', '0006_partial'),
+    ]
 
     dependencies = [
         ('social_django', '0005_auto_20160727_2333'),
