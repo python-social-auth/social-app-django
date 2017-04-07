@@ -100,7 +100,7 @@ class Migration(migrations.Migration):
                 ('uid', models.CharField(max_length=UID_LENGTH)),
                 ('extra_data', JSONField(default='{}')),
                 ('user', models.ForeignKey(
-                    related_name='social_auth', to=USER_MODEL)),
+                    related_name='social_auth', to=USER_MODEL, on_delete=models.CASCADE)),
             ],
             options={
                 'db_table': 'social_auth_usersocialauth',

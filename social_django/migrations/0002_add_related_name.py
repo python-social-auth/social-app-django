@@ -25,6 +25,8 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='usersocialauth',
             name='user',
-            field=models.ForeignKey(related_name='social_auth', to=USER_MODEL)
+            field=models.ForeignKey(
+                related_name='social_auth', to=USER_MODEL, on_delete=models.CASCADE,
+            )
         ),
     ]
