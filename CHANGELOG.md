@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased](https://github.com/python-social-auth/social-app-django/commits/master)
 
+### Added
+- Check for a `MAX_SESSION_LENGTH` setting when logging in and setting session expiry.
+
 ## [1.1.0](https://github.com/python-social-auth/social-app-django/releases/tag/1.1.0) - 2017-02-10
 
 ### Added
