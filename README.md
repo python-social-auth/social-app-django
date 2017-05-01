@@ -19,7 +19,7 @@ in a Django based project.
 This project will focus on the currently supported Django releases as
 stated on the [Django Project Supported Versions table](https://www.djangoproject.com/download/#supported-versions).
 
-Backward compatibility with unsupported versions won't be enforce.
+Backward compatibility with unsupported versions won't be enforced.
 
 ## Documentation
 
