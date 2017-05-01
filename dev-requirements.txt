@@ -1,0 +1,4 @@
+mock==2.0.0
+codecov==2.0.7
+tox==2.7.0
+-r requirements.txt
