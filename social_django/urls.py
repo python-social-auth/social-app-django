@@ -19,6 +19,6 @@ urlpatterns = [
     # disconnection
     url(r'^disconnect/(?P<backend>[^/]+){0}$'.format(extra), views.disconnect,
         name='disconnect'),
-    url(r'^disconnect/(?P<backend>[^/]+)/(?P<association_id>[^/]+){0}$'
+    url(r'^disconnect/(?P<backend>[^/]+)/(?P<association_id>\d+){0}$'
         .format(extra), views.disconnect, name='disconnect_individual'),
 ]
