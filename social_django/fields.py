@@ -24,7 +24,7 @@ else:
 
 field_class = functools.partial(six.with_metaclass, field_metaclass)
 
-if getattr(settings, 'SOCIAL_DJANGO_POSTGRES_JSONFIELD'):
+if getattr(settings, 'SOCIAL_DJANGO_POSTGRES_JSONFIELD', False):
     from django.contrib.postgres.fields import JSONField as JSONFieldBase
 else:
     JSONFieldBase = field_class(models.TextField)
