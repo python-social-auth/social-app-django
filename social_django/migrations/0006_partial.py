@@ -21,7 +21,7 @@ class Migration(migrations.Migration):
                 ('token', models.CharField(db_index=True, max_length=32)),
                 ('next_step', models.PositiveSmallIntegerField(default=0)),
                 ('backend', models.CharField(max_length=32)),
-                ('data', social_django.fields.JSONField(default={})),
+                ('data', social_django.fields.JSONField(default=dict)),
             ],
             options={
                 'db_table': 'social_auth_partial',
