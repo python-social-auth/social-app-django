@@ -15,8 +15,8 @@ try:
     from django.utils.deprecation import MiddlewareMixin
 except ImportError:
     MiddlewareMixin = object
- 
- 
+
+
 class SocialAuthExceptionMiddleware(MiddlewareMixin):
     """Middleware that handles Social Auth AuthExceptions by providing the user
     with a message, logging an error, and redirecting to some next location.
@@ -53,7 +53,7 @@ class SocialAuthExceptionMiddleware(MiddlewareMixin):
     def raise_exception(self, request, exception):
         strategy = getattr(request, 'social_strategy', None)
         if strategy is not None:
-            return strategy.setting('RAISE_EXCEPTIONS', settings.DEBUG)
+            return strategy.setting('RAISE_EXCEPTIONS') or settings.DEBUG
 
     def get_message(self, request, exception):
         return six.text_type(exception)
