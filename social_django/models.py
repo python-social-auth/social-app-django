@@ -122,6 +122,7 @@ class Partial(models.Model, DjangoPartialMixin):
     next_step = models.PositiveSmallIntegerField(default=0)
     backend = models.CharField(max_length=32)
     data = JSONField()
+    timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
 
     class Meta:
         app_label = "social_django"
