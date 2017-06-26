@@ -1,10 +1,23 @@
+
+import django
 from django.conf import settings
 from django.http import HttpResponse
 from django.db.models import Model
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.auth import authenticate
-from django.shortcuts import redirect, resolve_url
-from django.template import TemplateDoesNotExist, RequestContext, loader, engines
+from django.shortcuts import redirect
+from django.template import TemplateDoesNotExist, RequestContext, loader
+
+if django.VERSION < 1.7:
+    from django.shortcuts import resolve_url
+    from django.template import TemplateDoesNotExist, RequestContext, loader, engines
+else:
+    from .backwards import resolve_url
+    from django.template import TemplateDoesNotExist, RequestContext, loader
+    
+if django.VERSION < 1.8:
+    from django.template import engines
+
 from django.utils.encoding import force_text
 from django.utils.functional import Promise
 from django.utils.translation import get_language
