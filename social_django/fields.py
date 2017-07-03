@@ -82,3 +82,8 @@ class JSONField(field_class(models.TextField)):
     def value_from_object(self, obj):
         """Return value dumped to string."""
         return self.get_prep_value(self._get_val_from_obj(obj))
+    
+
+if 'south' in django.conf.settings.INSTALLED_APPS:    
+    from south.modelsinspector import add_introspection_rules
+    add_introspection_rules([], ["^social_django\.fields\.JSONField"])
