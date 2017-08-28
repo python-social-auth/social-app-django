@@ -4,7 +4,13 @@ from django.db.models import Model
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.auth import authenticate
 from django.shortcuts import redirect, resolve_url
-from django.template import TemplateDoesNotExist, RequestContext, loader, engines
+from django.template import TemplateDoesNotExist, RequestContext, loader
+try:
+    from django.template import engines
+except ImportError:
+    # Since get_template_from_string was removed & engines was added to
+    # django.templates in Django 1.8, versions < 1.8 doesn't need engines
+    pass
 from django.utils.encoding import force_text
 from django.utils.functional import Promise
 from django.utils.translation import get_language
