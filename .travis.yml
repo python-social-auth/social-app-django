@@ -6,7 +6,6 @@ python:
 env:
   - TOX_ENV=py35-django-18
   - TOX_ENV=py34-django-18
-  - TOX_ENV=py33-django-18
   - TOX_ENV=py27-django-18
   - TOX_ENV=py35-django-19
   - TOX_ENV=py34-django-19
@@ -17,9 +16,17 @@ env:
   - TOX_ENV=py35-django-111
   - TOX_ENV=py34-django-111
   - TOX_ENV=py27-django-111
+  - TOX_ENV=py35-django-20
 
 matrix:
   fast_finish: true
+  include:
+    - python: 3.3
+      env: TOX_ENV=py33-django-18
+    - python: 3.6
+      env: TOX_ENV=py36-django-111
+    - python: 3.6
+      env: TOX_ENV=py36-django-20
 
 install: pip install -r dev-requirements.txt
 
