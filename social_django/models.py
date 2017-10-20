@@ -109,6 +109,7 @@ class Code(models.Model, DjangoCodeMixin):
     email = models.EmailField(max_length=EMAIL_LENGTH)
     code = models.CharField(max_length=32, db_index=True)
     verified = models.BooleanField(default=False)
+    timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
 
     class Meta:
         app_label = "social_django"
@@ -121,6 +122,7 @@ class Partial(models.Model, DjangoPartialMixin):
     next_step = models.PositiveSmallIntegerField(default=0)
     backend = models.CharField(max_length=32)
     data = JSONField()
+    timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
 
     class Meta:
         app_label = "social_django"
