@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Better default when checking if the middleware should raise the exception
 - Update `JSONField` default value to `dict` callable
 - Update `JSONField` to support PostgreSQL builtin option if configured
+- Updated `authenticate()` parameters cleanup to avoid double arguments errors
 
 ## [1.2.0](https://github.com/python-social-auth/social-app-django/releases/tag/1.2.0) - 2017-05-06
 
