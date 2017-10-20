@@ -3,11 +3,11 @@
 from __future__ import unicode_literals
 
 from django.db import migrations, models
-import django.utils.timezone
+
+from django.utils import timezone
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ('social_django', '0007_code_timestamp'),
     ]
@@ -16,7 +16,9 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='partial',
             name='timestamp',
-            field=models.DateTimeField(auto_now_add=True, db_index=True, default=django.utils.timezone.now),
+            field=models.DateTimeField(auto_now_add=True,
+                                       db_index=True,
+                                       default=timezone.now),
             preserve_default=False,
         ),
     ]
