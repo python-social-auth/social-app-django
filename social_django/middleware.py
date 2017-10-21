@@ -45,10 +45,12 @@ class SocialAuthExceptionMiddleware(MiddlewareMixin):
                 messages.error(request, message,
                                extra_tags='social-auth ' + backend_name)
             except MessageFailure:
-                url += ('?' in url and '&' or '?') + \
-                       'message={0}&backend={1}'.format(urlquote(message),
-                                                        backend_name)
-            return redirect(url)
+                if url:
+                    url += ('?' in url and '&' or '?') + \
+                           'message={0}&backend={1}'.format(urlquote(message),
+                                                            backend_name)
+            if url:
+                return redirect(url)
 
     def raise_exception(self, request, exception):
         strategy = getattr(request, 'social_strategy', None)
