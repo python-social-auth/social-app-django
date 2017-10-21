@@ -3,11 +3,8 @@ import mock
 
 from django.test import Client
 from django.test import TestCase
-try:
-    from django.urls import reverse
-except ImportError:
-    from django.core.urlresolvers import reverse
 
+from social_django.compat import reverse
 from social_django.views import get_session_timeout
 
 
@@ -22,6 +19,7 @@ class TestConfig(TestCase):
     def test_begin_view(self):
         response = self.client.get(reverse('social:begin', kwargs={'backend': 'facebook'}))
         self.assertEqual(response.status_code, 302)
+
 
 class TestGetSessionTimeout(TestCase):
     """

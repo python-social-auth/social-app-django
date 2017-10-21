@@ -1,5 +1,5 @@
 from django.conf import settings
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpRequest
 from django.db.models import Model
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.auth import authenticate
@@ -114,11 +114,11 @@ class DjangoStrategy(BaseStrategy):
         kwargs['backend'] = backend
         return authenticate(*args, **kwargs)
 
-    def clean_authenticate_args(self, request=None, *args, **kwargs):
+    def clean_authenticate_args(self, *args, **kwargs):
         """Cleanup request argument if present, which is passed to
         authenticate as for Django 1.11"""
-        if request is not None:
-            kwargs['request'] = request
+        if len(args) > 0 and isinstance(args[0], HttpRequest):
+            kwargs['request'], args = args[0], args[1:]
         return args, kwargs
 
     def session_get(self, name, default=None):
