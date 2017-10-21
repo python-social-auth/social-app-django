@@ -8,8 +8,6 @@ if django.VERSION >= (2, 0):
 else:
     from django.core.urlresolvers import reverse
 
-assert reverse
-
 
 def get_rel_model(field):
     if django.VERSION >= (2, 0):
@@ -18,6 +16,5 @@ def get_rel_model(field):
     user_model = field.rel.to
     if isinstance(user_model, six.string_types):
         app_label, model_name = user_model.split('.')
-        return models.get_model(app_label, model_name)
-
+        user_model = models.get_model(app_label, model_name)
     return user_model
