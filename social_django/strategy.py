@@ -16,10 +16,7 @@ def render_template_string(request, html, context=None):
     """Take a template in the form of a string and render it for the
     given context"""
     context = context or {}
-    try:
-        template = loader.get_template_from_string(html)
-    except AttributeError:  # get_template_from_string was removed in 1.8
-        template = engines['django'].from_string(html)
+    template = engines['django'].from_string(html)
     return template.render(RequestContext(request, context))
 
 
@@ -142,12 +139,8 @@ class DjangoStrategy(BaseStrategy):
             return path
 
     def random_string(self, length=12, chars=BaseStrategy.ALLOWED_CHARS):
-        try:
-            from django.utils.crypto import get_random_string
-        except ImportError:  # django < 1.4
-            return super(DjangoStrategy, self).random_string(length, chars)
-        else:
-            return get_random_string(length, chars)
+        from django.utils.crypto import get_random_string
+        return get_random_string(length, chars)
 
     def to_session_value(self, val):
         """Converts values that are instance of Model to a dictionary
