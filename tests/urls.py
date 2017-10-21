@@ -1,8 +1,9 @@
 # -*- coding: utf-8
 from django.conf.urls import url, include
+from .compat import admin_urls
 
-from social_django.urls import urlpatterns as social_django_urls
 
 urlpatterns = [
-    url(r'^', include(social_django_urls, namespace='social')),
+    url(r'^admin/', admin_urls),
+    url(r'^', include('social_django.urls', namespace='social')),
 ]

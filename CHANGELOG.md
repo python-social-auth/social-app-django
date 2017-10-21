@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Update `JSONField` default value to `dict` callable
 - Update `JSONField` to support PostgreSQL builtin option if configured
 - Updated `authenticate()` parameters cleanup to avoid double arguments errors
+- Fix imports to bring Django 2.0 support
 
 ## [1.2.0](https://github.com/python-social-auth/social-app-django/releases/tag/1.2.0) - 2017-05-06
 
