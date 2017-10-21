@@ -8,6 +8,11 @@ if django.VERSION >= (2, 0):
 else:
     from django.core.urlresolvers import reverse
 
+if django.VERSION >= (1, 10):
+    from django.utils.deprecation import MiddlewareMixin
+else:
+    MiddlewareMixin = object
+
 
 def get_rel_model(field):
     if django.VERSION >= (2, 0):
