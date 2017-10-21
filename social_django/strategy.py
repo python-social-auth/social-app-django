@@ -26,7 +26,7 @@ class DjangoTemplateStrategy(BaseTemplateStrategy):
         return template.render(RequestContext(self.strategy.request, context))
 
     def render_string(self, html, context):
-        return render_template_string(self.stratgy.request, html, context)
+        return render_template_string(self.strategy.request, html, context)
 
 
 class DjangoStrategy(BaseStrategy):
