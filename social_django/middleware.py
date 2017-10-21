@@ -9,12 +9,7 @@ from django.utils.http import urlquote
 
 from social_core.exceptions import SocialAuthBaseException
 from social_core.utils import social_logger
-
-
-try:
-    from django.utils.deprecation import MiddlewareMixin
-except ImportError:
-    MiddlewareMixin = object
+from .compat import MiddlewareMixin
 
 
 class SocialAuthExceptionMiddleware(MiddlewareMixin):
