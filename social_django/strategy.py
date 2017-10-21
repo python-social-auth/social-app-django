@@ -10,6 +10,7 @@ from django.utils.functional import Promise
 from django.utils.translation import get_language
 
 from social_core.strategy import BaseStrategy, BaseTemplateStrategy
+from .compat import get_request_port
 
 
 def render_template_string(request, html, context=None):
@@ -72,14 +73,7 @@ class DjangoStrategy(BaseStrategy):
 
     def request_port(self):
         """Port in use for this request"""
-        try:  # django >= 1.9
-            return self.request.get_port()
-        except AttributeError:  # django < 1.9
-            host_parts = self.request.get_host().split(':')
-            try:
-                return host_parts[1]
-            except IndexError:
-                return self.request.META['SERVER_PORT']
+        return get_request_port(request=self.request)
 
     def request_get(self):
         """Request GET data"""
