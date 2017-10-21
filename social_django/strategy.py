@@ -1,10 +1,11 @@
+# coding=utf-8
 from django.conf import settings
 from django.http import HttpResponse, HttpRequest
 from django.db.models import Model
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.auth import authenticate
 from django.shortcuts import redirect, resolve_url
-from django.template import TemplateDoesNotExist, RequestContext, loader, engines
+from django.template import TemplateDoesNotExist, loader, engines
 from django.utils.encoding import force_text
 from django.utils.functional import Promise
 from django.utils.translation import get_language
@@ -16,15 +17,14 @@ from .compat import get_request_port
 def render_template_string(request, html, context=None):
     """Take a template in the form of a string and render it for the
     given context"""
-    context = context or {}
     template = engines['django'].from_string(html)
-    return template.render(RequestContext(request, context))
+    return template.render(context=context, request=request)
 
 
 class DjangoTemplateStrategy(BaseTemplateStrategy):
     def render_template(self, tpl, context):
         template = loader.get_template(tpl)
-        return template.render(RequestContext(self.strategy.request, context))
+        return template.render(context=context, request=self.strategy.request)
 
     def render_string(self, html, context):
         return render_template_string(self.strategy.request, html, context)
@@ -95,7 +95,7 @@ class DjangoStrategy(BaseStrategy):
         context = context or {}
         try:
             template = loader.get_template(tpl)
-            return template.render(RequestContext(self.request, context))
+            return template.render(context=context, request=self.request)
         except TemplateDoesNotExist:
             return render_template_string(self.request, html, context)
 
