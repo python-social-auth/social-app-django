@@ -1,7 +1,7 @@
 __version__ = '1.2.0'
 
-
 from social_core.backends.base import BaseAuth
+
 
 # django.contrib.auth.load_backend() will import and instanciate the
 # authentication backend ignoring the possibility that it might
@@ -19,3 +19,6 @@ def baseauth_init_workaround(original_init):
 if not getattr(BaseAuth, '__init_patched', False):
     BaseAuth.__init__ = baseauth_init_workaround(BaseAuth.__init__)
     BaseAuth.__init_patched = True
+
+
+default_app_config = 'social_django.config.PythonSocialAuthConfig'
