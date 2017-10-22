@@ -16,7 +16,7 @@ else:
 
 def get_rel_model(field):
     if django.VERSION >= (2, 0):
-        return field.model
+        return field.remote_field.model
 
     user_model = field.rel.to
     if isinstance(user_model, six.string_types):
