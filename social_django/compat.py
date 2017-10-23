@@ -23,3 +23,11 @@ def get_rel_model(field):
         app_label, model_name = user_model.split('.')
         user_model = models.get_model(app_label, model_name)
     return user_model
+
+
+def get_request_port(request):
+    if django.VERSION >= (1, 9):
+        return request.get_port()
+
+    host_parts = request.get_host().partition(':')
+    return host_parts[2] or request.META['SERVER_PORT']

@@ -1,35 +1,34 @@
+# coding=utf-8
 from django.conf import settings
 from django.http import HttpResponse, HttpRequest
 from django.db.models import Model
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.auth import authenticate
 from django.shortcuts import redirect, resolve_url
-from django.template import TemplateDoesNotExist, RequestContext, loader, engines
+from django.template import TemplateDoesNotExist, loader, engines
+from django.utils.crypto import get_random_string
 from django.utils.encoding import force_text
 from django.utils.functional import Promise
 from django.utils.translation import get_language
 
 from social_core.strategy import BaseStrategy, BaseTemplateStrategy
+from .compat import get_request_port
 
 
 def render_template_string(request, html, context=None):
     """Take a template in the form of a string and render it for the
     given context"""
-    context = context or {}
-    try:
-        template = loader.get_template_from_string(html)
-    except AttributeError:  # get_template_from_string was removed in 1.8
-        template = engines['django'].from_string(html)
-    return template.render(RequestContext(request, context))
+    template = engines['django'].from_string(html)
+    return template.render(context=context, request=request)
 
 
 class DjangoTemplateStrategy(BaseTemplateStrategy):
     def render_template(self, tpl, context):
         template = loader.get_template(tpl)
-        return template.render(RequestContext(self.strategy.request, context))
+        return template.render(context=context, request=self.strategy.request)
 
     def render_string(self, html, context):
-        return render_template_string(self.stratgy.request, html, context)
+        return render_template_string(self.strategy.request, html, context)
 
 
 class DjangoStrategy(BaseStrategy):
@@ -75,14 +74,7 @@ class DjangoStrategy(BaseStrategy):
 
     def request_port(self):
         """Port in use for this request"""
-        try:  # django >= 1.9
-            return self.request.get_port()
-        except AttributeError:  # django < 1.9
-            host_parts = self.request.get_host().split(':')
-            try:
-                return host_parts[1]
-            except IndexError:
-                return self.request.META['SERVER_PORT']
+        return get_request_port(request=self.request)
 
     def request_get(self):
         """Request GET data"""
@@ -104,7 +96,7 @@ class DjangoStrategy(BaseStrategy):
         context = context or {}
         try:
             template = loader.get_template(tpl)
-            return template.render(RequestContext(self.request, context))
+            return template.render(context=context, request=self.request)
         except TemplateDoesNotExist:
             return render_template_string(self.request, html, context)
 
@@ -142,12 +134,7 @@ class DjangoStrategy(BaseStrategy):
             return path
 
     def random_string(self, length=12, chars=BaseStrategy.ALLOWED_CHARS):
-        try:
-            from django.utils.crypto import get_random_string
-        except ImportError:  # django < 1.4
-            return super(DjangoStrategy, self).random_string(length, chars)
-        else:
-            return get_random_string(length, chars)
+        return get_random_string(length, chars)
 
     def to_session_value(self, val):
         """Converts values that are instance of Model to a dictionary
