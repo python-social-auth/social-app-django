@@ -6,6 +6,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.contrib.auth import authenticate
 from django.shortcuts import redirect, resolve_url
 from django.template import TemplateDoesNotExist, loader, engines
+from django.utils.crypto import get_random_string
 from django.utils.encoding import force_text
 from django.utils.functional import Promise
 from django.utils.translation import get_language
@@ -133,7 +134,6 @@ class DjangoStrategy(BaseStrategy):
             return path
 
     def random_string(self, length=12, chars=BaseStrategy.ALLOWED_CHARS):
-        from django.utils.crypto import get_random_string
         return get_random_string(length, chars)
 
     def to_session_value(self, val):
