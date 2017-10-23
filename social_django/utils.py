@@ -49,19 +49,3 @@ def psa(redirect_uri=None, load_strategy=load_strategy):
             return func(request, backend, *args, **kwargs)
         return wrapper
     return decorator
-
-
-def setting(name, default=None):
-    try:
-        return getattr(settings, setting_name(name))
-    except AttributeError:
-        return getattr(settings, name, default)
-
-
-class BackendWrapper(object):
-    # XXX: Deprecated, restored to avoid session issues
-    def authenticate(self, *args, **kwargs):
-        return None
-
-    def get_user(self, user_id):
-        return Strategy(storage=Storage).get_user(user_id)
