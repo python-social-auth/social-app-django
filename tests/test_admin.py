@@ -20,7 +20,7 @@ class SocialAdminTest(TestCase):
         """The App name in the admin index page"""
         self.client.login(username='admin', password='super-duper-test')
         response = self.client.get(reverse('admin:index'))
-        self.assertContains(response, "Social_Django")
+        self.assertContains(response, "Python Social Auth")
 
     def test_social_auth_changelist(self):
         """The App name in the admin index page"""

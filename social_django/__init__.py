@@ -19,3 +19,5 @@ def baseauth_init_workaround(original_init):
 if not getattr(BaseAuth, '__init_patched', False):
     BaseAuth.__init__ = baseauth_init_workaround(BaseAuth.__init__)
     BaseAuth.__init_patched = True
+
+default_app_config = 'social_django.config.PythonSocialAuthConfig'
