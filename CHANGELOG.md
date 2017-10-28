@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased](https://github.com/python-social-auth/social-app-django/commits/master)
 
+## [2.0.0](https://github.com/python-social-auth/social-app-django/releases/tag/2.0.0) - 2017-10-28
+
 ### Changed
 - Better default when checking if the middleware should raise the exception
 - Update `JSONField` default value to `dict` callable
@@ -21,7 +23,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Added `JSONField` support PostgreSQL builtin option if configured
 - Added strategy / models / views tests
 - Added timestamps to Partial and Code models
-
 
 ## [1.2.0](https://github.com/python-social-auth/social-app-django/releases/tag/1.2.0) - 2017-05-06
 
