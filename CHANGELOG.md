@@ -10,9 +10,18 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Changed
 - Better default when checking if the middleware should raise the exception
 - Update `JSONField` default value to `dict` callable
-- Update `JSONField` to support PostgreSQL builtin option if configured
 - Updated `authenticate()` parameters cleanup to avoid double arguments errors
 - Fix imports to bring Django 2.0 support
+- Admin friendly label
+- Old Django versions (1.8 and below) compatibility dropped
+- Python 3.6 and Django 2.0 tests
+- Management command to clean stale data (partial sessions and codes)
+
+### Added
+- Added `JSONField` support PostgreSQL builtin option if configured
+- Added strategy / models / views tests
+- Added timestamps to Partial and Code models
+
 
 ## [1.2.0](https://github.com/python-social-auth/social-app-django/releases/tag/1.2.0) - 2017-05-06
 
