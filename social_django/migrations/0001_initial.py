@@ -24,6 +24,25 @@ ASSOCIATION_HANDLE_LENGTH = getattr(
     settings, setting_name('ASSOCIATION_HANDLE_LENGTH'), 255
 )
 
+def delete_existing(apps, schema_editor):
+    from django.db import connection
+
+    table_names = [
+        'social_auth_association',
+        'social_auth_nonce',
+        'social_auth_usersocialauth',
+    ]
+    for x in table_names:
+        # drop the table using sql
+        # no worry about sql injection
+        # since this query is being generated
+        # by us
+        sql = 'drop table if exists %s' % (x,)
+        schema_editor.execute(sql)
+
+
+def backwards(apps, schema_editor):
+    pass
 
 class Migration(migrations.Migration):
     replaces = [
@@ -36,6 +55,7 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        migrations.RunPython(delete_existing, backwards),
         migrations.CreateModel(
             name='Association',
             fields=[
