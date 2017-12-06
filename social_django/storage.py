@@ -96,7 +96,8 @@ class DjangoUserMixin(UserMixin):
     def get_users_by_email(cls, email):
         user_model = cls.user_model()
         email_field = getattr(user_model, 'EMAIL_FIELD', 'email')
-        return user_model.objects.filter(**{email_field + '__iexact': email})
+        active_field = getattr(user_model, 'ACTIVE_FIELD', 'is_active')
+        return user_model.objects.filter(**{email_field + '__iexact': email,active_field: True})
 
     @classmethod
     def get_social_auth(cls, provider, uid):
