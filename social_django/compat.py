@@ -3,14 +3,15 @@ import six
 import django
 from django.db import models
 
-if django.VERSION >= (2, 0):
+
+try:
     from django.urls import reverse
-else:
+except ImportError:
     from django.core.urlresolvers import reverse
 
-if django.VERSION >= (1, 10):
+try:
     from django.utils.deprecation import MiddlewareMixin
-else:
+except ImportError:
     MiddlewareMixin = object
 
 
