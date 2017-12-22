@@ -1,7 +1,6 @@
-from six.moves.urllib_parse import quote
-
 from django.contrib.auth import REDIRECT_FIELD_NAME
 from django.utils.functional import SimpleLazyObject
+from django.utils.http import urlquote
 
 try:
     from django.utils.functional import empty as _empty
@@ -41,7 +40,7 @@ def login_redirect(request):
                 request.POST.get(REDIRECT_FIELD_NAME) or \
                 request.GET.get(REDIRECT_FIELD_NAME)
     if value:
-        value = quote(value)
+        value = urlquote(value)
         querystring = REDIRECT_FIELD_NAME + '=' + value
     else:
         querystring = ''
