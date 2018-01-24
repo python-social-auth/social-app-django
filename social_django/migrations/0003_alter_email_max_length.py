@@ -10,10 +10,6 @@ EMAIL_LENGTH = getattr(settings, setting_name('EMAIL_LENGTH'), 254)
 
 
 class Migration(migrations.Migration):
-    replaces = [
-        ('default', '0003_alter_email_max_length'),
-        ('social_auth', '0003_alter_email_max_length')
-    ]
 
     dependencies = [
         ('social_django', '0002_add_related_name'),

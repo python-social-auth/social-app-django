@@ -7,10 +7,6 @@ from ..fields import JSONField
 
 
 class Migration(migrations.Migration):
-    replaces = [
-        ('default', '0004_auto_20160423_0400'),
-        ('social_auth', '0004_auto_20160423_0400')
-    ]
 
     dependencies = [
         ('social_django', '0003_alter_email_max_length'),
