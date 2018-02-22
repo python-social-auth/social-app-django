@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased](https://github.com/python-social-auth/social-app-django/commits/master)
 
+### Changed
+- Reduce log level of exceptions to `INFO` if messages app is installed
+
 ## [2.1.0](https://github.com/python-social-auth/social-app-django/releases/tag/2.1.0) - 2017-12-22
 
 ### Changed
