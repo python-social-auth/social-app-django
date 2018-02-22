@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import six
 
+from django.apps import apps
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.messages.api import MessageFailure
@@ -33,17 +34,21 @@ class SocialAuthExceptionMiddleware(MiddlewareMixin):
             backend_name = getattr(backend, 'name', 'unknown-backend')
 
             message = self.get_message(request, exception)
-            social_logger.error(message)
-
             url = self.get_redirect_uri(request, exception)
-            try:
-                messages.error(request, message,
-                               extra_tags='social-auth ' + backend_name)
-            except MessageFailure:
-                if url:
-                    url += ('?' in url and '&' or '?') + \
-                           'message={0}&backend={1}'.format(urlquote(message),
-                                                            backend_name)
+
+            if apps.is_installed('django.contrib.messages'):
+                social_logger.info(message)
+                try:
+                    messages.error(request, message,
+                                   extra_tags='social-auth ' + backend_name)
+                except MessageFailure:
+                    if url:
+                        url += ('?' in url and '&' or '?') + \
+                               'message={0}&backend={1}'.format(urlquote(message),
+                                                                backend_name)
+            else:
+                social_logger.error(message)
+
             if url:
                 return redirect(url)
 
