@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- encoding: utf-8 -*-
 from django.conf import settings
 from django.http import HttpResponse, HttpRequest
 from django.db.models import Model
@@ -104,6 +104,7 @@ class DjangoStrategy(BaseStrategy):
         kwargs['strategy'] = self
         kwargs['storage'] = self.storage
         kwargs['backend'] = backend
+        print('Return User')
         return authenticate(*args, **kwargs)
 
     def clean_authenticate_args(self, *args, **kwargs):
