@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- encoding: utf-8 -*-
 from functools import wraps
 
 from django.conf import settings
