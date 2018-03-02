@@ -104,7 +104,8 @@ class DjangoStrategy(BaseStrategy):
         kwargs['strategy'] = self
         kwargs['storage'] = self.storage
         kwargs['backend'] = backend
-        print('Return User')
+        print('Error :(')
+        print(kwargs['response']['name'])
         return authenticate(*args, **kwargs)
 
     def clean_authenticate_args(self, *args, **kwargs):
