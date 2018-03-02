@@ -104,9 +104,12 @@ class DjangoStrategy(BaseStrategy):
         kwargs['strategy'] = self
         kwargs['storage'] = self.storage
         kwargs['backend'] = backend
-        re_name = kwargs['response']['name']
-        re_name = u''.join((re_name)).encode('utf-8').strip()
-        kwargs['response']['name'] = re_name
+        try:
+            re_name = kwargs['response']['name']
+            re_name = u''.join((re_name)).encode('utf-8').strip()
+            kwargs['response']['name'] = re_name
+        except KeyError:
+            print('skip decoding')
         return authenticate(*args, **kwargs)
 
     def clean_authenticate_args(self, *args, **kwargs):
