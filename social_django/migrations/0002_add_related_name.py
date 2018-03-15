@@ -6,7 +6,7 @@ from django.conf import settings
 
 from social_core.utils import setting_name
 
-import social.storage.django_orm
+from ..storage import DjangoCodeMixin
 
 USER_MODEL = getattr(settings, setting_name('USER_MODEL'), None) or \
              getattr(settings, 'AUTH_USER_MODEL', None) or \
@@ -37,7 +37,7 @@ class Migration(migrations.Migration):
             options={
                 'db_table': 'social_auth_code',
             },
-            bases=(models.Model, social.storage.django_orm.DjangoCodeMixin),
+            bases=(models.Model, DjangoCodeMixin),
         ),
         migrations.AlterField(
             model_name='usersocialauth',
