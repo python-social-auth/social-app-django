@@ -16,7 +16,7 @@ except ImportError:
 
 
 def get_rel_model(field):
-    if django.VERSION >= (2, 0):
+    if django.VERSION >= (1, 9):
         return field.remote_field.model
 
     user_model = field.rel.to
