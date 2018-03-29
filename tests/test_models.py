@@ -188,6 +188,7 @@ class TestAssociation(TestCase):
 
         qs = Association.get(handle='a')
         self.assertEqual(qs.count(), 1)
+        self.assertEqual(qs[0].secret, 'Yg==\n')
 
         Association.remove(ids_to_delete=[qs.first().id])
         self.assertEqual(Association.objects.count(), 0)

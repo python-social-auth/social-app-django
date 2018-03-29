@@ -152,7 +152,7 @@ class DjangoAssociationMixin(AssociationMixin):
         except cls.DoesNotExist:
             assoc = cls(server_url=server_url,
                         handle=association.handle)
-        assoc.secret = base64.encodestring(association.secret)
+        assoc.secret = base64.encodestring(association.secret).decode()
         assoc.issued = association.issued
         assoc.lifetime = association.lifetime
         assoc.assoc_type = association.assoc_type
