@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Use Django `urlquote` since it handles unicode
 - Remove version check in favor of import error catch
 - Remove call to deprecated method `_get_val_from_obj()`
+- Drop Python 3.3 support
 
 ## [2.0.0](https://github.com/python-social-auth/social-app-django/releases/tag/2.0.0) - 2017-10-28
 
