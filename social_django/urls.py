@@ -14,7 +14,7 @@ urlpatterns = [
     # authentication / association
     url(r'^login/(?P<backend>[^/]+){0}$'.format(extra), views.auth,
         name='begin'),
-    url(r'^complete/(?P<backend>[^/]+){0}$'.format(extra), views.complete,
+    url(r'^complete/(?P<backend>\w+)$'.format(extra), views.complete,
         name='complete'),
     # disconnection
     url(r'^disconnect/(?P<backend>[^/]+){0}$'.format(extra), views.disconnect,
