@@ -2,6 +2,7 @@
 import base64
 import six
 import sys
+from django.core.exceptions import FieldDoesNotExist
 from django.db import transaction
 from django.db.utils import IntegrityError
 
@@ -58,8 +59,16 @@ class DjangoUserMixin(UserMixin):
     @classmethod
     def create_user(cls, *args, **kwargs):
         username_field = cls.username_field()
-        if 'username' in kwargs and username_field not in kwargs:
-            kwargs[username_field] = kwargs.pop('username')
+        if 'username' in kwargs:
+            if username_field not in kwargs:
+                kwargs[username_field] = kwargs.pop('username')
+            else:
+                # If username_field is 'email' and there is no field named "username"
+                # then latest should be removed from kwargs.
+                try:
+                    cls.user_model()._meta.get_field('username')
+                except FieldDoesNotExist:
+                    kwargs.pop('username')
         try:
             if hasattr(transaction, 'atomic'):
                 # In Django versions that have an "atomic" transaction decorator / context
