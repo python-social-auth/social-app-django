@@ -10,7 +10,6 @@ from social_core.backends.utils import get_backend
 from django.urls import reverse
 
 
-BACKENDS = settings.AUTHENTICATION_BACKENDS
 STRATEGY = getattr(settings, setting_name('STRATEGY'),
                    'social_django.strategy.DjangoStrategy')
 STORAGE = getattr(settings, setting_name('STORAGE'),
@@ -24,7 +23,7 @@ def load_strategy(request=None):
 
 
 def load_backend(strategy, name, redirect_uri):
-    Backend = get_backend(BACKENDS, name)
+    Backend = get_backend(settings.AUTHENTICATION_BACKENDS, name)
     return Backend(strategy, redirect_uri)
 
 
