@@ -7,8 +7,19 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased](https://github.com/python-social-auth/social-app-django/commits/master)
 
+## [3.0.0](https://github.com/python-social-auth/social-app-django/releases/tag/2.1.0) - 2018-10-28
+
 ### Changed
 - Reduce log level of exceptions to `INFO` if messages app is installed
+- Encode association secret with `encodebytes` if available
+- Decode association secret for proper storage
+- Remove obsolete code from JSONField
+- Pass `user` as keyword argument to `do_complete`
+- Cleanup `username` when using email as username
+- Drop Python 3.3 support
+- Correct spelling errors
+- Correct version that renamed `field.rel`
+- Reduce error logs in `SocialAuthExceptionMiddleware`
 
 ## [2.1.0](https://github.com/python-social-auth/social-app-django/releases/tag/2.1.0) - 2017-12-22
 
