@@ -1,35 +1,17 @@
 import json
 import six
-import functools
-
-import django
 
 from django.core.exceptions import ValidationError
 from django.conf import settings
 from django.db import models
+from django.utils.encoding import force_text
 
 from social_core.utils import setting_name
-
-try:
-    from django.utils.encoding import smart_unicode as smart_text
-    smart_text  # placate pyflakes
-except ImportError:
-    from django.utils.encoding import smart_text
-
-# SubfieldBase causes RemovedInDjango110Warning in 1.8 and 1.9, and
-# will not work in 1.10 or later
-if django.VERSION[:2] >= (1, 8):
-    field_metaclass = type
-else:
-    from django.db.models import SubfieldBase
-    field_metaclass = SubfieldBase
-
-field_class = functools.partial(six.with_metaclass, field_metaclass)
 
 if getattr(settings, setting_name('POSTGRES_JSONFIELD'), False):
     from django.contrib.postgres.fields import JSONField as JSONFieldBase
 else:
-    JSONFieldBase = field_class(models.TextField)
+    JSONFieldBase = models.TextField
 
 
 class JSONField(JSONFieldBase):
@@ -56,10 +38,6 @@ class JSONField(JSONFieldBase):
             value = six.text_type(value, 'utf-8')
         if isinstance(value, six.string_types):
             try:
-                # with django 1.6 i have '"{}"' as default value here
-                if value[0] == value[-1] == '"':
-                    value = value[1:-1]
-
                 return json.loads(value)
             except Exception as err:
                 raise ValidationError(str(err))
@@ -85,7 +63,7 @@ class JSONField(JSONFieldBase):
 
     def value_to_string(self, obj):
         """Return value from object converted to string properly"""
-        return smart_text(self.value_from_object(obj))
+        return force_text(self.value_from_object(obj))
 
     def value_from_object(self, obj):
         """Return value dumped to string."""
