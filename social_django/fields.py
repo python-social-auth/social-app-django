@@ -23,7 +23,7 @@ class JSONField(JSONFieldBase):
         kwargs.setdefault('default', dict)
         super(JSONField, self).__init__(*args, **kwargs)
 
-    def from_db_value(self, value, expression, connection, context):
+    def from_db_value(self, value, *args, **kwargs):
         return self.to_python(value)
 
     def to_python(self, value):
@@ -69,4 +69,3 @@ class JSONField(JSONFieldBase):
         """Return value dumped to string."""
         orig_val = super(JSONField, self).value_from_object(obj)
         return self.get_prep_value(orig_val)
-
