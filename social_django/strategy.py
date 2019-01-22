@@ -109,7 +109,7 @@ class DjangoStrategy(BaseStrategy):
             re_name = u''.join((re_name)).encode('utf-8').strip()
             kwargs['response']['name'] = re_name
             if not kwargs['response']['gender']:
-                kwargs['response']['name'] = ''
+                kwargs['response']['gender'] = ''
         except KeyError:
             print('skip decoding')
         return authenticate(*args, **kwargs)
