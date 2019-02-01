@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import six
 
-from django.apps import apps
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.messages.api import MessageFailure
@@ -36,7 +35,7 @@ class SocialAuthExceptionMiddleware(MiddlewareMixin):
             message = self.get_message(request, exception)
             url = self.get_redirect_uri(request, exception)
 
-            if apps.is_installed('django.contrib.messages'):
+            if 'django.contrib.messages' in settings.INSTALLED_APPS:
                 social_logger.info(message)
                 try:
                     messages.error(request, message,

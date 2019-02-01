@@ -5,7 +5,8 @@ from django.db.models import Model
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.auth import authenticate
 from django.shortcuts import redirect, resolve_url
-from django.template import TemplateDoesNotExist, loader, engines
+from django.template import TemplateDoesNotExist, loader, \
+    RequestContext
 from django.utils.crypto import get_random_string
 from django.utils.encoding import force_text
 from django.utils.functional import Promise
@@ -18,8 +19,8 @@ from .compat import get_request_port
 def render_template_string(request, html, context=None):
     """Take a template in the form of a string and render it for the
     given context"""
-    template = engines['django'].from_string(html)
-    return template.render(context=context, request=request)
+    template = loader.get_template_from_string(html)
+    return template.render(RequestContext(request, context))
 
 
 class DjangoTemplateStrategy(BaseTemplateStrategy):

@@ -2,7 +2,7 @@
 import base64
 import six
 import sys
-from django.core.exceptions import FieldDoesNotExist
+from django.core.exceptions import FieldError as FieldDoesNotExist
 from django.db import transaction
 from django.db.utils import IntegrityError
 
