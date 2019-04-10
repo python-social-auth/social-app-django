@@ -97,7 +97,7 @@ class DjangoStrategy(BaseStrategy):
         try:
             template = loader.get_template(tpl)
             return template.render(context=context, request=self.request)
-        except TemplateDoesNotExist:
+        except (TypeError, TemplateDoesNotExist):
             return render_template_string(self.request, html, context)
 
     def authenticate(self, backend, *args, **kwargs):
