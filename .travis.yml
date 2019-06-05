@@ -16,8 +16,9 @@ env:
   - TOX_ENV=py35-django-111
   - TOX_ENV=py34-django-111
   - TOX_ENV=py27-django-111
-  - TOX_ENV=py35-django-master
+  - TOX_ENV=py34-django-20
   - TOX_ENV=py35-django-20
+  - TOX_ENV=py35-django-21
 
 matrix:
   fast_finish: true
@@ -25,12 +26,30 @@ matrix:
     - python: 3.6
       env: TOX_ENV=py36-django-111
     - python: 3.6
-      env: TOX_ENV=py36-django-master
+      env: TOX_ENV=py36-django-20,py36-django-21
+    - python: 3.5
+      env: TOX_ENV=py35-django-22
+      dist: xenial
+      sudo: true
     - python: 3.6
-      env: TOX_ENV=py36-django-20
+      dist: xenial
+      sudo: true
+      env: TOX_ENV=py36-django-22
+    - python: 3.6
+      dist: xenial
+      sudo: true
+      env: TOX_ENV=py36-django-master
+    - python: 3.7
+      env: TOX_ENV=py37-django-21,py37-django-22
+      dist: xenial
+      sudo: true
+    - python: 3.7
+      dist: xenial
+      sudo: true
+      env: TOX_ENV=py37-django-master
   allow_failures:
-    - env: TOX_ENV=py35-django-master
     - env: TOX_ENV=py36-django-master
+    - env: TOX_ENV=py37-django-master
 
 install: pip install -r dev-requirements.txt
 
