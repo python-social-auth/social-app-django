@@ -20,6 +20,6 @@ docker-tox-build:
 
 docker-tox: docker-tox-build
 	@ docker run -it --rm \
-		     --name psa-social-app-django-test \
-		     -v "`pwd`:/code" \
-		     -w /code omab/psa-social-app-django tox
+		--name psa-social-app-django-test \
+		-v "`pwd`:/src" \
+		omab/psa-social-app-django tox
