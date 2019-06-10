@@ -1,59 +1,19 @@
+sudo: false
+
 language: python
 
 python:
+  - "2.7"
+  - "3.4"
   - "3.5"
-
-env:
-  - TOX_ENV=py35-django-18
-  - TOX_ENV=py34-django-18
-  - TOX_ENV=py27-django-18
-  - TOX_ENV=py35-django-19
-  - TOX_ENV=py34-django-19
-  - TOX_ENV=py27-django-19
-  - TOX_ENV=py35-django-110
-  - TOX_ENV=py34-django-110
-  - TOX_ENV=py27-django-110
-  - TOX_ENV=py35-django-111
-  - TOX_ENV=py34-django-111
-  - TOX_ENV=py27-django-111
-  - TOX_ENV=py34-django-20
-  - TOX_ENV=py35-django-20
-  - TOX_ENV=py35-django-21
+  - "3.6"
+  - "3.7"
 
 matrix:
-  fast_finish: true
-  include:
-    - python: 3.6
-      env: TOX_ENV=py36-django-111
-    - python: 3.6
-      env: TOX_ENV=py36-django-20,py36-django-21
-    - python: 3.5
-      env: TOX_ENV=py35-django-22
-      dist: xenial
-      sudo: true
-    - python: 3.6
-      dist: xenial
-      sudo: true
-      env: TOX_ENV=py36-django-22
-    - python: 3.6
-      dist: xenial
-      sudo: true
-      env: TOX_ENV=py36-django-master
-    - python: 3.7
-      env: TOX_ENV=py37-django-21,py37-django-22
-      dist: xenial
-      sudo: true
-    - python: 3.7
-      dist: xenial
-      sudo: true
-      env: TOX_ENV=py37-django-master
-  allow_failures:
-    - env: TOX_ENV=py36-django-master
-    - env: TOX_ENV=py37-django-master
+  - python: 3.7
+    dist: xenial
+    sudo: true
 
-install: pip install -r dev-requirements.txt
+install: pip install tox-travis
 
-script: tox -e $TOX_ENV
-
-after_success:
-  - codecov -e TOX_ENV
+script: tox
