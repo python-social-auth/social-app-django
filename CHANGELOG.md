@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## [Unreleased](https://github.com/python-social-auth/social-docs/commits/master)
 
 ### Added
-- Implemnet `get` and `delete` class methods for `DjangoNonceMixin`
+- Implement `get` and `delete` class methods for `DjangoNonceMixin`
 
 ## [3.1.0](https://github.com/python-social-auth/social-app-django/releases/tag/3.1.0) - 2018-10-31
 
