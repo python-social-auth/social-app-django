@@ -104,3 +104,9 @@ class TestStrategy(TestCase):
         args, kwargs = self.strategy.clean_authenticate_args(self.request)
         self.assertEqual(args, ())
         self.assertEqual(kwargs, {'request': self.request})
+
+    def test_clean_authenticate_args_none(self):
+        # When called from continue_pipeline(), request is None. Issue #222
+        args, kwargs = self.strategy.clean_authenticate_args(None)
+        self.assertEqual(args, ())
+        self.assertEqual(kwargs, {'request': None})
