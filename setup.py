@@ -39,6 +39,7 @@ setup(
         'social_django.management.commands',
     ],
     long_description=long_description(),
+    long_description_content_type='text/markdown',
     install_requires=load_requirements(),
     classifiers=[
         'Development Status :: 4 - Beta',
