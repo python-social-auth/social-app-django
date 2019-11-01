@@ -137,7 +137,8 @@ class DjangoUserMixin(UserMixin):
             # manager, there's a transaction wrapped around this call.
             # If the create fails below due to an IntegrityError, ensure that the transaction
             # stays undamaged by wrapping the create in an atomic.
-            with transaction.atomic():
+            using = router.db_for_write(cls)
+            with transaction.atomic(using=using):
                 social_auth = cls.objects.create(user=user, uid=uid, provider=provider)
         else:
             social_auth = cls.objects.create(user=user, uid=uid, provider=provider)
