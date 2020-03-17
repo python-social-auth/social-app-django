@@ -3,7 +3,7 @@ import base64
 import six
 import sys
 from django.core.exceptions import FieldDoesNotExist
-from django.db import transaction
+from django.db import transaction, router
 from django.db.utils import IntegrityError
 
 from social_core.storage import UserMixin, AssociationMixin, NonceMixin, \
@@ -75,7 +75,8 @@ class DjangoUserMixin(UserMixin):
                 # manager, there's a transaction wrapped around this call.
                 # If the create fails below due to an IntegrityError, ensure that the transaction
                 # stays undamaged by wrapping the create in an atomic.
-                with transaction.atomic():
+                using = router.db_for_write(cls.user_model())
+                with transaction.atomic(using=using):
                     user = cls.user_model().objects.create_user(*args, **kwargs)
             else:
                 user = cls.user_model().objects.create_user(*args, **kwargs)
@@ -136,7 +137,8 @@ class DjangoUserMixin(UserMixin):
             # manager, there's a transaction wrapped around this call.
             # If the create fails below due to an IntegrityError, ensure that the transaction
             # stays undamaged by wrapping the create in an atomic.
-            with transaction.atomic():
+            using = router.db_for_write(cls)
+            with transaction.atomic(using=using):
                 social_auth = cls.objects.create(user=user, uid=uid, provider=provider)
         else:
             social_auth = cls.objects.create(user=user, uid=uid, provider=provider)
