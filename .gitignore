@@ -49,3 +49,5 @@ changelog.sh
 \#*\#
 
 .python-version
+
+files/local.env

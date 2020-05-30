@@ -1,0 +1,27 @@
+version: "3.7"
+
+services:
+  social-release:
+    image: omab/social-auth-release
+    build:
+      context: .
+      dockerfile: ./files/release/Dockerfile
+    environment:
+      - PROJECT_NAME=social-app-django
+      - PROJECT_DIR=social_django
+    env_file:
+      - ./files/local.env
+    volumes:
+      - .:/code
+
+  social-tests:
+    image: omab/social-auth-tests
+    build:
+      context: .
+      dockerfile: ./files/tests/Dockerfile
+      args:
+        - PYTHON_VERSIONS=2.7.17 3.5.9 3.6.10 3.7.7 3.8.2 3.9-dev
+    environment:
+        - PYTHON_VERSIONS=2.7.17 3.5.9 3.6.10 3.7.7 3.8.2 3.9-dev
+    volumes:
+      - .:/code
