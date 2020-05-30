@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Changed
 - Increase social-core dependency version
 
+### Added
+- Implement `get` and `delete` class methods for `DjangoNonceMixin`
+
 ## [3.1.0](https://github.com/python-social-auth/social-app-django/releases/tag/3.1.0) - 2018-10-31
 
 ### Changed

@@ -152,6 +152,17 @@ class DjangoNonceMixin(NonceMixin):
                                          timestamp=timestamp,
                                          salt=salt)[1]
 
+    @classmethod
+    def get(cls, server_url, salt):
+        return cls.objects.get(
+            server_url=server_url,
+            salt=salt,
+        )
+
+    @classmethod
+    def delete(cls, nonce):
+        nonce.delete()
+
 
 class DjangoAssociationMixin(AssociationMixin):
     @classmethod
