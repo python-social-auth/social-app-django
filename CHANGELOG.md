@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
-## [Unreleased](https://github.com/python-social-auth/social-app-django/commits/master)
+## [3.2.0](https://github.com/python-social-auth/social-app-django/releases/tag/3.2.0) - 2020-05-30
 
 ### Changed
 - Increase social-core dependency version
