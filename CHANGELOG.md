@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [3.4.0](https://github.com/python-social-auth/social-app-django/releases/tag/3.4.0) - 2020-05-30
+
+### Changed
+- Correct release mechanism
+
 ## [3.3.0](https://github.com/python-social-auth/social-app-django/releases/tag/3.3.0) - 2020-05-30
 
 ### Changed
