@@ -11,7 +11,7 @@ UID_LENGTH = getattr(settings, setting_name('UID_LENGTH'), 255)
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('social_django', '0008_partial_timestamp'),
+        ('social_django', '0009_auto_20191118_0520'),
     ]
 
     operations = [
