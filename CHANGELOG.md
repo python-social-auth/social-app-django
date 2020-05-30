@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 - Implement `get` and `delete` class methods for `DjangoNonceMixin`
+- Added `created` and `modified` fields to `UserSocialAuth` model
 
 ## [3.1.0](https://github.com/python-social-auth/social-app-django/releases/tag/3.1.0) - 2018-10-31
 
