@@ -1,3 +1,4 @@
 global-include *.py
 include *.txt CHANGELOG.md LICENSE README.md
 recursive-exclude social_django *.pyc
+exclude .tox .git
