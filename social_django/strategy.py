@@ -106,11 +106,9 @@ class DjangoStrategy(BaseStrategy):
         kwargs['backend'] = backend
         return authenticate(*args, **kwargs)
 
-    def clean_authenticate_args(self, *args, **kwargs):
-        """Cleanup request argument if present, which is passed to
-        authenticate as for Django 1.11"""
-        if len(args) > 0 and isinstance(args[0], HttpRequest):
-            kwargs['request'], args = args[0], args[1:]
+    def clean_authenticate_args(self, request, *args, **kwargs):
+        # pipelines don't want a positional request argument
+        kwargs['request'] = request
         return args, kwargs
 
     def session_get(self, name, default=None):
