@@ -12,7 +12,6 @@ from django.utils.functional import Promise
 from django.utils.translation import get_language
 
 from social_core.strategy import BaseStrategy, BaseTemplateStrategy
-from .compat import get_request_port
 
 
 def render_template_string(request, html, context=None):
@@ -74,7 +73,7 @@ class DjangoStrategy(BaseStrategy):
 
     def request_port(self):
         """Port in use for this request"""
-        return get_request_port(request=self.request)
+        return self.request.get_port()
 
     def request_get(self):
         """Request GET data"""

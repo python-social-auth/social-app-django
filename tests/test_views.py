@@ -4,11 +4,10 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractBaseUser
 
 from django.test import TestCase, override_settings
+from django.urls import reverse
 
-from social_django.compat import reverse
 from social_django.models import UserSocialAuth
 from social_django.views import get_session_timeout
-from .compat import base_url
 
 
 @override_settings(SOCIAL_AUTH_FACEBOOK_KEY='1',
@@ -36,7 +35,7 @@ class TestViews(TestCase):
                         '.set_expiry', side_effect=[OverflowError, None]):
             response = self.client.get(url)
             self.assertEqual(response.status_code, 302)
-            self.assertEqual(response.url, base_url + '/accounts/profile/')
+            self.assertEqual(response.url, '/accounts/profile/')
 
     @mock.patch('social_core.backends.base.BaseAuth.request')
     def test_disconnect(self, mock_request):

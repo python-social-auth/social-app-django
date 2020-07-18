@@ -11,7 +11,6 @@ from django.test import TestCase
 
 from social_django.models import AbstractUserSocialAuth, Association, Code, \
     DjangoStorage, Nonce, Partial, UserSocialAuth
-from .compat import username_max_length
 
 
 class TestSocialAuthUser(TestCase):
@@ -169,8 +168,7 @@ class TestUserSocialAuth(TestCase):
                 user=self.user, provider=self.usa.provider, uid=self.usa.uid)
 
     def test_username_max_length(self):
-        self.assertEqual(UserSocialAuth.username_max_length(),
-                         username_max_length)
+        self.assertEqual(UserSocialAuth.username_max_length(), 150)
 
 
 class TestNonce(TestCase):
