@@ -1,6 +1,6 @@
 """URLs module"""
 from django.conf import settings
-from django.conf.urls import url
+from django.urls import path
 
 from social_core.utils import setting_name
 from . import views
@@ -12,13 +12,13 @@ app_name = 'social'
 
 urlpatterns = [
     # authentication / association
-    url(r'^login/(?P<backend>[^/]+){0}$'.format(extra), views.auth,
+    path('login/<str:backend>{0}'.format(extra), views.auth,
         name='begin'),
-    url(r'^complete/(?P<backend>[^/]+){0}$'.format(extra), views.complete,
+    path('complete/<str:backend>{0}'.format(extra), views.complete,
         name='complete'),
     # disconnection
-    url(r'^disconnect/(?P<backend>[^/]+){0}$'.format(extra), views.disconnect,
+    path('disconnect/<str:backend>{0}'.format(extra), views.disconnect,
         name='disconnect'),
-    url(r'^disconnect/(?P<backend>[^/]+)/(?P<association_id>\d+){0}$'
+    path('disconnect/<str:backend>/<int:association_id>{0}'
         .format(extra), views.disconnect, name='disconnect_individual'),
 ]
