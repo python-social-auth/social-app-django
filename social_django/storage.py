@@ -32,7 +32,7 @@ class DjangoUserMixin(UserMixin):
             valid_password = user.has_usable_password()
         else:
             valid_password = True
-        return valid_password or qs.count() > 0
+        return valid_password or qs.exists()
 
     @classmethod
     def disconnect(cls, entry):
@@ -50,7 +50,7 @@ class DjangoUserMixin(UserMixin):
         """
         if 'username' in kwargs:
             kwargs[cls.username_field()] = kwargs.pop('username')
-        return cls.user_model().objects.filter(*args, **kwargs).count() > 0
+        return cls.user_model().objects.filter(*args, **kwargs).exists()
 
     @classmethod
     def get_username(cls, user):
