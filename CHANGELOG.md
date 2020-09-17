@@ -13,6 +13,37 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Use query `.exists()` instead of `.count() > 0`
 - Added testing for Django 3.0
 - Drop support for Python 2
+- JSONField support for #265
+
+  Django 3.1 introduces JSONField support for all backends and adds a deprecation
+  warning.
+
+  - Deprecating setting: `SOCIAL_AUTH_POSTGRES_JSONFIELD` (bool)
+
+    Rename this to `SOCIAL_AUTH_JSONFIELD_ENABLED`. The setting will be deprecated in a future release.
+
+  - New setting: `SOCIAL_AUTH_JSONFIELD_ENABLED` (bool)
+
+    Same behavior, setting name updated to match JSONField being supported by all systems.
+
+    ```python
+    SOCIAL_AUTH_POSTGRES_JSONFIELD = True   # Before
+    SOCIAL_AUTH_JSONFIELD_ENABLED = True    # After
+    ```
+
+  - New setting: `SOCIAL_AUTH_JSONFIELD_CUSTOM` allows specifying an import string.
+    This gives better control to social auth with setting a custom JSONField.
+
+    For django systems < 3.1 (technically <4), you can set the old JSONField to maintain
+    behavior with earlier social-app-django releases:
+
+    `SOCIAL_AUTH_JSONFIELD_CUSTOM = 'django.contrib.postgres.fields.JSONField'`
+
+    For sites running or upgrading to django 3.1+, then can set this so the new value:
+
+    `SOCIAL_AUTH_JSONFIELD_CUSTOM = 'django.db.models.JSONField'`
+
+  [#266](https://github.com/omab/python-social-auth/pull/266) for issue [#265](https://github.com/omab/python-social-auth/pull/265)
 
 ## [4.0.0](https://github.com/python-social-auth/social-app-django/releases/tag/4.0.0) - 2020-06-20
 
