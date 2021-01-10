@@ -9,6 +9,7 @@ from social_core.backends.base import BaseAuth
 # BaseAuth.__init__ to ignore the mandatory strategy argument and load
 # it.
 
+
 def baseauth_init_workaround(original_init):
     def fake_init(self, strategy=None, *args, **kwargs):
         from .utils import load_strategy

@@ -1,6 +1,4 @@
 """Django ORM models for Social Auth"""
-import six
-
 from django.db import models
 from django.conf import settings
 from django.db.utils import IntegrityError
@@ -8,15 +6,15 @@ from django.db.utils import IntegrityError
 from social_core.utils import setting_name
 
 from .storage import DjangoUserMixin, DjangoAssociationMixin, \
-                     DjangoNonceMixin, DjangoCodeMixin, \
-                     DjangoPartialMixin, BaseDjangoStorage
+    DjangoNonceMixin, DjangoCodeMixin, \
+    DjangoPartialMixin, BaseDjangoStorage
 from .fields import JSONField
 from .managers import UserSocialAuthManager
 
 
 USER_MODEL = getattr(settings, setting_name('USER_MODEL'), None) or \
-             getattr(settings, 'AUTH_USER_MODEL', None) or \
-             'auth.User'
+    getattr(settings, 'AUTH_USER_MODEL', None) or \
+    'auth.User'
 UID_LENGTH = getattr(settings, setting_name('UID_LENGTH'), 255)
 EMAIL_LENGTH = getattr(settings, setting_name('EMAIL_LENGTH'), 254)
 NONCE_SERVER_URL_LENGTH = getattr(

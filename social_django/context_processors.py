@@ -15,6 +15,7 @@ from .utils import Storage, BACKENDS
 
 class LazyDict(SimpleLazyObject):
     """Lazy dict initialization."""
+
     def __getitem__(self, name):
         if self._wrapped is empty:
             self._setup()
@@ -37,8 +38,8 @@ def backends(request):
 def login_redirect(request):
     """Load current redirect to context."""
     value = request.method == 'POST' and \
-                request.POST.get(REDIRECT_FIELD_NAME) or \
-                request.GET.get(REDIRECT_FIELD_NAME)
+        request.POST.get(REDIRECT_FIELD_NAME) or \
+        request.GET.get(REDIRECT_FIELD_NAME)
     if value:
         value = urlquote(value)
         querystring = REDIRECT_FIELD_NAME + '=' + value

@@ -1,6 +1,6 @@
 # coding=utf-8
 from django.conf import settings
-from django.http import HttpResponse, HttpRequest
+from django.http import HttpResponse
 from django.db.models import Model
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.auth import authenticate
