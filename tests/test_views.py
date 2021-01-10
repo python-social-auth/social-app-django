@@ -71,7 +71,7 @@ class TestGetSessionTimeout(TestCase):
 
     def set_user_expiration(self, seconds):
         self.social_user.expiration_datetime.return_value = mock.MagicMock(
-            total_seconds = mock.MagicMock(return_value=seconds)
+            total_seconds=mock.MagicMock(return_value=seconds)
         )
 
     def test_expiration_disabled_no_max(self):
