@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
-## [4.0.0](https://github.com/python-social-auth/social-app-django/releases/tag/3.4.0) - 2020-05-30
+## [4.0.0](https://github.com/python-social-auth/social-app-django/releases/tag/3.4.0) - 2020-06-20
 
 ### Changed
 - Dropped support for older Django versions (1.8, 1.9, 1.10, 2.0)
