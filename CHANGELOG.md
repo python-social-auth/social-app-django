@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Switch from deprecated `django.conf.urls.url` to `django.urls.path`
 - Use query `.exists()` instead of `.count() > 0`
 - Added testing for Django 3.0
+- Drop support for Python 2
 
 ## [4.0.0](https://github.com/python-social-auth/social-app-django/releases/tag/3.4.0) - 2020-06-20
 
