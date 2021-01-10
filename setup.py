@@ -23,6 +23,7 @@ def long_description():
 def load_requirements():
     return open(join(dirname(__file__), 'requirements.txt')).readlines()
 
+
 setup(
     name='social-auth-app-django',
     version=read_version(),
@@ -48,8 +49,11 @@ setup(
         'Intended Audience :: Developers',
         'Environment :: Web Environment',
         'Programming Language :: Python',
-        'Programming Language :: Python :: 2.7',
-        'Programming Language :: Python :: 3'
+        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9',
     ],
     zip_safe=False
 )

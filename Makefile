@@ -1,7 +1,6 @@
 build:
-	@ BUILD_VERSION=2 python setup.py sdist
-	@ BUILD_VERSION=2 python setup.py bdist_wheel --python-tag py2
-	@ BUILD_VERSION=3 python setup.py bdist_wheel --python-tag py3
+	@ python setup.py sdist
+	@ python setup.py bdist_wheel --python-tag py3
 
 publish:
 	@ twine upload dist/*
