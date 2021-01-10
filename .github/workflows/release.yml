@@ -1,0 +1,52 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.9'
+
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install wheel twine
+
+    - name: Verify tag is documented
+      run: |
+        CURRENT_TAG=${GITHUB_REF#refs/tags/}
+        CURRENT_VERSION=$(head -n1 social_django/__init__.py | awk '{print $3}' | sed 's/[^0-9\.]//g')
+        if [ "${CURRENT_VERSION}" != "${CURRENT_TAG}" ]; then
+            echo "========================================================================"
+            echo "Error: tag '${CURRENT_TAG}' and version '${CURRENT_VERSION}' don't match"
+            echo "========================================================================"
+            exit 1;
+        fi
+
+    - name: Build dist
+      run: python setup.py sdist bdist_wheel --python-tag py3
+
+    - name: Archive dist
+      uses: actions/upload-artifact@v2
+      with:
+        name: dist
+        path: |
+          dist/*.tar.gz
+          dist/*.whl
+
+    - name: Verify long description rendering
+      run: twine check dist/*
+
+    - name: Publish
+      env:
+        PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+      run: |
+        twine upload --non-interactive -u __token__ -p "${PYPI_API_TOKEN}" dist/*
