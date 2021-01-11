@@ -25,7 +25,26 @@ jobs:
         python -m pip install --upgrade pip
         pip install tox
 
-    - name: Test with tox
+    - name: [Django 2.2.x] Test
       env: 
         PYTHON_VERSION: ${{matrix.python-version}}
-      run: tox -e "py${PYTHON_VERSION/\./}"
+      run: |
+        tox -e "py${PYTHON_VERSION/\./}-django22"
+
+    - name: [Django 3.0.x] Test
+      env:
+        PYTHON_VERSION: ${{matrix.python-version}}
+      run: |
+        tox -e "py${PYTHON_VERSION/\./}-django30"
+
+    - name: [Django 3.1.x] Test
+      env:
+        PYTHON_VERSION: ${{matrix.python-version}}
+      run: |
+        tox -e "py${PYTHON_VERSION/\./}-django31"
+
+    - name: [Django master] Test
+      env:
+        PYTHON_VERSION: ${{matrix.python-version}}
+      run: |
+        tox -e "py${PYTHON_VERSION/\./}-django-master"
