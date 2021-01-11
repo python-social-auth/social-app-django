@@ -29,19 +29,19 @@ jobs:
       env: 
         PYTHON_VERSION: ${{matrix.python-version}}
       run: |
-        tox -e "py${PYTHON_VERSION/\./}-django22"
+        tox -e "py${PYTHON_VERSION/\./}-django-22"
 
     - name: Django 3.0.x Test
       env:
         PYTHON_VERSION: ${{matrix.python-version}}
       run: |
-        tox -e "py${PYTHON_VERSION/\./}-django30"
+        tox -e "py${PYTHON_VERSION/\./}-django-30"
 
     - name: Django 3.1.x Test
       env:
         PYTHON_VERSION: ${{matrix.python-version}}
       run: |
-        tox -e "py${PYTHON_VERSION/\./}-django31"
+        tox -e "py${PYTHON_VERSION/\./}-django-31"
 
     - name: Django master Test
       env:
