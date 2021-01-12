@@ -1,7 +1,6 @@
 """Django ORM models for Social Auth"""
 import base64
-import six
-import sys
+
 from django.core.exceptions import FieldDoesNotExist
 from django.db import transaction, router
 from django.db.utils import IntegrityError
@@ -80,17 +79,14 @@ class DjangoUserMixin(UserMixin):
                     user = cls.user_model().objects.create_user(*args, **kwargs)
             else:
                 user = cls.user_model().objects.create_user(*args, **kwargs)
-        except IntegrityError:
-            # User might have been created on a different thread, try and find them.
-            # If we don't, re-raise the IntegrityError.
-            exc_info = sys.exc_info()
+        except IntegrityError as exc:
             # If email comes in as None it won't get found in the get
             if kwargs.get('email', True) is None:
                 kwargs['email'] = ''
             try:
                 user = cls.user_model().objects.get(*args, **kwargs)
             except cls.user_model().DoesNotExist:
-                six.reraise(*exc_info)
+                raise exc
         return user
 
     @classmethod
@@ -110,7 +106,7 @@ class DjangoUserMixin(UserMixin):
 
     @classmethod
     def get_social_auth(cls, provider, uid):
-        if not isinstance(uid, six.string_types):
+        if not isinstance(uid, str):
             uid = str(uid)
         try:
             return cls.objects.get(provider=provider, uid=uid)
@@ -130,7 +126,7 @@ class DjangoUserMixin(UserMixin):
 
     @classmethod
     def create_social_auth(cls, user, uid, provider):
-        if not isinstance(uid, six.string_types):
+        if not isinstance(uid, str):
             uid = str(uid)
         if hasattr(transaction, 'atomic'):
             # In Django versions that have an "atomic" transaction decorator / context

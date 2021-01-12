@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-import six
-
 from django.apps import apps
 from django.conf import settings
 from django.contrib import messages
@@ -58,7 +56,7 @@ class SocialAuthExceptionMiddleware(MiddlewareMixin):
             return strategy.setting('RAISE_EXCEPTIONS') or settings.DEBUG
 
     def get_message(self, request, exception):
-        return six.text_type(exception)
+        return str(exception)
 
     def get_redirect_uri(self, request, exception):
         strategy = getattr(request, 'social_strategy', None)
