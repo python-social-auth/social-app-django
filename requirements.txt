@@ -1,2 +1,1 @@
-six
-social-auth-core >= 3.3.0
+social-auth-core >= 4.0.2

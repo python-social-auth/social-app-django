@@ -1,5 +1,4 @@
 import json
-import six
 
 from django.core.exceptions import ValidationError
 from django.conf import settings
@@ -34,9 +33,9 @@ class JSONField(JSONFieldBase):
         if self.blank and not value:
             return {}
         value = value or '{}'
-        if isinstance(value, six.binary_type):
-            value = six.text_type(value, 'utf-8')
-        if isinstance(value, six.string_types):
+        if isinstance(value, bytes):
+            value = str(value, 'utf-8')
+        if isinstance(value, str):
             try:
                 return json.loads(value)
             except Exception as err:
@@ -47,7 +46,7 @@ class JSONField(JSONFieldBase):
     def validate(self, value, model_instance):
         """Check value is a valid JSON string, raise ValidationError on
         error."""
-        if isinstance(value, six.string_types):
+        if isinstance(value, str):
             super(JSONField, self).validate(value, model_instance)
             try:
                 json.loads(value)
