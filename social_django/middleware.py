@@ -4,11 +4,11 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.messages.api import MessageFailure
 from django.shortcuts import redirect
+from django.utils.deprecation import MiddlewareMixin
 from django.utils.http import urlquote
 
 from social_core.exceptions import SocialAuthBaseException
 from social_core.utils import social_logger
-from .compat import MiddlewareMixin
 
 
 class SocialAuthExceptionMiddleware(MiddlewareMixin):
