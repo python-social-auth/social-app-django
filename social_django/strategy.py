@@ -1,4 +1,3 @@
-# coding=utf-8
 from django.conf import settings
 from django.http import HttpResponse
 from django.db.models import Model
@@ -36,7 +35,7 @@ class DjangoStrategy(BaseStrategy):
     def __init__(self, storage, request=None, tpl=None):
         self.request = request
         self.session = request.session if request else {}
-        super(DjangoStrategy, self).__init__(storage, tpl)
+        super().__init__(storage, tpl)
 
     def get_setting(self, name):
         value = getattr(settings, name)

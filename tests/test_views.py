@@ -1,5 +1,4 @@
-# -*- coding: utf-8 -*-
-import mock
+from unittest import mock
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractBaseUser
 
@@ -67,7 +66,7 @@ class TestGetSessionTimeout(TestCase):
     def setUp(self):
         self.social_user = mock.MagicMock()
         self.social_user.expiration_datetime.return_value = None
-        super(TestGetSessionTimeout, self).setUp()
+        super().setUp()
 
     def set_user_expiration(self, seconds):
         self.social_user.expiration_datetime.return_value = mock.MagicMock(

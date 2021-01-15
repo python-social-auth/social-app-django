@@ -1,7 +1,4 @@
-# coding=utf-8
-from __future__ import unicode_literals, absolute_import
-
-import mock
+from unittest import mock
 
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType

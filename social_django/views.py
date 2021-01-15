@@ -18,14 +18,14 @@ DEFAULT_SESSION_TIMEOUT = None
 
 
 @never_cache
-@psa('{0}:complete'.format(NAMESPACE))
+@psa(f'{NAMESPACE}:complete')
 def auth(request, backend):
     return do_auth(request.backend, redirect_name=REDIRECT_FIELD_NAME)
 
 
 @never_cache
 @csrf_exempt
-@psa('{0}:complete'.format(NAMESPACE))
+@psa(f'{NAMESPACE}:complete')
 def complete(request, backend, *args, **kwargs):
     """Authentication complete view"""
     return do_complete(request.backend, _do_login, user=request.user,
@@ -92,8 +92,7 @@ def get_session_timeout(social_user, enable_session_expiration=False,
 
 
 def _do_login(backend, user, social_user):
-    user.backend = '{0}.{1}'.format(backend.__module__,
-                                    backend.__class__.__name__)
+    user.backend = f'{backend.__module__}.{backend.__class__.__name__}'
     # Get these details early to avoid any issues involved in the
     # session switch that happens when we call login().
     enable_session_expiration = backend.setting('SESSION_EXPIRATION', False)

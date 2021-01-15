@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from django.test import TestCase, RequestFactory, override_settings
 
 from social_django.context_processors import login_redirect
