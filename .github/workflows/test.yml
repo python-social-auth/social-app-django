@@ -8,6 +8,8 @@ jobs:
     strategy:
       matrix:
         python-version: [3.6, 3.7, 3.8, 3.9]
+    env:
+      PYTHON_VERSION: ${{ matrix.python-version }}
 
     steps:
     - uses: actions/checkout@v2
@@ -26,25 +28,17 @@ jobs:
         pip install tox
 
     - name: Django 2.2.x Test
-      env: 
-        PYTHON_VERSION: ${{matrix.python-version}}
       run: |
         tox -e "py${PYTHON_VERSION/\./}-django-22"
 
     - name: Django 3.0.x Test
-      env:
-        PYTHON_VERSION: ${{matrix.python-version}}
       run: |
         tox -e "py${PYTHON_VERSION/\./}-django-30"
 
     - name: Django 3.1.x Test
-      env:
-        PYTHON_VERSION: ${{matrix.python-version}}
       run: |
         tox -e "py${PYTHON_VERSION/\./}-django-31"
 
     - name: Django master Test
-      env:
-        PYTHON_VERSION: ${{matrix.python-version}}
       run: |
         tox -e "py${PYTHON_VERSION/\./}-django-master"
