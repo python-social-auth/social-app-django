@@ -3,7 +3,7 @@ import json
 from django.core.exceptions import ValidationError
 from django.conf import settings
 from django.db import models
-from django.utils.encoding import force_text
+from django.utils.encoding import force_str
 
 from social_core.utils import setting_name
 
@@ -62,7 +62,7 @@ class JSONField(JSONFieldBase):
 
     def value_to_string(self, obj):
         """Return value from object converted to string properly"""
-        return force_text(self.value_from_object(obj))
+        return force_str(self.value_from_object(obj))
 
     def value_from_object(self, obj):
         """Return value dumped to string."""
