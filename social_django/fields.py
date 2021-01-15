@@ -20,7 +20,7 @@ class JSONField(JSONFieldBase):
 
     def __init__(self, *args, **kwargs):
         kwargs.setdefault('default', dict)
-        super(JSONField, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def from_db_value(self, value, *args, **kwargs):
         return self.to_python(value)
@@ -47,7 +47,7 @@ class JSONField(JSONFieldBase):
         """Check value is a valid JSON string, raise ValidationError on
         error."""
         if isinstance(value, str):
-            super(JSONField, self).validate(value, model_instance)
+            super().validate(value, model_instance)
             try:
                 json.loads(value)
             except Exception as err:
@@ -66,5 +66,5 @@ class JSONField(JSONFieldBase):
 
     def value_from_object(self, obj):
         """Return value dumped to string."""
-        orig_val = super(JSONField, self).value_from_object(obj)
+        orig_val = super().value_from_object(obj)
         return self.get_prep_value(orig_val)

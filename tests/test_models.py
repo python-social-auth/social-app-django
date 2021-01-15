@@ -1,9 +1,6 @@
-# -*- coding: utf-8
-from __future__ import unicode_literals, absolute_import
-
 from datetime import timedelta
 
-import mock
+from unittest import mock
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.db import IntegrityError

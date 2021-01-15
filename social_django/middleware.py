@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from django.apps import apps
 from django.conf import settings
 from django.contrib import messages
@@ -42,8 +41,8 @@ class SocialAuthExceptionMiddleware(MiddlewareMixin):
                 except MessageFailure:
                     if url:
                         url += ('?' in url and '&' or '?') + \
-                               'message={0}&backend={1}'.format(quote(message),
-                                                                backend_name)
+                               'message={}&backend={}'.format(quote(message),
+                                                              backend_name)
             else:
                 social_logger.error(message)
 

@@ -1,7 +1,6 @@
-# coding=utf-8
 import logging
 
-import mock
+from unittest import mock
 
 from django.contrib.messages import MessageFailure
 from django.http import HttpResponseRedirect
@@ -15,7 +14,7 @@ class MockAuthCanceled(AuthCanceled):
     def __init__(self, *args, **kwargs):
         if not args:
             kwargs.setdefault('backend', None)
-        super(MockAuthCanceled, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
 
 @mock.patch('social_core.backends.base.BaseAuth.request',
