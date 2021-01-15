@@ -50,6 +50,7 @@ TEMPLATES = [
             'context_processors': [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'django.template.context_processors.request',
                 'social_django.context_processors.backends',
                 'social_django.context_processors.login_redirect',
             ],
