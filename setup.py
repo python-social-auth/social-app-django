@@ -41,6 +41,7 @@ setup(
     ],
     long_description=long_description(),
     long_description_content_type='text/markdown',
+    python_requires='>=3.6',
     install_requires=load_requirements(),
     classifiers=[
         'Development Status :: 4 - Beta',
