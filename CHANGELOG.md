@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Added testing for Django 3.0
 - Drop support for Python 2
 
-## [4.0.0](https://github.com/python-social-auth/social-app-django/releases/tag/3.4.0) - 2020-06-20
+## [4.0.0](https://github.com/python-social-auth/social-app-django/releases/tag/4.0.0) - 2020-06-20
 
 ### Changed
 - Dropped support for older Django versions (1.8, 1.9, 1.10, 2.0)
