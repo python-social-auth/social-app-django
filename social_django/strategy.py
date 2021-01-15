@@ -7,7 +7,7 @@ from django.contrib.auth import authenticate
 from django.shortcuts import redirect, resolve_url
 from django.template import TemplateDoesNotExist, loader, engines
 from django.utils.crypto import get_random_string
-from django.utils.encoding import force_text
+from django.utils.encoding import force_str
 from django.utils.functional import Promise
 from django.utils.translation import get_language
 
@@ -43,7 +43,7 @@ class DjangoStrategy(BaseStrategy):
         # Force text on URL named settings that are instance of Promise
         if name.endswith('_URL'):
             if isinstance(value, Promise):
-                value = force_text(value)
+                value = force_str(value)
             value = resolve_url(value)
         return value
 
