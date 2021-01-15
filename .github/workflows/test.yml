@@ -25,7 +25,7 @@ jobs:
     - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install tox
+        pip install tox coverage
 
     - name: Django 2.2.x Test
       run: |
@@ -42,3 +42,13 @@ jobs:
     - name: Django master Test
       run: |
         tox -e "py${PYTHON_VERSION/\./}-django-master"
+
+    - name: Coverage
+      run: |
+        coverage combine
+        coverage xml
+
+    - uses: codecov/codecov-action@v1
+      with:
+        flags: unittests
+        name: Python ${{ matrix.python-version }}
