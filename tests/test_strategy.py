@@ -8,7 +8,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.contrib.sessions.middleware import SessionMiddleware
 from django.http import QueryDict, HttpResponse
 from django.test import TestCase, RequestFactory
-from django.utils.translation import ugettext_lazy
+from django.utils.translation import gettext_lazy
 
 from social_django.utils import load_strategy, load_backend
 
@@ -38,7 +38,7 @@ class TestStrategy(TestCase):
     def test_settings(self):
         with self.settings(LOGIN_ERROR_URL='/'):
             self.assertEqual(self.strategy.get_setting('LOGIN_ERROR_URL'), '/')
-        with self.settings(LOGIN_ERROR_URL=ugettext_lazy('/')):
+        with self.settings(LOGIN_ERROR_URL=gettext_lazy('/')):
             self.assertEqual(self.strategy.get_setting('LOGIN_ERROR_URL'), '/')
 
     def test_session_methods(self):
