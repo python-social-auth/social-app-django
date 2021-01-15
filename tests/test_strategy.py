@@ -17,7 +17,7 @@ class TestStrategy(TestCase):
     def setUp(self):
         self.request_factory = RequestFactory()
         self.request = self.request_factory.get('/', data={'x': '1'})
-        SessionMiddleware().process_request(self.request)
+        SessionMiddleware(lambda: None).process_request(self.request)
         self.strategy = load_strategy(request=self.request)
 
     def test_request_methods(self):
