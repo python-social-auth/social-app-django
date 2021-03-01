@@ -1,4 +1,5 @@
 import json
+import warnings
 
 from django.core.exceptions import ValidationError
 from django.conf import settings
@@ -7,8 +8,35 @@ from django.utils.encoding import force_str
 
 from social_core.utils import setting_name
 
-if getattr(settings, setting_name('POSTGRES_JSONFIELD'), False):
-    from django.contrib.postgres.fields import JSONField as JSONFieldBase
+
+POSTGRES_JSONFIELD = getattr(settings, setting_name('POSTGRES_JSONFIELD'),
+                             False)
+
+if POSTGRES_JSONFIELD:
+    warnings.warn(
+        'SOCIAL_AUTH_POSTGRES_JSONFIELD has been renamed to '
+        'SOCIAL_AUTH_JSONFIELD_ENABLED and will be removed in the next release.'
+    )
+    JSONFIELD_ENABLED = True
+else:
+    JSONFIELD_ENABLED = getattr(settings, setting_name('JSONFIELD_ENABLED'),
+                                False)
+
+if JSONFIELD_ENABLED:
+    JSONFIELD_CUSTOM = getattr(settings, setting_name('JSONFIELD_CUSTOM'), None)
+
+    if JSONFIELD_CUSTOM is not None:
+        try:
+            from django.utils.module_loading import import_string
+        except ImportError:
+            from importlib import import_module as import_string
+        JSONFieldBase = import_string(JSONFIELD_CUSTOM)
+    else:
+        try:
+            from django.db.models import JSONField as JSONFieldBase
+        except ImportError:
+            from django.contrib.postgres.fields import \
+                JSONField as JSONFieldBase
 else:
     JSONFieldBase = models.TextField
 
