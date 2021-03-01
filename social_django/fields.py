@@ -8,7 +8,9 @@ from django.utils.encoding import force_str
 
 from social_core.utils import setting_name
 
-POSTGRES_JSONFIELD = getattr(settings, setting_name('POSTGRES_JSONFIELD'), False)
+
+POSTGRES_JSONFIELD = getattr(settings, setting_name('POSTGRES_JSONFIELD'),
+                             False)
 
 if POSTGRES_JSONFIELD:
     warnings.warn(
@@ -17,21 +19,24 @@ if POSTGRES_JSONFIELD:
     )
     JSONFIELD_ENABLED = True
 else:
-    JSONFIELD_ENABLED = getattr(settings, setting_name('JSONFIELD_ENABLED'), False)
+    JSONFIELD_ENABLED = getattr(settings, setting_name('JSONFIELD_ENABLED'),
+                                False)
 
 if JSONFIELD_ENABLED:
     JSONFIELD_CUSTOM = getattr(settings, setting_name('JSONFIELD_CUSTOM'), None)
+
     if JSONFIELD_CUSTOM is not None:
         try:
-            from django.utils.module_loading import import_string as import_module
+            from django.utils.module_loading import import_string
         except ImportError:
-            from importlib import import_module
-        JSONFieldBase = import_module(JSONFIELD_CUSTOM)
+            from importlib import import_module as import_string
+        JSONFieldBase = import_string(JSONFIELD_CUSTOM)
     else:
         try:
             from django.db.models import JSONField as JSONFieldBase
         except ImportError:
-            from django.contrib.postgres.fields import JSONField as JSONFieldBase
+            from django.contrib.postgres.fields import \
+                JSONField as JSONFieldBase
 else:
     JSONFieldBase = models.TextField
 
