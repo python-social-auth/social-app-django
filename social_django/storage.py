@@ -49,7 +49,7 @@ class DjangoUserMixin(UserMixin):
         """
         if 'username' in kwargs:
             kwargs[cls.username_field()] = kwargs.pop('username')
-        return cls.user_model().objects.filter(*args, **kwargs).exists()
+        return cls.user_model()._default_manager.filter(*args, **kwargs).exists()
 
     @classmethod
     def get_username(cls, user):
@@ -76,15 +76,15 @@ class DjangoUserMixin(UserMixin):
                 # stays undamaged by wrapping the create in an atomic.
                 using = router.db_for_write(cls.user_model())
                 with transaction.atomic(using=using):
-                    user = cls.user_model().objects.create_user(*args, **kwargs)
+                    user = cls.user_model()._default_manager.create_user(*args, **kwargs)
             else:
-                user = cls.user_model().objects.create_user(*args, **kwargs)
+                user = cls.user_model()._default_manager.create_user(*args, **kwargs)
         except IntegrityError as exc:
             # If email comes in as None it won't get found in the get
             if kwargs.get('email', True) is None:
                 kwargs['email'] = ''
             try:
-                user = cls.user_model().objects.get(*args, **kwargs)
+                user = cls.user_model()._default_manager.get(*args, **kwargs)
             except cls.user_model().DoesNotExist:
                 raise exc
         return user
@@ -94,7 +94,7 @@ class DjangoUserMixin(UserMixin):
         if pk:
             kwargs = {'pk': pk}
         try:
-            return cls.user_model().objects.get(**kwargs)
+            return cls.user_model()._default_manager.get(**kwargs)
         except cls.user_model().DoesNotExist:
             return None
 
@@ -102,7 +102,7 @@ class DjangoUserMixin(UserMixin):
     def get_users_by_email(cls, email):
         user_model = cls.user_model()
         email_field = getattr(user_model, 'EMAIL_FIELD', 'email')
-        return user_model.objects.filter(**{email_field + '__iexact': email})
+        return user_model._default_manager.filter(**{email_field + '__iexact': email})
 
     @classmethod
     def get_social_auth(cls, provider, uid):

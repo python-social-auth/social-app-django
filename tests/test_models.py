@@ -14,14 +14,14 @@ class TestSocialAuthUser(TestCase):
     def test_user_relationship_none(self):
         """Accessing User.social_user outside of the pipeline doesn't work"""
         User = get_user_model()
-        user = User.objects.create_user(username="randomtester")
+        user = User._default_manager.create_user(username="randomtester")
         with self.assertRaises(AttributeError):
             user.social_user
 
     def test_user_existing_relationship(self):
         """Accessing User.social_user outside of the pipeline doesn't work"""
         User = get_user_model()
-        user = User.objects.create_user(username="randomtester")
+        user = User._default_manager.create_user(username="randomtester")
         UserSocialAuth.objects.create(user=user,
                                       provider='my-provider',
                                       uid='1234')
@@ -30,7 +30,7 @@ class TestSocialAuthUser(TestCase):
 
     def test_get_social_auth(self):
         User = get_user_model()
-        user = User.objects.create_user(username="randomtester")
+        user = User._default_manager.create_user(username="randomtester")
         user_social = UserSocialAuth.objects.create(user=user,
                                                     provider='my-provider',
                                                     uid='1234')
@@ -62,7 +62,7 @@ class TestSocialAuthUser(TestCase):
 class TestUserSocialAuth(TestCase):
     def setUp(self):
         self.user_model = get_user_model()
-        self.user = self.user_model.objects.create_user(
+        self.user = self.user_model._default_manager.create_user(
             username='randomtester', email='user@example.com')
         self.usa = UserSocialAuth.objects.create(
             user=self.user, provider='my-provider', uid='1234')
@@ -70,7 +70,7 @@ class TestUserSocialAuth(TestCase):
     def test_changed(self):
         self.user.email = eml = 'test@example.com'
         UserSocialAuth.changed(user=self.user)
-        db_eml = self.user_model.objects.get(username=self.user.username).email
+        db_eml = self.user_model._default_manager.get(username=self.user.username).email
         self.assertEqual(db_eml, eml)
 
     def test_set_extra_data(self):
@@ -117,7 +117,7 @@ class TestUserSocialAuth(TestCase):
     @mock.patch('social_django.storage.transaction', spec=[])
     def test_create_user_without_transaction_atomic(self, *args):
         UserSocialAuth.create_user(username='test')
-        self.assertTrue(self.user_model.objects.filter(
+        self.assertTrue(self.user_model._default_manager.filter(
             username='test').exists())
 
     def test_get_user(self):
