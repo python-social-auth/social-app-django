@@ -39,9 +39,9 @@ jobs:
       run: |
         tox -e "py${PYTHON_VERSION/\./}-django-31"
 
-    - name: Django master Test
+    - name: Django main Test
       run: |
-        tox -e "py${PYTHON_VERSION/\./}-django-master"
+        tox -e "py${PYTHON_VERSION/\./}-django-main"
       if: ${{ env.PYTHON_VERSION == '3.8' || env.PYTHON_VERSION == '3.9' }}
 
     - name: Coverage
