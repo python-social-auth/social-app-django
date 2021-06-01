@@ -39,6 +39,10 @@ jobs:
       run: |
         tox -e "py${PYTHON_VERSION/\./}-django-31"
 
+    - name: Django 3.2.x Test
+      run: |
+        tox -e "py${PYTHON_VERSION/\./}-django-32"
+
     - name: Django main Test
       run: |
         tox -e "py${PYTHON_VERSION/\./}-django-main"
