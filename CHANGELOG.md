@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
-## [Unreleased](https://github.com/python-social-auth/social-app-django/)
+## [5.0.0](https://github.com/python-social-auth/social-app-django/releases/tag/5.0.0) - 2021-08-05
 
 ### Changed
 - Removed compat shims for obsolete Django versions
@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Added testing for Django 3.0
 - Drop support for Python 2
 - Django generic `JSONField` support, details documented [here](https://python-social-auth.readthedocs.io/en/latest/configuration/django.html#json-field-support)
+- Django 3.2+ compatibility
+- Use `_default_manager` instead of `objects`
 
 ## [4.0.0](https://github.com/python-social-auth/social-app-django/releases/tag/4.0.0) - 2020-06-20
 
