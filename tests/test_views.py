@@ -39,7 +39,7 @@ class TestViews(TestCase):
     @mock.patch('social_core.backends.base.BaseAuth.request')
     def test_disconnect(self, mock_request):
         user_model = get_user_model()
-        user = user_model.objects.create_user(username='test', password='pwd')
+        user = user_model._default_manager.create_user(username='test', password='pwd')
         UserSocialAuth.objects.create(user=user, provider='facebook')
         self.client.login(username='test', password='pwd')
 
