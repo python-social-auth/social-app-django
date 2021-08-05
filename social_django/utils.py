@@ -21,8 +21,7 @@ def load_strategy(request=None):
 
 
 def load_backend(strategy, name, redirect_uri):
-    Backend = get_backend(settings.AUTHENTICATION_BACKENDS, name)
-    return Backend(strategy, redirect_uri)
+    return strategy.get_backend(name, redirect_uri=redirect_uri)
 
 
 def psa(redirect_uri=None, load_strategy=load_strategy):
@@ -40,7 +39,8 @@ def psa(redirect_uri=None, load_strategy=load_strategy):
 
             try:
                 request.backend = load_backend(request.social_strategy,
-                                               backend, uri)
+                                               backend,
+                                               redirect_uri=uri)
             except MissingBackend:
                 raise Http404('Backend not found')
             return func(request, backend, *args, **kwargs)
