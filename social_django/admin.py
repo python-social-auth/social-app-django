@@ -7,6 +7,7 @@ from django.contrib import admin
 from social_core.utils import setting_name
 from .models import UserSocialAuth, Nonce, Association
 
+# Non of these Models are registered - re-register if needed / compliant
 
 class UserSocialAuthOption(admin.ModelAdmin):
     """Social Auth user options"""
@@ -55,8 +56,3 @@ class AssociationOption(admin.ModelAdmin):
     list_display = ('id', 'server_url', 'assoc_type')
     list_filter = ('assoc_type',)
     search_fields = ('server_url',)
-
-
-admin.site.register(UserSocialAuth, UserSocialAuthOption)
-admin.site.register(Nonce, NonceOption)
-admin.site.register(Association, AssociationOption)
