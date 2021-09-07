@@ -24,11 +24,11 @@ def load_requirements():
     return open(join(dirname(__file__), 'requirements.txt')).readlines()
 
 setup(
-    name='social-auth-app-django',
+    name='compliant-social-app-django',
     version=read_version(),
-    author='Matias Aguirre',
-    author_email='matiasaguirre@gmail.com',
-    description='Python Social Authentication, Django integration.',
+    author='Rightly',
+    author_email='',
+    description='Python Social Authentication, Django integration, Google compliant fork',
     license='BSD',
     keywords='django, social auth',
     url='https://github.com/python-social-auth/social-app-django',
