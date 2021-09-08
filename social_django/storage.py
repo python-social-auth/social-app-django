@@ -145,6 +145,26 @@ class DjangoUserMixin(UserMixin):
         return social_auth
 
 
+class CompliantDjangoUserMixin(DjangoUserMixin):
+    @property
+    def access_token(self):
+        """Override method in UserMixin as we've broken it out of extra_data"""
+        return self.access_token
+
+    def refresh_token(self, strategy, *args, **kwargs):
+        """Override method in UserMixin as tokens are in their own fields now"""
+        token = self.refresh_token or self.access_token
+        backend = self.get_backend_instance(strategy)
+        if token and backend and hasattr(backend, 'refresh_token'):
+            response = backend.refresh_token(token, *args, **kwargs)
+            extra_data = backend.extra_data(self,
+                                            self.uid,
+                                            response,
+                                            self.extra_data)
+            if self.set_extra_data(extra_data):
+                self.save()
+
+
 class DjangoNonceMixin(NonceMixin):
     @classmethod
     def use(cls, server_url, timestamp, salt):
@@ -218,7 +238,7 @@ class DjangoPartialMixin(PartialMixin):
 
 
 class BaseDjangoStorage(BaseStorage):
-    user = DjangoUserMixin
+    user = CompliantDjangoUserMixin
     nonce = DjangoNonceMixin
     association = DjangoAssociationMixin
     code = DjangoCodeMixin

@@ -8,7 +8,7 @@ from django.db.utils import IntegrityError
 from social_core.utils import setting_name
 
 from .compat import get_rel_model
-from .storage import DjangoUserMixin, DjangoAssociationMixin, \
+from .storage import CompliantDjangoUserMixin, DjangoAssociationMixin, \
                      DjangoNonceMixin, DjangoCodeMixin, \
                      DjangoPartialMixin, BaseDjangoStorage
 from .fields import JSONField
@@ -28,12 +28,14 @@ ASSOCIATION_HANDLE_LENGTH = getattr(
     settings, setting_name('ASSOCIATION_HANDLE_LENGTH'), 255)
 
 
-class AbstractUserSocialAuth(models.Model, DjangoUserMixin):
+class AbstractUserSocialAuth(models.Model, CompliantDjangoUserMixin):
     """Abstract Social Auth association model"""
     user = models.ForeignKey(USER_MODEL, related_name='social_auth',
                              on_delete=models.CASCADE)
     provider = models.CharField(max_length=32)
     uid = models.CharField(max_length=UID_LENGTH, db_index=True)
+    access_token = models.BinaryField(null=True)
+    refresh_token = models.BinaryField(null=True)
     extra_data = JSONField()
     created = models.DateTimeField(auto_now_add=True)
     modified = models.DateTimeField(auto_now=True)
