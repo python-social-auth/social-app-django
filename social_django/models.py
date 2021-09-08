@@ -34,7 +34,7 @@ class AbstractUserSocialAuth(models.Model, CompliantDjangoUserMixin):
                              on_delete=models.CASCADE)
     provider = models.CharField(max_length=32)
     uid = models.CharField(max_length=UID_LENGTH, db_index=True)
-    access_token = models.TextField(null=True)
+    user_access_token = models.TextField(null=True)
     refresh_token = models.TextField(null=True)
     extra_data = JSONField()
     created = models.DateTimeField(auto_now_add=True)
