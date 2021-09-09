@@ -153,7 +153,7 @@ class CompliantDjangoUserMixin(DjangoUserMixin):
 
     def refresh_token(self, strategy, *args, **kwargs):
         """Override method in UserMixin as tokens are in their own fields now"""
-        token = self.refresh_token or self.user_access_token
+        token = self.actual_refresh_token or self.actual_access_token
         backend = self.get_backend_instance(strategy)
         if token and backend and hasattr(backend, 'refresh_token'):
             response = backend.refresh_token(token, *args, **kwargs)
@@ -161,6 +161,9 @@ class CompliantDjangoUserMixin(DjangoUserMixin):
                                             self.uid,
                                             response,
                                             self.extra_data)
+            # break the access token and refresh token out of the extra data
+            self.actual_access_token = extra_data.pop('access_token', None)
+            self.actual_refresh_token = extra_data.pop('refresh_token', None)
             if self.set_extra_data(extra_data):
                 self.save()
 
