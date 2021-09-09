@@ -149,7 +149,7 @@ class CompliantDjangoUserMixin(DjangoUserMixin):
     @property
     def access_token(self):
         """Override method in UserMixin as we've broken it out of extra_data"""
-        return self.user_access_token
+        return self.actual_access_token
 
     def refresh_token(self, strategy, *args, **kwargs):
         """Override method in UserMixin as tokens are in their own fields now"""
