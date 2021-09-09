@@ -75,10 +75,13 @@ class DjangoUserMixin(UserMixin):
                 # If the create fails below due to an IntegrityError, ensure that the transaction
                 # stays undamaged by wrapping the create in an atomic.
                 using = router.db_for_write(cls.user_model())
+                user = cls.user_model().objects.get(email=kwargs.get('email'))
                 with transaction.atomic(using=using):
-                    user = cls.user_model()._default_manager.create_user(*args, **kwargs)
+                    user = cls.user_model().objects.get(email=kwargs.get('email'))
             else:
                 user = cls.user_model()._default_manager.create_user(*args, **kwargs)
+        except cls.user_model().DoesNotExist:
+            user = cls.user_model()._default_manager.create_user(*args, **kwargs)
         except IntegrityError as exc:
             # If email comes in as None it won't get found in the get
             if kwargs.get('email', True) is None:
