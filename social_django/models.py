@@ -67,6 +67,19 @@ class AbstractUserSocialAuth(models.Model, CompliantDjangoUserMixin):
         user_model = get_rel_model(field=cls._meta.get_field('user'))
         return user_model
 
+    def set_extra_data(self, extra_data=None):
+        if extra_data and self.extra_data != extra_data:
+            if self.extra_data and not isinstance(
+                    self.extra_data, six.string_types):
+                if extra_data.get('access_token') is not None:
+                    self.actual_access_token = extra_data.pop('access_token')
+                if extra_data.get('refresh_token') is not None:
+                    self.actual_refresh_token = extra_data.pop('refresh_token')
+                self.extra_data.update(extra_data)
+            else:
+                self.extra_data = extra_data
+            return True
+
 
 class UserSocialAuth(AbstractUserSocialAuth):
     """Social Auth association model"""
