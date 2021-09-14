@@ -167,6 +167,22 @@ class CompliantDjangoUserMixin(DjangoUserMixin):
             if self.set_extra_data(extra_data):
                 self.save()
 
+    def set_extra_data(self, extra_data=None):
+        access_token = extra_data.pop('access_token', None)
+        refresh_token = extra_data.pop('refresh_token', None)
+        if access_token is not None:
+            self.actual_access_token = access_token
+        if refresh_token is not None:
+            self.actual_refresh_token = refresh_token
+
+        if extra_data and self.extra_data != extra_data:
+            if self.extra_data and not isinstance(
+                    self.extra_data, six.string_types):
+                self.extra_data.update(extra_data)
+            else:
+                self.extra_data = extra_data
+            return True
+
 
 class DjangoNonceMixin(NonceMixin):
     @classmethod
