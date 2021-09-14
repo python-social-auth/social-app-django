@@ -168,6 +168,9 @@ class CompliantDjangoUserMixin(DjangoUserMixin):
                 self.save()
 
     def set_extra_data(self, extra_data=None):
+        """
+        Making sure we never store the tokens in extra data
+        """
         access_token = extra_data.pop('access_token', None)
         refresh_token = extra_data.pop('refresh_token', None)
         if access_token is not None:
