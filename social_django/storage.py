@@ -171,23 +171,24 @@ class CompliantDjangoUserMixin(DjangoUserMixin):
         """
         Making sure we never store the tokens in extra data
         """
-        access_token = extra_data.pop('access_token', None)
-        refresh_token = extra_data.pop('refresh_token', None)
-        if access_token is not None:
-            self.actual_access_token = access_token
-            self.save()
-        if refresh_token is not None:
-            self.actual_refresh_token = refresh_token
-            self.save()
+        if extra_data:
+            access_token = extra_data.pop('access_token', None)
+            refresh_token = extra_data.pop('refresh_token', None)
+            if access_token is not None:
+                self.actual_access_token = access_token
+                self.save()
+            if refresh_token is not None:
+                self.actual_refresh_token = refresh_token
+                self.save()
 
-        if extra_data and self.extra_data != extra_data:
-            if self.extra_data and not isinstance(
-                    self.extra_data, six.string_types):
-                self.extra_data.update(extra_data)
-            else:
-                self.extra_data = extra_data
-            self.save()
-            return True
+            if self.extra_data != extra_data:
+                if self.extra_data and not isinstance(
+                        self.extra_data, six.string_types):
+                    self.extra_data.update(extra_data)
+                else:
+                    self.extra_data = extra_data
+                self.save()
+                return True
 
 
 class DjangoNonceMixin(NonceMixin):
