@@ -9,15 +9,16 @@ def separate_tokens(apps, schema_editor):
         extra_data = social_user.extra_data
         save = False
 
-        access_token = extra_data.pop('access_token', None)
-        if access_token is not None:
-            social_user.actual_access_token = access_token
-            save = True
+        if extra_data:
+            access_token = extra_data.pop('access_token', None)
+            if access_token is not None:
+                social_user.actual_access_token = access_token
+                save = True
 
-        refresh_token = extra_data.pop('access_token', None)
-        if refresh_token is not None:
-            social_user.actual_refresh_token = refresh_token
-            save = True
+            refresh_token = extra_data.pop('access_token', None)
+            if refresh_token is not None:
+                social_user.actual_refresh_token = refresh_token
+                save = True
 
         if save is True:
             social_user.save()
