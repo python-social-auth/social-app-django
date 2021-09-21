@@ -7,7 +7,7 @@ from django.views.decorators.cache import never_cache
 
 from social_core.utils import setting_name
 from social_core.actions import do_auth, do_complete, do_disconnect
-from .utils import psa
+from .utils import psa, AuditLogger
 
 
 NAMESPACE = getattr(settings, setting_name('URL_NAMESPACE'), None) or 'social'
@@ -100,6 +100,7 @@ def _do_login(backend, user, social_user):
     max_session_length_setting = backend.setting('MAX_SESSION_LENGTH', None)
 
     # Log the user in, creating a new session.
+    AuditLogger().log(AuditLogger.EventType.Login)
     login(backend.strategy.request, user)
 
     # Make sure that the max_session_length value is either an integer or
