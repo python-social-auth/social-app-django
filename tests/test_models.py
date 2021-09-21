@@ -172,6 +172,22 @@ class TestUserSocialAuth(TestCase):
         self.assertEqual(UserSocialAuth.username_max_length(),
                          username_max_length)
 
+    def test_access_token_field(self):
+        test_token = 'eyJzdWIiOjEwMDAsImlzcyI6Imh0dHBzOi8vYXV0aG9yaXphdGlvbi1zZXJ2ZXIuY29tIiwiY2lkIjoiaHR0cHM6Ly9leGFtcGxlLWFwcC5jb20iLCJpYXQiOjE0NzAwMDI3MDMsImV4cCI6MTUyOTE3NDg1MSwic2NvcGUiOiJyZWFkIHdyaXRlIn0'
+        self.assertIsNone(self.usa.actual_access_token)
+        self.usa.actual_access_token = test_token
+        self.assertEqual(self.usa.actual_access_token, test_token)
+        self.usa.actual_access_token = None
+        self.assertIsNone(self.usa.actual_access_token)
+
+    def test_refresh_token_field(self):
+        test_token = 'eyJzdWIiOjEwMDAsImlzcyI6Imh0dHBzOi8vYXV0aG9yaXphdGlvbi1zZXJ2ZXIuY29tIiwiY2lkIjoiaHR0cHM6Ly9leGFtcGxlLWFwcC5jb20iLCJpYXQiOjE0NzAwMDI3MDMsImV4cCI6MTUyOTE3NDg1MSwic2NvcGUiOiJyZWFkIHdyaXRlIn0'
+        self.assertIsNone(self.usa.actual_refresh_token)
+        self.usa.actual_refresh_token = test_token
+        self.assertEqual(self.usa.actual_refresh_token, test_token)
+        self.usa.actual_refresh_token = None
+        self.assertIsNone(self.usa.actual_refresh_token)
+
 
 class TestNonce(TestCase):
     def test_use(self):
