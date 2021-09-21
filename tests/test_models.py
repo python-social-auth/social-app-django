@@ -65,11 +65,23 @@ class TestSocialAuthUser(TestCase):
 
 class TestUserSocialAuth(TestCase):
     def setUp(self):
+        self.test_token = 'eyJzdWIiOjEwMDAsImlzcyI6Imh0dHBzOi8vYXV0aG9yaXphdGlvbi1zZXJ2ZXIuY29tIiwiY2lkIjoiaHR0cHM6Ly9leGFtcGxlLWFwcC5jb20iLCJpYXQiOjE0NzAwMDI3MDMsImV4cCI6MTUyOTE3NDg1MSwic2NvcGUiOiJyZWFkIHdyaXRlIn0'
+        self.encrypted_test_token = b'vE4bSBeUzlOPG8MjK0QuITejoHEtAlJj5YCyzy+5SThQvjIXjY8K4b5xdTc8sYAespdqfbHYWi4UiwMVlpOm1vJcVNAw+QpRSyQ6zpPaiPz6wAWco7HmkG1TEJ2eHzQ3XiC5H0UBByhhgY4vzh824Djxn9u+MOIZBcirRzWctYq3HQshGyzfe5BHqm51TrtC/En6tVwUpF5vCNQ2ezmkGLBNDBKESnhY5QHapUwum1nb3RWlEMRBnR9wTZD8zufq'
+
         self.user_model = get_user_model()
         self.user = self.user_model.objects.create_user(
             username='randomtester', email='user@example.com')
         self.usa = UserSocialAuth.objects.create(
             user=self.user, provider='my-provider', uid='1234')
+
+    def _configure_mock_kms_client(self, field):
+        field_object = self.usa._meta.get_field(field)
+        mock_kms_client = mock.MagicMock()
+        mock_kms_client.encrypt = mock.MagicMock(return_value={
+            'CiphertextBlob': self.encrypted_test_token
+        })
+        mock_kms_client.decrypt = mock.MagicMock(return_value=self.test_token)
+        field_object._kms_client = mock_kms_client
 
     def test_changed(self):
         self.user.email = eml = 'test@example.com'
@@ -173,19 +185,23 @@ class TestUserSocialAuth(TestCase):
                          username_max_length)
 
     def test_access_token_field(self):
-        test_token = 'eyJzdWIiOjEwMDAsImlzcyI6Imh0dHBzOi8vYXV0aG9yaXphdGlvbi1zZXJ2ZXIuY29tIiwiY2lkIjoiaHR0cHM6Ly9leGFtcGxlLWFwcC5jb20iLCJpYXQiOjE0NzAwMDI3MDMsImV4cCI6MTUyOTE3NDg1MSwic2NvcGUiOiJyZWFkIHdyaXRlIn0'
+        self._configure_mock_kms_client('actual_access_token')
+
         self.assertIsNone(self.usa.actual_access_token)
-        self.usa.actual_access_token = test_token
-        self.assertEqual(self.usa.actual_access_token, test_token)
+        self.usa.actual_access_token = self.test_token
+        self.assertEqual(self.usa.actual_access_token, self.test_token)
         self.usa.actual_access_token = None
         self.assertIsNone(self.usa.actual_access_token)
 
     def test_refresh_token_field(self):
-        test_token = 'eyJzdWIiOjEwMDAsImlzcyI6Imh0dHBzOi8vYXV0aG9yaXphdGlvbi1zZXJ2ZXIuY29tIiwiY2lkIjoiaHR0cHM6Ly9leGFtcGxlLWFwcC5jb20iLCJpYXQiOjE0NzAwMDI3MDMsImV4cCI6MTUyOTE3NDg1MSwic2NvcGUiOiJyZWFkIHdyaXRlIn0'
+        self._configure_mock_kms_client('actual_refresh_token')
+
         self.assertIsNone(self.usa.actual_refresh_token)
-        self.usa.actual_refresh_token = test_token
-        self.assertEqual(self.usa.actual_refresh_token, test_token)
+        self.usa.actual_refresh_token = self.test_token
+        self.usa.save()
+        self.assertEqual(self.usa.actual_refresh_token, self.test_token)
         self.usa.actual_refresh_token = None
+        self.usa.save()
         self.assertIsNone(self.usa.actual_refresh_token)
 
 
