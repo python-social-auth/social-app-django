@@ -100,7 +100,7 @@ def _do_login(backend, user, social_user):
     max_session_length_setting = backend.setting('MAX_SESSION_LENGTH', None)
 
     # Log the user in, creating a new session.
-    AuditLogger().log(AuditLogger.EventType.Login)
+    AuditLogger().log(AuditLogger.EventType.LOGIN)
     login(backend.strategy.request, user)
 
     # Make sure that the max_session_length value is either an integer or
