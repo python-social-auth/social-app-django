@@ -1,7 +1,7 @@
 # coding=utf-8
 import logging
 
-import mock
+import unittest.mock as mock
 
 from django.contrib.messages import MessageFailure
 from django.http import HttpResponseRedirect

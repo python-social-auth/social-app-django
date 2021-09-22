@@ -3,6 +3,27 @@
 from django.db import migrations, models
 
 
+def separate_tokens(apps, schema_editor):
+    SocialUser = apps.get_model('social_django', 'UserSocialAuth')
+    for social_user in SocialUser.objects.all():
+        extra_data = social_user.extra_data
+        save = False
+
+        if extra_data:
+            access_token = extra_data.pop('access_token', None)
+            if access_token is not None:
+                social_user.actual_access_token = access_token
+                save = True
+
+            refresh_token = extra_data.pop('access_token', None)
+            if refresh_token is not None:
+                social_user.actual_refresh_token = refresh_token
+                save = True
+
+        if save is True:
+            social_user.save()
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -20,4 +41,5 @@ class Migration(migrations.Migration):
             name='actual_refresh_token',
             field=models.TextField(null=True),
         ),
+        migrations.RunPython(separate_tokens),
     ]
