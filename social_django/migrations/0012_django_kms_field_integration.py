@@ -15,11 +15,11 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='usersocialauth',
             name='actual_access_token',
-            field=django_kms.fields.KMSEncryptedCharField(editable=True, key_id=social_django.models_utils.get_kms_key, null=True),
+            field=django_kms.fields.KMSEncryptedCharField(editable=True, null=True),
         ),
         migrations.AlterField(
             model_name='usersocialauth',
             name='actual_refresh_token',
-            field=django_kms.fields.KMSEncryptedCharField(editable=True, key_id=social_django.models_utils.get_kms_key, null=True),
+            field=django_kms.fields.KMSEncryptedCharField(editable=True, null=True),
         ),
     ]
