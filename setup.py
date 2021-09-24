@@ -34,6 +34,9 @@ setup(
     url='https://github.com/python-social-auth/social-app-django',
     packages=[
         'social_django',
+        'social_django.backends',
+        'social_django.audit',
+        'social_django.pipeline',
         'social_django.migrations',
         'social_django.management',
         'social_django.management.commands',
