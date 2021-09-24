@@ -18,9 +18,6 @@ STORAGE = getattr(settings, setting_name('STORAGE'),
 Strategy = module_member(STRATEGY)
 Storage = module_member(STORAGE)
 
-AUDIT_LOGGER = getattr(settings, setting_name('AUDIT_LOGGER'))
-AuditLogger = module_member(AUDIT_LOGGER)
-
 
 def load_strategy(request=None):
     return get_strategy(STRATEGY, STORAGE, request)
