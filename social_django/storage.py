@@ -194,12 +194,12 @@ class CompliantDjangoUserMixin(DjangoUserMixin):
             access_token = extra_data.pop('access_token', None)
             refresh_token = extra_data.pop('refresh_token', None)
             if access_token is not None:
-                AuditLogger.log_encrypt_token_event('set_extra_data', self.user.id,
+                AuditLogger.log_encrypt_token_event(self.provider, self.user.id,
                                                     access_token)
                 self.actual_access_token = access_token
                 self.save()
             if refresh_token is not None:
-                AuditLogger.log_encrypt_token_event('set_extra_data', self.user.id,
+                AuditLogger.log_encrypt_token_event(self.provider, self.user.id,
                                                     refresh_token)
                 self.actual_refresh_token = refresh_token
                 self.save()

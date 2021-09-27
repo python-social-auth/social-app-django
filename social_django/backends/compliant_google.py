@@ -8,18 +8,15 @@ from social_core.utils import handle_http_errors
 class CompliantGoogleOAuth2(GoogleOAuth2):
 
     def request(self, url, method='GET', *args, **kwargs):
-        print('Making Request')
-        print(url)
         return super(CompliantGoogleOAuth2, self).request(url, method, *args, **kwargs)
 
     def request_access_token(self, *args, **kwargs):
         json = super().request_access_token(*args, **kwargs)
-        AuditLogger.log_request_token_event(self.name, None, json['access_token'], event_data={'token-type': 'access_token'})
+        AuditLogger.log_request_token_event(self.name, None, json['access_token'])
         return json
 
     def refresh_token(self, token, *args, **kwargs):
-        print(kwargs.get('user_id', ''))
-        AuditLogger.log_request_token_event(self.name, kwargs.get('user_id', None), token, event_data={'token-type': 'refresh_token'})
+        AuditLogger.log_request_token_event(self.name, kwargs.get('user_id', None), token)
         return super().refresh_token(self, token, *args, **kwargs)
 
     def revoke_token(self, token, uid, user_id=None):
