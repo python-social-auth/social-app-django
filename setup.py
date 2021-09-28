@@ -3,7 +3,7 @@
 import re
 
 from os.path import join, dirname
-from setuptools import setup
+from setuptools import setup, find_packages
 
 
 VERSION_RE = re.compile('__version__ = \'([\d\.]+)\'')
@@ -31,16 +31,8 @@ setup(
     description='Python Social Authentication, Django integration, Google compliant fork',
     license='BSD',
     keywords='django, social auth',
-    url='https://github.com/python-social-auth/social-app-django',
-    packages=[
-        'social_django',
-        'social_django.backends',
-        'social_django.audit',
-        'social_django.pipeline',
-        'social_django.migrations',
-        'social_django.management',
-        'social_django.management.commands',
-    ],
+    url='https://github.com/RightlyGroup/compliant-social-app-django',
+    packages=find_packages(),
     long_description=long_description(),
     long_description_content_type='text/markdown',
     install_requires=load_requirements(),
