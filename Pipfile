@@ -7,9 +7,9 @@ name = "pypi"
 six = "*"
 social-auth-core = ">=3.3.0"
 django-kms-field = "==0.6"
-twine = "*"
 
 [dev-packages]
+twine = "*"
 
 [requires]
 python_version = "3.8"
