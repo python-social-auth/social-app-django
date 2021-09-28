@@ -17,10 +17,10 @@ class SocialAdminTest(TestCase):
         )
 
     def test_admin_app_name(self):
-        """The App name in the admin index page"""
+        """App should not be registered in admin panel"""
         self.client.login(username='admin', password='super-duper-test')
         response = self.client.get(reverse('admin:index'))
-        self.assertContains(response, "Django administration")
+        self.assertNotContains(response, "Django administration")
 
     # TODO: Figure out what this test is for
     # def test_social_auth_changelist(self):

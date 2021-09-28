@@ -5,13 +5,29 @@ import sys
 from django.core.exceptions import FieldDoesNotExist
 from django.db import transaction, router
 from django.db.utils import IntegrityError
+from django.core.exceptions import ImproperlyConfigured
 
 from social_core.storage import UserMixin, AssociationMixin, NonceMixin, \
-                                CodeMixin, PartialMixin, BaseStorage
+    CodeMixin, PartialMixin, BaseStorage
+
+from django.conf import settings
+from social_core.utils import setting_name, module_member
+
+import hashlib
+
+from .audit.clients import AbstractBaseAuditLogger
+AUDIT_LOGGER = getattr(settings, setting_name('AUDIT_LOGGER'), None)
+if AUDIT_LOGGER is None:
+    raise ImproperlyConfigured('Please provide an Audit Logger')
+AuditLogger = module_member(AUDIT_LOGGER)
+if not isinstance(AuditLogger(), AbstractBaseAuditLogger):
+    raise ImproperlyConfigured('Provided Audit Logger is not an instance of django_social.audit.clients.AbstractBaseAuditLogger')
+
 
 
 class DjangoUserMixin(UserMixin):
     """Social Auth association model"""
+
     @classmethod
     def changed(cls, user):
         user.save()
@@ -149,14 +165,22 @@ class CompliantDjangoUserMixin(DjangoUserMixin):
     @property
     def access_token(self):
         """Override method in UserMixin as we've broken it out of extra_data"""
+        AuditLogger.log_decrypt_token_event(self.provider, self.user.id, self.actual_access_token)
         return self.actual_access_token
+
+    def get_actual_refresh_token(self):
+        """Helper function so that we can log the DecryptToken event"""
+        if self.actual_refresh_token != '' and self.actual_refresh_token is not None:
+            AuditLogger.log_decrypt_token_event(self.provider, self.user.id, self.actual_refresh_token)
+        return self.actual_refresh_token
 
     def refresh_token(self, strategy, *args, **kwargs):
         """Override method in UserMixin as tokens are in their own fields now"""
-        token = self.actual_refresh_token or self.actual_access_token
         backend = self.get_backend_instance(strategy)
+        token = self.actual_refresh_token or self.actual_access_token
+        AuditLogger.log_decrypt_token_event(backend.name, self.user.id, token)
         if token and backend and hasattr(backend, 'refresh_token'):
-            response = backend.refresh_token(token, *args, **kwargs)
+            response = backend.refresh_token(token, user_id=self.user.id, *args, **kwargs)
             extra_data = backend.extra_data(self,
                                             self.uid,
                                             response,
@@ -171,13 +195,18 @@ class CompliantDjangoUserMixin(DjangoUserMixin):
         """
         Making sure we never store the tokens in extra data
         """
+
         if extra_data:
             access_token = extra_data.pop('access_token', None)
             refresh_token = extra_data.pop('refresh_token', None)
             if access_token is not None:
+                AuditLogger.log_encrypt_token_event(self.provider, self.user.id,
+                                                    access_token)
                 self.actual_access_token = access_token
                 self.save()
             if refresh_token is not None:
+                AuditLogger.log_encrypt_token_event(self.provider, self.user.id,
+                                                    refresh_token)
                 self.actual_refresh_token = refresh_token
                 self.save()
 
