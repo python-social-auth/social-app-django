@@ -168,6 +168,12 @@ class CompliantDjangoUserMixin(DjangoUserMixin):
         AuditLogger.log_decrypt_token_event(self.provider, self.user.id, self.actual_access_token)
         return self.actual_access_token
 
+    def get_actual_refresh_token(self):
+        """Helper function so that we can log the DecryptToken event"""
+        if self.actual_refresh_token != '' and self.actual_refresh_token is not None:
+            AuditLogger.log_decrypt_token_event(self.provider, self.user.id, self.actual_refresh_token)
+        return self.actual_refresh_token
+
     def refresh_token(self, strategy, *args, **kwargs):
         """Override method in UserMixin as tokens are in their own fields now"""
         backend = self.get_backend_instance(strategy)
