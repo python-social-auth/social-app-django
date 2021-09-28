@@ -62,3 +62,4 @@ SECRET_KEY = '6p%gef2(6kvjsgl*7!51a7z8c3=u4uc&6ulpua0g1^&sthiifp'
 STATIC_URL = '/static/'
 
 SOCIAL_AUTH_AUDIT_LOGGER='social_django.audit.clients.DummyAuditLogger'
+KMS_FIELD_KEY='alias/fake_key'

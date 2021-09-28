@@ -5,15 +5,16 @@ from django.db import models
 from django.conf import settings
 from django.db.utils import IntegrityError
 
+from django_kms.fields import KMSEncryptedCharField
 from social_core.utils import setting_name
 
 from .compat import get_rel_model
+from .models_utils import get_kms_key
 from .storage import CompliantDjangoUserMixin, DjangoAssociationMixin, \
                      DjangoNonceMixin, DjangoCodeMixin, \
                      DjangoPartialMixin, BaseDjangoStorage
 from .fields import JSONField
 from .managers import UserSocialAuthManager
-
 
 USER_MODEL = getattr(settings, setting_name('USER_MODEL'), None) or \
              getattr(settings, 'AUTH_USER_MODEL', None) or \
@@ -34,8 +35,8 @@ class AbstractUserSocialAuth(models.Model, CompliantDjangoUserMixin):
                              on_delete=models.CASCADE)
     provider = models.CharField(max_length=32)
     uid = models.CharField(max_length=UID_LENGTH, db_index=True)
-    actual_access_token = models.TextField(null=True)
-    actual_refresh_token = models.TextField(null=True)
+    actual_access_token = KMSEncryptedCharField(null=True)
+    actual_refresh_token = KMSEncryptedCharField(null=True)
     extra_data = JSONField()
     created = models.DateTimeField(auto_now_add=True)
     modified = models.DateTimeField(auto_now=True)
