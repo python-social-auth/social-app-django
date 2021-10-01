@@ -1,15 +1,15 @@
-# Python Social Auth - Django
-
-Python Social Auth is an easy to setup social authentication/registration
-mechanism with support for several frameworks and auth providers.
-
-## Description
+# Compliant Social App Django
 
 This is a Google compliant fork of the [Django](https://www.djangoproject.com/) component of the
 [python-social-auth ecosystem](https://github.com/python-social-auth/social-core),
 it implements the needed functionality to integrate
 [social-auth-core](https://github.com/python-social-auth/social-core)
 in a Django based project.
+
+## Python Social Auth - Django
+
+Python Social Auth is an easy to setup social authentication/registration
+mechanism with support for several frameworks and auth providers.
 
 ## Django version
 
@@ -43,13 +43,11 @@ Core project documentation is available at http://python-social-auth.readthedocs
 $ pip install compliant-social-app-django
 ```
 
-## Contributing
-
-See the [CONTRIBUTING.md](CONTRIBUTING.md) document for details.
-
 ## Versioning
 
 This project follows [Semantic Versioning 2.0.0](http://semver.org/spec/v2.0.0.html).
+
+This fork's versioning will match the major version of the original package version upon which it is based
 
 ## License
 
