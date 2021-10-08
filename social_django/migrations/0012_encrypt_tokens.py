@@ -3,7 +3,7 @@
 from django.db import migrations, models
 
 
-def separate_tokens(apps, schema_editor):
+def encrypt_tokens(apps, schema_editor):
     SocialUser = apps.get_model('social_django', 'UserSocialAuth')
     for social_user in SocialUser.objects.all():
         extra_data = social_user.extra_data
@@ -15,7 +15,7 @@ def separate_tokens(apps, schema_editor):
                 social_user.actual_access_token = access_token
                 save = True
 
-            refresh_token = extra_data.pop('access_token', None)
+            refresh_token = extra_data.pop('refresh_token', None)
             if refresh_token is not None:
                 social_user.actual_refresh_token = refresh_token
                 save = True
@@ -27,19 +27,9 @@ def separate_tokens(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('social_django', '0010_uid_db_index'),
+        ('social_django', '0011_create_kms_token_fields'),
     ]
 
     operations = [
-        migrations.AddField(
-            model_name='usersocialauth',
-            name='actual_access_token',
-            field=models.TextField(null=True),
-        ),
-        migrations.AddField(
-            model_name='usersocialauth',
-            name='actual_refresh_token',
-            field=models.TextField(null=True),
-        ),
-        migrations.RunPython(separate_tokens),
+        migrations.RunPython(encrypt_tokens),
     ]
