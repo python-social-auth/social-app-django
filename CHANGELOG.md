@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [4.1.0](https://github.com/RightlyGroup/compliant-social-app-django/releases/tag/4.1.0) - 2021-10-08
+
+### Changed
+- Store access and refresh tokens in an EncryptedKMSField
+
 ## [4.0.0](https://github.com/python-social-auth/social-app-django/releases/tag/3.4.0) - 2020-05-30
 
 ### Changed
