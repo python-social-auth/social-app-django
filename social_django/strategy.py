@@ -147,7 +147,7 @@ class DjangoStrategy(BaseStrategy):
         if isinstance(val, dict) and 'pk' in val and 'ctype' in val:
             ctype = ContentType.objects.get_for_id(val['ctype'])
             ModelClass = ctype.model_class()
-            val = ModelClass.objects.get(pk=val['pk'])
+            val = ModelClass._default_manager.get(pk=val['pk'])
         return val
 
     def get_language(self):

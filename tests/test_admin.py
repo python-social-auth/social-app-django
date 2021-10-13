@@ -8,7 +8,7 @@ class SocialAdminTest(TestCase):
     @classmethod
     def setUpTestData(cls):
         User = get_user_model()
-        User.objects.create_superuser(
+        User._default_manager.create_superuser(
             username='admin', email='admin@test.com', first_name='Admin',
             password='super-duper-test'
         )
