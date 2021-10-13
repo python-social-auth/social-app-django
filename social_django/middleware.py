@@ -3,14 +3,13 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.messages.api import MessageFailure
 from django.shortcuts import redirect
-from django.utils.deprecation import MiddlewareMixin
 from urllib.parse import quote
 
 from social_core.exceptions import SocialAuthBaseException
 from social_core.utils import social_logger
 
 
-class SocialAuthExceptionMiddleware(MiddlewareMixin):
+class SocialAuthExceptionMiddleware:
     """Middleware that handles Social Auth AuthExceptions by providing the user
     with a message, logging an error, and redirecting to some next location.
 
@@ -21,6 +20,12 @@ class SocialAuthExceptionMiddleware(MiddlewareMixin):
     This middleware can be extended by overriding the get_message or
     get_redirect_uri methods, which each accept request and exception.
     """
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        return self.get_response(request)
+
     def process_exception(self, request, exception):
         strategy = getattr(request, 'social_strategy', None)
         if strategy is None or self.raise_exception(request, exception):
