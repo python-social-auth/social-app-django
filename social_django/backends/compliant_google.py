@@ -32,4 +32,4 @@ class CompliantGoogleOAuth2(GoogleOAuth2):
             revoke_token_successful = self.process_revoke_token_response(response)
             if revoke_token_successful:
                 AuditLogger.log_revoke_token_event(self.name, user_id, token)
-            return revoke_token_response
+            return revoke_token_successful
