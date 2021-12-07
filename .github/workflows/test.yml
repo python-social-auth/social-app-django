@@ -1,6 +1,10 @@
 name: Tests
 
-on: [push, pull_request]
+on: 
+  push:
+  pull_request:
+  schedule:
+      - cron:  '0 0 * * 0'
 
 jobs:
   test:
@@ -20,7 +24,9 @@ jobs:
         python-version: ${{ matrix.python-version }}
 
     - name: Install System dependencies
-      run: sudo apt install -qq -y --no-install-recommends libxmlsec1-dev swig
+      run: |
+        sudo apt update -qq -y
+        sudo apt install -qq -y --no-install-recommends libxmlsec1-dev swig
 
     - name: Install Python dependencies
       run: |
@@ -30,14 +36,6 @@ jobs:
     - name: Django 2.2.x Test
       run: |
         tox -e "py${PYTHON_VERSION/\./}-django-22"
-
-    - name: Django 3.0.x Test
-      run: |
-        tox -e "py${PYTHON_VERSION/\./}-django-30"
-
-    - name: Django 3.1.x Test
-      run: |
-        tox -e "py${PYTHON_VERSION/\./}-django-31"
 
     - name: Django 3.2.x Test
       run: |
