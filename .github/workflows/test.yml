@@ -11,7 +11,12 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.6, 3.7, 3.8, 3.9]
+        python-version:
+          - "3.6"
+          - "3.7"
+          - "3.8"
+          - "3.9"
+          - "3.10"
     env:
       PYTHON_VERSION: ${{ matrix.python-version }}
 
@@ -41,10 +46,15 @@ jobs:
       run: |
         tox -e "py${PYTHON_VERSION/\./}-django-32"
 
+    - name: Django 4.0.x Test
+      run: |
+        tox -e "py${PYTHON_VERSION/\./}-django-40"
+      if: ${{ env.PYTHON_VERSION == '3.8' || env.PYTHON_VERSION == '3.9' || env.PYTHON_VERSION == '3.10' }}
+
     - name: Django main Test
       run: |
         tox -e "py${PYTHON_VERSION/\./}-django-main"
-      if: ${{ env.PYTHON_VERSION == '3.8' || env.PYTHON_VERSION == '3.9' }}
+      if: ${{ env.PYTHON_VERSION == '3.8' || env.PYTHON_VERSION == '3.9' || env.PYTHON_VERSION == '3.10' }}
 
     - name: Coverage
       run: |
