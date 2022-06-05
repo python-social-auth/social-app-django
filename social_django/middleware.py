@@ -46,8 +46,8 @@ class SocialAuthExceptionMiddleware:
                 except MessageFailure:
                     if url:
                         url += ('?' in url and '&' or '?') + \
-                               'message={}&backend={}'.format(quote(message),
-                                                              backend_name)
+                               f'message={quote(message)}&backend={backend_name}'
+                        
             else:
                 social_logger.error(message)
 
