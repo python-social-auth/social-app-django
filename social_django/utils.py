@@ -3,10 +3,8 @@ from functools import wraps
 from django.conf import settings
 from django.http import Http404
 from django.urls import reverse
-
-from social_core.utils import setting_name, module_member, get_strategy
 from social_core.exceptions import MissingBackend
-
+from social_core.utils import get_strategy, module_member, setting_name
 
 STRATEGY = getattr(settings, setting_name('STRATEGY'),
                    'social_django.strategy.DjangoStrategy')

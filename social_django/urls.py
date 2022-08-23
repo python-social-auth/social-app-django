@@ -1,10 +1,9 @@
 """URLs module"""
 from django.conf import settings
 from django.urls import path
-
 from social_core.utils import setting_name
-from . import views
 
+from . import views
 
 extra = getattr(settings, setting_name('TRAILING_SLASH'), True) and '/' or ''
 

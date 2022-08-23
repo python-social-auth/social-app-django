@@ -3,9 +3,9 @@ from itertools import chain
 
 from django.conf import settings
 from django.contrib import admin
-
 from social_core.utils import setting_name
-from .models import UserSocialAuth, Nonce, Association
+
+from .models import Association, Nonce, UserSocialAuth
 
 
 class UserSocialAuthOption(admin.ModelAdmin):

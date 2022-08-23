@@ -1,13 +1,14 @@
 from datetime import timedelta
-
 from unittest import mock
+
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.db import IntegrityError
 from django.test import TestCase
 
-from social_django.models import AbstractUserSocialAuth, Association, Code, \
-    DjangoStorage, Nonce, Partial, UserSocialAuth
+from social_django.models import (AbstractUserSocialAuth, Association, Code,
+                                  DjangoStorage, Nonce, Partial,
+                                  UserSocialAuth)
 
 
 class TestSocialAuthUser(TestCase):

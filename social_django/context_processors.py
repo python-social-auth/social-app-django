@@ -1,7 +1,8 @@
-from django.contrib.auth import REDIRECT_FIELD_NAME
-from django.conf import settings
-from django.utils.functional import SimpleLazyObject
 from urllib.parse import quote
+
+from django.conf import settings
+from django.contrib.auth import REDIRECT_FIELD_NAME
+from django.utils.functional import SimpleLazyObject
 
 try:
     from django.utils.functional import empty as _empty
@@ -11,6 +12,7 @@ except ImportError:  # django < 1.4
 
 
 from social_core.backends.utils import user_backends_data
+
 from .utils import Storage
 
 

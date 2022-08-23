@@ -1,10 +1,10 @@
+from urllib.parse import quote
+
 from django.apps import apps
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.messages.api import MessageFailure
 from django.shortcuts import redirect
-from urllib.parse import quote
-
 from social_core.exceptions import SocialAuthBaseException
 from social_core.utils import social_logger
 

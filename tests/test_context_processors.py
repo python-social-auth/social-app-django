@@ -1,4 +1,4 @@
-from django.test import TestCase, RequestFactory, override_settings
+from django.test import RequestFactory, TestCase, override_settings
 
 from social_django.context_processors import login_redirect
 

@@ -1,6 +1,5 @@
 from django.conf import settings
-from django.db import models, migrations
-
+from django.db import migrations, models
 from social_core.utils import setting_name
 
 EMAIL_LENGTH = getattr(settings, setting_name('EMAIL_LENGTH'), 254)

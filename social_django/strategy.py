@@ -1,15 +1,14 @@
 from django.conf import settings
-from django.http import HttpResponse
-from django.db.models import Model
-from django.contrib.contenttypes.models import ContentType
 from django.contrib.auth import authenticate
+from django.contrib.contenttypes.models import ContentType
+from django.db.models import Model
+from django.http import HttpResponse
 from django.shortcuts import redirect, resolve_url
-from django.template import TemplateDoesNotExist, loader, engines
+from django.template import TemplateDoesNotExist, engines, loader
 from django.utils.crypto import get_random_string
 from django.utils.encoding import force_str
 from django.utils.functional import Promise
 from django.utils.translation import get_language
-
 from social_core.strategy import BaseStrategy, BaseTemplateStrategy
 
 
