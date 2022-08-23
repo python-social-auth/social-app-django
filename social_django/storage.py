@@ -2,11 +2,10 @@
 import base64
 
 from django.core.exceptions import FieldDoesNotExist
-from django.db import transaction, router
+from django.db import router, transaction
 from django.db.utils import IntegrityError
-
-from social_core.storage import UserMixin, AssociationMixin, NonceMixin, \
-                                CodeMixin, PartialMixin, BaseStorage
+from social_core.storage import (AssociationMixin, BaseStorage, CodeMixin,
+                                 NonceMixin, PartialMixin, UserMixin)
 
 
 class DjangoUserMixin(UserMixin):

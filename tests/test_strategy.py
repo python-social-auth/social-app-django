@@ -3,11 +3,11 @@ from unittest import mock
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.sessions.middleware import SessionMiddleware
-from django.http import QueryDict, HttpResponse
-from django.test import TestCase, RequestFactory
+from django.http import HttpResponse, QueryDict
+from django.test import RequestFactory, TestCase
 from django.utils.translation import gettext_lazy
 
-from social_django.utils import load_strategy, load_backend
+from social_django.utils import load_backend, load_strategy
 
 
 class TestStrategy(TestCase):

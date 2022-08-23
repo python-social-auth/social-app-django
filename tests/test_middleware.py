@@ -1,12 +1,10 @@
 import logging
-
 from unittest import mock
 
 from django.contrib.messages import MessageFailure
 from django.http import HttpResponseRedirect
 from django.test import TestCase, override_settings
 from django.urls import reverse
-
 from social_core.exceptions import AuthCanceled
 
 

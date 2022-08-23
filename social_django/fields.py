@@ -1,13 +1,11 @@
 import json
 import warnings
 
-from django.core.exceptions import ValidationError
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.encoding import force_str
-
 from social_core.utils import setting_name
-
 
 POSTGRES_JSONFIELD = getattr(settings, setting_name('POSTGRES_JSONFIELD'),
                              False)

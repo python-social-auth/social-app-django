@@ -1,14 +1,13 @@
 from django.conf import settings
-from django.contrib.auth import login, REDIRECT_FIELD_NAME
+from django.contrib.auth import REDIRECT_FIELD_NAME, login
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_exempt, csrf_protect
 from django.views.decorators.http import require_POST
-from django.views.decorators.cache import never_cache
-
-from social_core.utils import setting_name
 from social_core.actions import do_auth, do_complete, do_disconnect
-from .utils import psa
+from social_core.utils import setting_name
 
+from .utils import psa
 
 NAMESPACE = getattr(settings, setting_name('URL_NAMESPACE'), None) or 'social'
 

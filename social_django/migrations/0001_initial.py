@@ -1,11 +1,10 @@
-from django.db import models, migrations
 from django.conf import settings
-
+from django.db import migrations, models
 from social_core.utils import setting_name
 
 from ..fields import JSONField
-from ..storage import DjangoAssociationMixin, DjangoCodeMixin, \
-                      DjangoNonceMixin, DjangoUserMixin
+from ..storage import (DjangoAssociationMixin, DjangoCodeMixin,
+                       DjangoNonceMixin, DjangoUserMixin)
 
 USER_MODEL = getattr(settings, setting_name('USER_MODEL'), None) or \
              getattr(settings, 'AUTH_USER_MODEL', None) or \

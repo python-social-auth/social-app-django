@@ -1,16 +1,14 @@
 """Django ORM models for Social Auth"""
-from django.db import models
 from django.conf import settings
+from django.db import models
 from django.db.utils import IntegrityError
-
 from social_core.utils import setting_name
 
-from .storage import DjangoUserMixin, DjangoAssociationMixin, \
-    DjangoNonceMixin, DjangoCodeMixin, \
-    DjangoPartialMixin, BaseDjangoStorage
 from .fields import JSONField
 from .managers import UserSocialAuthManager
-
+from .storage import (BaseDjangoStorage, DjangoAssociationMixin,
+                      DjangoCodeMixin, DjangoNonceMixin, DjangoPartialMixin,
+                      DjangoUserMixin)
 
 USER_MODEL = getattr(settings, setting_name('USER_MODEL'), None) or \
     getattr(settings, 'AUTH_USER_MODEL', None) or \

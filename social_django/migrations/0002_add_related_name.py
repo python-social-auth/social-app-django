@@ -1,6 +1,5 @@
-from django.db import models, migrations
 from django.conf import settings
-
+from django.db import migrations, models
 from social_core.utils import setting_name
 
 USER_MODEL = getattr(settings, setting_name('USER_MODEL'), None) or \
