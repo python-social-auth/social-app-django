@@ -6,16 +6,16 @@ from django.utils import timezone
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('social_django', '0007_code_timestamp'),
+        ("social_django", "0007_code_timestamp"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='partial',
-            name='timestamp',
-            field=models.DateTimeField(auto_now_add=True,
-                                       db_index=True,
-                                       default=timezone.now),
+            model_name="partial",
+            name="timestamp",
+            field=models.DateTimeField(
+                auto_now_add=True, db_index=True, default=timezone.now
+            ),
             preserve_default=False,
         ),
     ]

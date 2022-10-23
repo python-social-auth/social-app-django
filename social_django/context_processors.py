@@ -6,6 +6,7 @@ from django.utils.functional import SimpleLazyObject
 
 try:
     from django.utils.functional import empty as _empty
+
     empty = _empty
 except ImportError:  # django < 1.4
     empty = None
@@ -33,24 +34,30 @@ class LazyDict(SimpleLazyObject):
 def backends(request):
     """Load Social Auth current user data to context under the key 'backends'.
     Will return the output of social_core.backends.utils.user_backends_data."""
-    return {'backends': LazyDict(lambda: user_backends_data(request.user,
-                                                            settings.AUTHENTICATION_BACKENDS,
-                                                            Storage))}
+    return {
+        "backends": LazyDict(
+            lambda: user_backends_data(
+                request.user, settings.AUTHENTICATION_BACKENDS, Storage
+            )
+        )
+    }
 
 
 def login_redirect(request):
     """Load current redirect to context."""
-    value = request.method == 'POST' and \
-        request.POST.get(REDIRECT_FIELD_NAME) or \
-        request.GET.get(REDIRECT_FIELD_NAME)
+    value = (
+        request.method == "POST"
+        and request.POST.get(REDIRECT_FIELD_NAME)
+        or request.GET.get(REDIRECT_FIELD_NAME)
+    )
     if value:
         value = quote(value)
-        querystring = REDIRECT_FIELD_NAME + '=' + value
+        querystring = REDIRECT_FIELD_NAME + "=" + value
     else:
-        querystring = ''
+        querystring = ""
 
     return {
-        'REDIRECT_FIELD_NAME': REDIRECT_FIELD_NAME,
-        'REDIRECT_FIELD_VALUE': value,
-        'REDIRECT_QUERYSTRING': querystring
+        "REDIRECT_FIELD_NAME": REDIRECT_FIELD_NAME,
+        "REDIRECT_FIELD_VALUE": value,
+        "REDIRECT_QUERYSTRING": querystring,
     }

@@ -9,7 +9,7 @@ from social_core.utils import setting_name
 
 from .utils import psa
 
-NAMESPACE = getattr(settings, setting_name('URL_NAMESPACE'), None) or 'social'
+NAMESPACE = getattr(settings, setting_name("URL_NAMESPACE"), None) or "social"
 
 # Calling `session.set_expiry(None)` results in a session lifetime equal to
 # platform default session lifetime.
@@ -17,19 +17,25 @@ DEFAULT_SESSION_TIMEOUT = None
 
 
 @never_cache
-@psa(f'{NAMESPACE}:complete')
+@psa(f"{NAMESPACE}:complete")
 def auth(request, backend):
     return do_auth(request.backend, redirect_name=REDIRECT_FIELD_NAME)
 
 
 @never_cache
 @csrf_exempt
-@psa(f'{NAMESPACE}:complete')
+@psa(f"{NAMESPACE}:complete")
 def complete(request, backend, *args, **kwargs):
     """Authentication complete view"""
-    return do_complete(request.backend, _do_login, user=request.user,
-                       redirect_name=REDIRECT_FIELD_NAME, request=request,
-                       *args, **kwargs)
+    return do_complete(
+        request.backend,
+        _do_login,
+        user=request.user,
+        redirect_name=REDIRECT_FIELD_NAME,
+        request=request,
+        *args,
+        **kwargs,
+    )
 
 
 @never_cache
@@ -39,12 +45,14 @@ def complete(request, backend, *args, **kwargs):
 @csrf_protect
 def disconnect(request, backend, association_id=None):
     """Disconnects given backend from current logged in user."""
-    return do_disconnect(request.backend, request.user, association_id,
-                         redirect_name=REDIRECT_FIELD_NAME)
+    return do_disconnect(
+        request.backend, request.user, association_id, redirect_name=REDIRECT_FIELD_NAME
+    )
 
 
-def get_session_timeout(social_user, enable_session_expiration=False,
-                        max_session_length=None):
+def get_session_timeout(
+    social_user, enable_session_expiration=False, max_session_length=None
+):
     if enable_session_expiration:
         # Retrieve an expiration date from the social user who just finished
         # logging in; this value was set by the social auth backend, and was
@@ -91,11 +99,11 @@ def get_session_timeout(social_user, enable_session_expiration=False,
 
 
 def _do_login(backend, user, social_user):
-    user.backend = f'{backend.__module__}.{backend.__class__.__name__}'
+    user.backend = f"{backend.__module__}.{backend.__class__.__name__}"
     # Get these details early to avoid any issues involved in the
     # session switch that happens when we call login().
-    enable_session_expiration = backend.setting('SESSION_EXPIRATION', False)
-    max_session_length_setting = backend.setting('MAX_SESSION_LENGTH', None)
+    enable_session_expiration = backend.setting("SESSION_EXPIRATION", False)
+    max_session_length_setting = backend.setting("MAX_SESSION_LENGTH", None)
 
     # Log the user in, creating a new session.
     login(backend.strategy.request, user)

@@ -6,27 +6,39 @@ from social_core.utils import setting_name
 
 from .fields import JSONField
 from .managers import UserSocialAuthManager
-from .storage import (BaseDjangoStorage, DjangoAssociationMixin,
-                      DjangoCodeMixin, DjangoNonceMixin, DjangoPartialMixin,
-                      DjangoUserMixin)
+from .storage import (
+    BaseDjangoStorage,
+    DjangoAssociationMixin,
+    DjangoCodeMixin,
+    DjangoNonceMixin,
+    DjangoPartialMixin,
+    DjangoUserMixin,
+)
 
-USER_MODEL = getattr(settings, setting_name('USER_MODEL'), None) or \
-    getattr(settings, 'AUTH_USER_MODEL', None) or \
-    'auth.User'
-UID_LENGTH = getattr(settings, setting_name('UID_LENGTH'), 255)
-EMAIL_LENGTH = getattr(settings, setting_name('EMAIL_LENGTH'), 254)
+USER_MODEL = (
+    getattr(settings, setting_name("USER_MODEL"), None)
+    or getattr(settings, "AUTH_USER_MODEL", None)
+    or "auth.User"
+)
+UID_LENGTH = getattr(settings, setting_name("UID_LENGTH"), 255)
+EMAIL_LENGTH = getattr(settings, setting_name("EMAIL_LENGTH"), 254)
 NONCE_SERVER_URL_LENGTH = getattr(
-    settings, setting_name('NONCE_SERVER_URL_LENGTH'), 255)
+    settings, setting_name("NONCE_SERVER_URL_LENGTH"), 255
+)
 ASSOCIATION_SERVER_URL_LENGTH = getattr(
-    settings, setting_name('ASSOCIATION_SERVER_URL_LENGTH'), 255)
+    settings, setting_name("ASSOCIATION_SERVER_URL_LENGTH"), 255
+)
 ASSOCIATION_HANDLE_LENGTH = getattr(
-    settings, setting_name('ASSOCIATION_HANDLE_LENGTH'), 255)
+    settings, setting_name("ASSOCIATION_HANDLE_LENGTH"), 255
+)
 
 
 class AbstractUserSocialAuth(models.Model, DjangoUserMixin):
     """Abstract Social Auth association model"""
-    user = models.ForeignKey(USER_MODEL, related_name='social_auth',
-                             on_delete=models.CASCADE)
+
+    user = models.ForeignKey(
+        USER_MODEL, related_name="social_auth", on_delete=models.CASCADE
+    )
     provider = models.CharField(max_length=32)
     uid = models.CharField(max_length=UID_LENGTH, db_index=True)
     extra_data = JSONField()
@@ -44,8 +56,7 @@ class AbstractUserSocialAuth(models.Model, DjangoUserMixin):
     @classmethod
     def get_social_auth(cls, provider, uid):
         try:
-            return cls.objects.select_related('user').get(provider=provider,
-                                                          uid=uid)
+            return cls.objects.select_related("user").get(provider=provider, uid=uid)
         except cls.DoesNotExist:
             return None
 
@@ -57,7 +68,7 @@ class AbstractUserSocialAuth(models.Model, DjangoUserMixin):
 
     @classmethod
     def user_model(cls):
-        return cls._meta.get_field('user').remote_field.model
+        return cls._meta.get_field("user").remote_field.model
 
 
 class UserSocialAuth(AbstractUserSocialAuth):
@@ -65,25 +76,28 @@ class UserSocialAuth(AbstractUserSocialAuth):
 
     class Meta:
         """Meta data"""
+
         app_label = "social_django"
-        unique_together = ('provider', 'uid')
-        db_table = 'social_auth_usersocialauth'
+        unique_together = ("provider", "uid")
+        db_table = "social_auth_usersocialauth"
 
 
 class Nonce(models.Model, DjangoNonceMixin):
     """One use numbers"""
+
     server_url = models.CharField(max_length=NONCE_SERVER_URL_LENGTH)
     timestamp = models.IntegerField()
     salt = models.CharField(max_length=65)
 
     class Meta:
         app_label = "social_django"
-        unique_together = ('server_url', 'timestamp', 'salt')
-        db_table = 'social_auth_nonce'
+        unique_together = ("server_url", "timestamp", "salt")
+        db_table = "social_auth_nonce"
 
 
 class Association(models.Model, DjangoAssociationMixin):
     """OpenId account association"""
+
     server_url = models.CharField(max_length=ASSOCIATION_SERVER_URL_LENGTH)
     handle = models.CharField(max_length=ASSOCIATION_HANDLE_LENGTH)
     secret = models.CharField(max_length=255)  # Stored base64 encoded
@@ -93,9 +107,10 @@ class Association(models.Model, DjangoAssociationMixin):
 
     class Meta:
         app_label = "social_django"
-        db_table = 'social_auth_association'
+        db_table = "social_auth_association"
         unique_together = (
-            ('server_url', 'handle',)
+            "server_url",
+            "handle",
         )
 
 
@@ -107,8 +122,8 @@ class Code(models.Model, DjangoCodeMixin):
 
     class Meta:
         app_label = "social_django"
-        db_table = 'social_auth_code'
-        unique_together = ('email', 'code')
+        db_table = "social_auth_code"
+        unique_together = ("email", "code")
 
 
 class Partial(models.Model, DjangoPartialMixin):
@@ -120,7 +135,7 @@ class Partial(models.Model, DjangoPartialMixin):
 
     class Meta:
         app_label = "social_django"
-        db_table = 'social_auth_partial'
+        db_table = "social_auth_partial"
 
 
 class DjangoStorage(BaseDjangoStorage):

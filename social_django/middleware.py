@@ -20,6 +20,7 @@ class SocialAuthExceptionMiddleware:
     This middleware can be extended by overriding the get_message or
     get_redirect_uri methods, which each accept request and exception.
     """
+
     def __init__(self, get_response):
         self.get_response = get_response
 
@@ -27,27 +28,28 @@ class SocialAuthExceptionMiddleware:
         return self.get_response(request)
 
     def process_exception(self, request, exception):
-        strategy = getattr(request, 'social_strategy', None)
+        strategy = getattr(request, "social_strategy", None)
         if strategy is None or self.raise_exception(request, exception):
             return
 
         if isinstance(exception, SocialAuthBaseException):
-            backend = getattr(request, 'backend', None)
-            backend_name = getattr(backend, 'name', 'unknown-backend')
+            backend = getattr(request, "backend", None)
+            backend_name = getattr(backend, "name", "unknown-backend")
 
             message = self.get_message(request, exception)
             url = self.get_redirect_uri(request, exception)
 
-            if apps.is_installed('django.contrib.messages'):
+            if apps.is_installed("django.contrib.messages"):
                 social_logger.info(message)
                 try:
-                    messages.error(request, message,
-                                   extra_tags='social-auth ' + backend_name)
+                    messages.error(
+                        request, message, extra_tags="social-auth " + backend_name
+                    )
                 except MessageFailure:
                     if url:
-                        url += ('?' in url and '&' or '?') + \
-                               'message={}&backend={}'.format(quote(message),
-                                                              backend_name)
+                        url += (
+                            "?" in url and "&" or "?"
+                        ) + f"message={quote(message)}&backend={backend_name}"
             else:
                 social_logger.error(message)
 
@@ -55,13 +57,13 @@ class SocialAuthExceptionMiddleware:
                 return redirect(url)
 
     def raise_exception(self, request, exception):
-        strategy = getattr(request, 'social_strategy', None)
+        strategy = getattr(request, "social_strategy", None)
         if strategy is not None:
-            return strategy.setting('RAISE_EXCEPTIONS') or settings.DEBUG
+            return strategy.setting("RAISE_EXCEPTIONS") or settings.DEBUG
 
     def get_message(self, request, exception):
         return str(exception)
 
     def get_redirect_uri(self, request, exception):
-        strategy = getattr(request, 'social_strategy', None)
-        return strategy.setting('LOGIN_ERROR_URL')
+        strategy = getattr(request, "social_strategy", None)
+        return strategy.setting("LOGIN_ERROR_URL")

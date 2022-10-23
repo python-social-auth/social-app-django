@@ -6,10 +6,12 @@ from django.urls import reverse
 from social_core.exceptions import MissingBackend
 from social_core.utils import get_strategy, module_member, setting_name
 
-STRATEGY = getattr(settings, setting_name('STRATEGY'),
-                   'social_django.strategy.DjangoStrategy')
-STORAGE = getattr(settings, setting_name('STORAGE'),
-                  'social_django.models.DjangoStorage')
+STRATEGY = getattr(
+    settings, setting_name("STRATEGY"), "social_django.strategy.DjangoStrategy"
+)
+STORAGE = getattr(
+    settings, setting_name("STORAGE"), "social_django.models.DjangoStorage"
+)
 Strategy = module_member(STRATEGY)
 Storage = module_member(STORAGE)
 
@@ -27,20 +29,22 @@ def psa(redirect_uri=None, load_strategy=load_strategy):
         @wraps(func)
         def wrapper(request, backend, *args, **kwargs):
             uri = redirect_uri
-            if uri and not uri.startswith('/'):
+            if uri and not uri.startswith("/"):
                 uri = reverse(redirect_uri, args=(backend,))
             request.social_strategy = load_strategy(request)
             # backward compatibility in attribute name, only if not already
             # defined
-            if not hasattr(request, 'strategy'):
+            if not hasattr(request, "strategy"):
                 request.strategy = request.social_strategy
 
             try:
-                request.backend = load_backend(request.social_strategy,
-                                               backend,
-                                               redirect_uri=uri)
+                request.backend = load_backend(
+                    request.social_strategy, backend, redirect_uri=uri
+                )
             except MissingBackend:
-                raise Http404('Backend not found')
+                raise Http404("Backend not found")
             return func(request, backend, *args, **kwargs)
+
         return wrapper
+
     return decorator

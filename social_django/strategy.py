@@ -15,7 +15,7 @@ from social_core.strategy import BaseStrategy, BaseTemplateStrategy
 def render_template_string(request, html, context=None):
     """Take a template in the form of a string and render it for the
     given context"""
-    template = engines['django'].from_string(html)
+    template = engines["django"].from_string(html)
     return template.render(context=context, request=request)
 
 
@@ -39,7 +39,7 @@ class DjangoStrategy(BaseStrategy):
     def get_setting(self, name):
         value = getattr(settings, name)
         # Force text on URL named settings that are instance of Promise
-        if name.endswith('_URL'):
+        if name.endswith("_URL"):
             if isinstance(value, Promise):
                 value = force_str(value)
             value = resolve_url(value)
@@ -51,7 +51,7 @@ class DjangoStrategy(BaseStrategy):
         if merge:
             data = self.request.GET.copy()
             data.update(self.request.POST)
-        elif self.request.method == 'POST':
+        elif self.request.method == "POST":
             data = self.request.POST
         else:
             data = self.request.GET
@@ -85,11 +85,11 @@ class DjangoStrategy(BaseStrategy):
         return redirect(url)
 
     def html(self, content):
-        return HttpResponse(content, content_type='text/html;charset=UTF-8')
+        return HttpResponse(content, content_type="text/html;charset=UTF-8")
 
     def render_html(self, tpl=None, html=None, context=None):
         if not tpl and not html:
-            raise ValueError('Missing template or html parameters')
+            raise ValueError("Missing template or html parameters")
         context = context or {}
         try:
             template = loader.get_template(tpl)
@@ -98,14 +98,14 @@ class DjangoStrategy(BaseStrategy):
             return render_template_string(self.request, html, context)
 
     def authenticate(self, backend, *args, **kwargs):
-        kwargs['strategy'] = self
-        kwargs['storage'] = self.storage
-        kwargs['backend'] = backend
+        kwargs["strategy"] = self
+        kwargs["storage"] = self.storage
+        kwargs["backend"] = backend
         return authenticate(*args, **kwargs)
 
     def clean_authenticate_args(self, request, *args, **kwargs):
         # pipelines don't want a positional request argument
-        kwargs['request'] = request
+        kwargs["request"] = request
         return args, kwargs
 
     def session_get(self, name, default=None):
@@ -113,7 +113,7 @@ class DjangoStrategy(BaseStrategy):
 
     def session_set(self, name, value):
         self.session[name] = value
-        if hasattr(self.session, 'modified'):
+        if hasattr(self.session, "modified"):
             self.session.modified = True
 
     def session_pop(self, name):
@@ -135,18 +135,15 @@ class DjangoStrategy(BaseStrategy):
         """Converts values that are instance of Model to a dictionary
         with enough information to retrieve the instance back later."""
         if isinstance(val, Model):
-            val = {
-                'pk': val.pk,
-                'ctype': ContentType.objects.get_for_model(val).pk
-            }
+            val = {"pk": val.pk, "ctype": ContentType.objects.get_for_model(val).pk}
         return val
 
     def from_session_value(self, val):
         """Converts back the instance saved by self._ctype function."""
-        if isinstance(val, dict) and 'pk' in val and 'ctype' in val:
-            ctype = ContentType.objects.get_for_id(val['ctype'])
+        if isinstance(val, dict) and "pk" in val and "ctype" in val:
+            ctype = ContentType.objects.get_for_id(val["ctype"])
             ModelClass = ctype.model_class()
-            val = ModelClass._default_manager.get(pk=val['pk'])
+            val = ModelClass._default_manager.get(pk=val["pk"])
         return val
 
     def get_language(self):
