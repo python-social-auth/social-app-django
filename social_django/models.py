@@ -36,6 +36,7 @@ ASSOCIATION_HANDLE_LENGTH = getattr(
 class AbstractUserSocialAuth(models.Model, DjangoUserMixin):
     """Abstract Social Auth association model"""
 
+    id = models.BigAutoField(primary_key=True)
     user = models.ForeignKey(
         USER_MODEL, related_name="social_auth", on_delete=models.CASCADE
     )
@@ -85,6 +86,7 @@ class UserSocialAuth(AbstractUserSocialAuth):
 class Nonce(models.Model, DjangoNonceMixin):
     """One use numbers"""
 
+    id = models.BigAutoField(primary_key=True)
     server_url = models.CharField(max_length=NONCE_SERVER_URL_LENGTH)
     timestamp = models.IntegerField()
     salt = models.CharField(max_length=65)
@@ -98,6 +100,7 @@ class Nonce(models.Model, DjangoNonceMixin):
 class Association(models.Model, DjangoAssociationMixin):
     """OpenId account association"""
 
+    id = models.BigAutoField(primary_key=True)
     server_url = models.CharField(max_length=ASSOCIATION_SERVER_URL_LENGTH)
     handle = models.CharField(max_length=ASSOCIATION_HANDLE_LENGTH)
     secret = models.CharField(max_length=255)  # Stored base64 encoded
@@ -115,6 +118,7 @@ class Association(models.Model, DjangoAssociationMixin):
 
 
 class Code(models.Model, DjangoCodeMixin):
+    id = models.BigAutoField(primary_key=True)
     email = models.EmailField(max_length=EMAIL_LENGTH)
     code = models.CharField(max_length=32, db_index=True)
     verified = models.BooleanField(default=False)
@@ -127,6 +131,7 @@ class Code(models.Model, DjangoCodeMixin):
 
 
 class Partial(models.Model, DjangoPartialMixin):
+    id = models.BigAutoField(primary_key=True)
     token = models.CharField(max_length=32, db_index=True)
     next_step = models.PositiveSmallIntegerField(default=0)
     backend = models.CharField(max_length=32)
