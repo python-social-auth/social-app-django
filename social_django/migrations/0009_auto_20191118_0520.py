@@ -7,19 +7,21 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('social_django', '0008_partial_timestamp'),
+        ("social_django", "0008_partial_timestamp"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='usersocialauth',
-            name='created',
-            field=models.DateTimeField(auto_now_add=True, default=django.utils.timezone.now),
+            model_name="usersocialauth",
+            name="created",
+            field=models.DateTimeField(
+                auto_now_add=True, default=django.utils.timezone.now
+            ),
             preserve_default=False,
         ),
         migrations.AddField(
-            model_name='usersocialauth',
-            name='modified',
+            model_name="usersocialauth",
+            name="modified",
             field=models.DateTimeField(auto_now=True),
         ),
     ]

@@ -4,12 +4,19 @@ import base64
 from django.core.exceptions import FieldDoesNotExist
 from django.db import router, transaction
 from django.db.utils import IntegrityError
-from social_core.storage import (AssociationMixin, BaseStorage, CodeMixin,
-                                 NonceMixin, PartialMixin, UserMixin)
+from social_core.storage import (
+    AssociationMixin,
+    BaseStorage,
+    CodeMixin,
+    NonceMixin,
+    PartialMixin,
+    UserMixin,
+)
 
 
 class DjangoUserMixin(UserMixin):
     """Social Auth association model"""
+
     @classmethod
     def changed(cls, user):
         user.save()
@@ -26,7 +33,7 @@ class DjangoUserMixin(UserMixin):
             qs = cls.objects.exclude(provider=backend_name)
         qs = qs.filter(user=user)
 
-        if hasattr(user, 'has_usable_password'):
+        if hasattr(user, "has_usable_password"):
             valid_password = user.has_usable_password()
         else:
             valid_password = True
@@ -38,7 +45,7 @@ class DjangoUserMixin(UserMixin):
 
     @classmethod
     def username_field(cls):
-        return getattr(cls.user_model(), 'USERNAME_FIELD', 'username')
+        return getattr(cls.user_model(), "USERNAME_FIELD", "username")
 
     @classmethod
     def user_exists(cls, *args, **kwargs):
@@ -46,8 +53,8 @@ class DjangoUserMixin(UserMixin):
         Return True/False if a User instance exists with the given arguments.
         Arguments are directly passed to filter() manager method.
         """
-        if 'username' in kwargs:
-            kwargs[cls.username_field()] = kwargs.pop('username')
+        if "username" in kwargs:
+            kwargs[cls.username_field()] = kwargs.pop("username")
         return cls.user_model()._default_manager.filter(*args, **kwargs).exists()
 
     @classmethod
@@ -57,31 +64,33 @@ class DjangoUserMixin(UserMixin):
     @classmethod
     def create_user(cls, *args, **kwargs):
         username_field = cls.username_field()
-        if 'username' in kwargs:
+        if "username" in kwargs:
             if username_field not in kwargs:
-                kwargs[username_field] = kwargs.pop('username')
+                kwargs[username_field] = kwargs.pop("username")
             else:
                 # If username_field is 'email' and there is no field named "username"
                 # then latest should be removed from kwargs.
                 try:
-                    cls.user_model()._meta.get_field('username')
+                    cls.user_model()._meta.get_field("username")
                 except FieldDoesNotExist:
-                    kwargs.pop('username')
+                    kwargs.pop("username")
         try:
-            if hasattr(transaction, 'atomic'):
+            if hasattr(transaction, "atomic"):
                 # In Django versions that have an "atomic" transaction decorator / context
                 # manager, there's a transaction wrapped around this call.
                 # If the create fails below due to an IntegrityError, ensure that the transaction
                 # stays undamaged by wrapping the create in an atomic.
                 using = router.db_for_write(cls.user_model())
                 with transaction.atomic(using=using):
-                    user = cls.user_model()._default_manager.create_user(*args, **kwargs)
+                    user = cls.user_model()._default_manager.create_user(
+                        *args, **kwargs
+                    )
             else:
                 user = cls.user_model()._default_manager.create_user(*args, **kwargs)
         except IntegrityError as exc:
             # If email comes in as None it won't get found in the get
-            if kwargs.get('email', True) is None:
-                kwargs['email'] = ''
+            if kwargs.get("email", True) is None:
+                kwargs["email"] = ""
             try:
                 user = cls.user_model()._default_manager.get(*args, **kwargs)
             except cls.user_model().DoesNotExist:
@@ -91,7 +100,7 @@ class DjangoUserMixin(UserMixin):
     @classmethod
     def get_user(cls, pk=None, **kwargs):
         if pk:
-            kwargs = {'pk': pk}
+            kwargs = {"pk": pk}
         try:
             return cls.user_model()._default_manager.get(**kwargs)
         except cls.user_model().DoesNotExist:
@@ -100,8 +109,8 @@ class DjangoUserMixin(UserMixin):
     @classmethod
     def get_users_by_email(cls, email):
         user_model = cls.user_model()
-        email_field = getattr(user_model, 'EMAIL_FIELD', 'email')
-        return user_model._default_manager.filter(**{email_field + '__iexact': email})
+        email_field = getattr(user_model, "EMAIL_FIELD", "email")
+        return user_model._default_manager.filter(**{email_field + "__iexact": email})
 
     @classmethod
     def get_social_auth(cls, provider, uid):
@@ -127,7 +136,7 @@ class DjangoUserMixin(UserMixin):
     def create_social_auth(cls, user, uid, provider):
         if not isinstance(uid, str):
             uid = str(uid)
-        if hasattr(transaction, 'atomic'):
+        if hasattr(transaction, "atomic"):
             # In Django versions that have an "atomic" transaction decorator / context
             # manager, there's a transaction wrapped around this call.
             # If the create fails below due to an IntegrityError, ensure that the transaction
@@ -143,9 +152,9 @@ class DjangoUserMixin(UserMixin):
 class DjangoNonceMixin(NonceMixin):
     @classmethod
     def use(cls, server_url, timestamp, salt):
-        return cls.objects.get_or_create(server_url=server_url,
-                                         timestamp=timestamp,
-                                         salt=salt)[1]
+        return cls.objects.get_or_create(
+            server_url=server_url, timestamp=timestamp, salt=salt
+        )[1]
 
     @classmethod
     def get(cls, server_url, salt):
@@ -164,11 +173,9 @@ class DjangoAssociationMixin(AssociationMixin):
     def store(cls, server_url, association):
         # Don't use get_or_create because issued cannot be null
         try:
-            assoc = cls.objects.get(server_url=server_url,
-                                    handle=association.handle)
+            assoc = cls.objects.get(server_url=server_url, handle=association.handle)
         except cls.DoesNotExist:
-            assoc = cls(server_url=server_url,
-                        handle=association.handle)
+            assoc = cls(server_url=server_url, handle=association.handle)
 
         try:
             assoc.secret = base64.encodebytes(association.secret).decode()

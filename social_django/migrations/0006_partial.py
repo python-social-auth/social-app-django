@@ -9,21 +9,29 @@ import social_django.storage
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('social_django', '0005_auto_20160727_2333'),
+        ("social_django", "0005_auto_20160727_2333"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='Partial',
+            name="Partial",
             fields=[
-                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('token', models.CharField(db_index=True, max_length=32)),
-                ('next_step', models.PositiveSmallIntegerField(default=0)),
-                ('backend', models.CharField(max_length=32)),
-                ('data', social_django.fields.JSONField(default=dict)),
+                (
+                    "id",
+                    models.AutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("token", models.CharField(db_index=True, max_length=32)),
+                ("next_step", models.PositiveSmallIntegerField(default=0)),
+                ("backend", models.CharField(max_length=32)),
+                ("data", social_django.fields.JSONField(default=dict)),
             ],
             options={
-                'db_table': 'social_auth_partial',
+                "db_table": "social_auth_partial",
             },
             bases=(models.Model, social_django.storage.DjangoPartialMixin),
         ),
