@@ -43,7 +43,7 @@ class SocialAuthExceptionMiddleware:
                 social_logger.info(message)
                 try:
                     messages.error(
-                        request, message, extra_tags="social-auth " + backend_name
+                        request, message, extra_tags=f"social-auth {backend_name}"
                     )
                 except MessageFailure:
                     if url:
@@ -59,7 +59,7 @@ class SocialAuthExceptionMiddleware:
     def raise_exception(self, request, exception):
         strategy = getattr(request, "social_strategy", None)
         if strategy is not None:
-            return strategy.setting("RAISE_EXCEPTIONS") or settings.DEBUG
+            return strategy.setting("RAISE_EXCEPTIONS", settings.DEBUG)
 
     def get_message(self, request, exception):
         return str(exception)
