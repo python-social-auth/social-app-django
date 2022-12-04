@@ -22,7 +22,6 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.admin",
     "social_django",
-
     "casdoor_auth",  # pip install django-casdoor-auth
 ]
 
@@ -41,12 +40,12 @@ AUTHENTICATION_BACKENDS = (
 )
 
 CASDOOR_CONFIG = {
-    'endpoint': 'http://localhost:8000',
-    'client_id': '<client-id>',
-    'client_secret': '<client-secret>',
-    'certificate': '''<certificate>''',
-    'org_name': 'built-in',
-    'application_name': 'app-built-in'
+    "endpoint": "http://localhost:8000",
+    "client_id": "<client-id>",
+    "client_secret": "<client-secret>",
+    "certificate": """<certificate>""",
+    "org_name": "built-in",
+    "application_name": "app-built-in",
 }
 
 TEMPLATES = [
@@ -67,8 +66,8 @@ TEMPLATES = [
 ]
 
 # Page to go after successfull login
-REDIRECT_URI = 'http://127.0.0.1:8000/casdoor/callback/'
-LOGIN_REDIRECT_URL = '/'
+REDIRECT_URI = "http://127.0.0.1:8000/casdoor/callback/"
+LOGIN_REDIRECT_URL = "/"
 
 SECRET_KEY = "6p%gef2(6kvjsgl*7!51a7z8c3=u4uc&6ulpua0g1^&sthiifp"
 
