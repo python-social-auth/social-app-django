@@ -12,11 +12,11 @@ jobs:
     strategy:
       matrix:
         python-version:
-        - '3.6'
         - '3.7'
         - '3.8'
         - '3.9'
         - '3.10'
+        - '3.11'
     env:
       PYTHON_VERSION: ${{ matrix.python-version }}
 
@@ -40,20 +40,25 @@ jobs:
 
     - name: Django 2.2.x Test
       run: |
-        tox -e "py${PYTHON_VERSION/\./}-django-22"
+        tox -e "py${PYTHON_VERSION/\./}-django22"
 
     - name: Django 3.2.x Test
       run: |
-        tox -e "py${PYTHON_VERSION/\./}-django-32"
+        tox -e "py${PYTHON_VERSION/\./}-django32"
 
     - name: Django 4.0.x Test
       run: |
-        tox -e "py${PYTHON_VERSION/\./}-django-40"
+        tox -e "py${PYTHON_VERSION/\./}-django40"
+      if: ${{ env.PYTHON_VERSION == '3.8' || env.PYTHON_VERSION == '3.9' || env.PYTHON_VERSION == '3.10' }}
+
+    - name: Django 4.1.x Test
+      run: |
+        tox -e "py${PYTHON_VERSION/\./}-django41"
       if: ${{ env.PYTHON_VERSION == '3.8' || env.PYTHON_VERSION == '3.9' || env.PYTHON_VERSION == '3.10' }}
 
     - name: Django main Test
       run: |
-        tox -e "py${PYTHON_VERSION/\./}-django-main"
+        tox -e "py${PYTHON_VERSION/\./}-djangomain"
       if: ${{ env.PYTHON_VERSION == '3.8' || env.PYTHON_VERSION == '3.9' || env.PYTHON_VERSION == '3.10' }}
 
     - name: Coverage

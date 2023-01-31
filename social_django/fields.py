@@ -7,21 +7,19 @@ from django.db import models
 from django.utils.encoding import force_str
 from social_core.utils import setting_name
 
-POSTGRES_JSONFIELD = getattr(settings, setting_name('POSTGRES_JSONFIELD'),
-                             False)
+POSTGRES_JSONFIELD = getattr(settings, setting_name("POSTGRES_JSONFIELD"), False)
 
 if POSTGRES_JSONFIELD:
     warnings.warn(
-        'SOCIAL_AUTH_POSTGRES_JSONFIELD has been renamed to '
-        'SOCIAL_AUTH_JSONFIELD_ENABLED and will be removed in the next release.'
+        "SOCIAL_AUTH_POSTGRES_JSONFIELD has been renamed to "
+        "SOCIAL_AUTH_JSONFIELD_ENABLED and will be removed in the next release."
     )
     JSONFIELD_ENABLED = True
 else:
-    JSONFIELD_ENABLED = getattr(settings, setting_name('JSONFIELD_ENABLED'),
-                                False)
+    JSONFIELD_ENABLED = getattr(settings, setting_name("JSONFIELD_ENABLED"), False)
 
 if JSONFIELD_ENABLED:
-    JSONFIELD_CUSTOM = getattr(settings, setting_name('JSONFIELD_CUSTOM'), None)
+    JSONFIELD_CUSTOM = getattr(settings, setting_name("JSONFIELD_CUSTOM"), None)
 
     if JSONFIELD_CUSTOM is not None:
         try:
@@ -33,8 +31,7 @@ if JSONFIELD_ENABLED:
         try:
             from django.db.models import JSONField as JSONFieldBase
         except ImportError:
-            from django.contrib.postgres.fields import \
-                JSONField as JSONFieldBase
+            from django.contrib.postgres.fields import JSONField as JSONFieldBase
 else:
     JSONFieldBase = models.TextField
 
@@ -45,7 +42,7 @@ class JSONField(JSONFieldBase):
     """
 
     def __init__(self, *args, **kwargs):
-        kwargs.setdefault('default', dict)
+        kwargs.setdefault("default", dict)
         super().__init__(*args, **kwargs)
 
     def from_db_value(self, value, *args, **kwargs):
@@ -58,9 +55,9 @@ class JSONField(JSONFieldBase):
         """
         if self.blank and not value:
             return {}
-        value = value or '{}'
+        value = value or "{}"
         if isinstance(value, bytes):
-            value = str(value, 'utf-8')
+            value = str(value, "utf-8")
         if isinstance(value, str):
             try:
                 return json.loads(value)

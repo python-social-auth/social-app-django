@@ -2,27 +2,31 @@ from django.conf import settings
 from django.db import migrations, models
 from social_core.utils import setting_name
 
-USER_MODEL = getattr(settings, setting_name('USER_MODEL'), None) or \
-             getattr(settings, 'AUTH_USER_MODEL', None) or \
-             'auth.User'
+USER_MODEL = (
+    getattr(settings, setting_name("USER_MODEL"), None)
+    or getattr(settings, "AUTH_USER_MODEL", None)
+    or "auth.User"
+)
 
 
 class Migration(migrations.Migration):
     replaces = [
-        ('default', '0002_add_related_name'),
-        ('social_auth', '0002_add_related_name')
+        ("default", "0002_add_related_name"),
+        ("social_auth", "0002_add_related_name"),
     ]
 
     dependencies = [
-        ('social_django', '0001_initial'),
+        ("social_django", "0001_initial"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='usersocialauth',
-            name='user',
+            model_name="usersocialauth",
+            name="user",
             field=models.ForeignKey(
-                related_name='social_auth', to=USER_MODEL, on_delete=models.CASCADE,
-            )
+                related_name="social_auth",
+                to=USER_MODEL,
+                on_delete=models.CASCADE,
+            ),
         ),
     ]

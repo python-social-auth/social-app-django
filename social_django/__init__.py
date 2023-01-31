@@ -1,4 +1,4 @@
-__version__ = '5.0.0'
+__version__ = "5.0.0"
 
 
 import django
@@ -14,13 +14,15 @@ from social_core.backends.base import BaseAuth
 def baseauth_init_workaround(original_init):
     def fake_init(self, strategy=None, *args, **kwargs):
         from .utils import load_strategy
+
         original_init(self, strategy or load_strategy(), *args, **kwargs)
+
     return fake_init
 
 
-if not getattr(BaseAuth, '__init_patched', False):
+if not getattr(BaseAuth, "__init_patched", False):
     BaseAuth.__init__ = baseauth_init_workaround(BaseAuth.__init__)
     BaseAuth.__init_patched = True
 
 if django.VERSION < (3, 2):
-    default_app_config = 'social_django.apps.PythonSocialAuthConfig'
+    default_app_config = "social_django.apps.PythonSocialAuthConfig"
