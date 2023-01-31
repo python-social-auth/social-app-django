@@ -43,7 +43,7 @@ setup(
     python_requires=">=3.7",
     install_requires=load_requirements(),
     classifiers=[
-        "Development Status :: 4 - Beta",
+        "Development Status :: 5 - Production/Stable",
         "Topic :: Internet",
         "License :: OSI Approved :: BSD License",
         "Intended Audience :: Developers",
