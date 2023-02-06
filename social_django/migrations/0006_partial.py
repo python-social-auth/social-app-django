@@ -7,7 +7,6 @@ import social_django.storage
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("social_django", "0005_auto_20160727_2333"),
     ]
