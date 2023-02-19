@@ -25,7 +25,7 @@ Backward compatibility with unsupported versions won't be enforced.
 
 ## Documentation
 
-Project documentation is available at http://python-social-auth.readthedocs.org/.
+Project documentation is available at https://python-social-auth.readthedocs.org/.
 
 ## Setup
 
