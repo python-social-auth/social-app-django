@@ -1,5 +1,5 @@
 pre-commit==2.20.0; python_version >= '3.7'
 pre-commit==2.17.0; python_version < '3.7'
 codecov==2.1.12
-tox==2.7.0
+tox==4.4.6
 -r requirements.txt
