@@ -9,24 +9,15 @@ repos:
   - id: debug-statements
   - id: mixed-line-ending
     args: [--fix=lf]
-- repo: https://github.com/pycqa/isort
-  rev: 5.12.0
+- repo: https://github.com/charliermarsh/ruff-pre-commit
+  rev: v0.0.253
   hooks:
-  - id: isort
-    args: [--profile=black]
-- repo: https://github.com/asottile/pyupgrade
-  rev: v3.3.1
-  hooks:
-  - id: pyupgrade
-    args: [--py37-plus]
+  - id: ruff
+    args: [--format, github]  # --fix, --exit-non-zero-on-fix]
 - repo: https://github.com/psf/black
   rev: 23.1.0
   hooks:
   - id: black
-- repo: https://github.com/PyCQA/flake8
-  rev: 6.0.0
-  hooks:
-  - id: flake8
 - repo: meta
   hooks:
   - id: check-hooks-apply
@@ -34,5 +25,7 @@ repos:
 - repo: https://github.com/macisamuele/language-formatters-pre-commit-hooks
   rev: v2.7.0
   hooks:
+  - id: pretty-format-toml
+    args: [--autofix]
   - id: pretty-format-yaml
     args: [--autofix, --indent, '2']
