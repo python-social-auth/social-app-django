@@ -1,0 +1,21 @@
+[tool.ruff]
+# Ignore some well known paths
+exclude = [
+  ".tox",
+  ".venv",
+  "*.egg",
+  "build",
+  "db/env.py",
+  "db/versions/*.py",
+  "dist",
+  "doc",
+  "site"
+]
+format = "github"
+ignore = []
+line-length = 120
+select = ["E", "F", "I", "PLC", "PLE", "UP"]
+target-version = "py37"
+
+[tool.ruff.mccabe]
+max-complexity = 10
