@@ -29,3 +29,7 @@ repos:
     args: [--autofix]
   - id: pretty-format-yaml
     args: [--autofix, --indent, '2']
+- repo: https://github.com/abravalheri/validate-pyproject
+  rev: v0.12.1
+  hooks:
+  - id: validate-pyproject
