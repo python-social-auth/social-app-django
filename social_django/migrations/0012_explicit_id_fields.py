@@ -4,35 +4,34 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('social_django', '0011_alter_id_fields'),
+        ("social_django", "0011_alter_id_fields"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='association',
-            name='id',
+            model_name="association",
+            name="id",
             field=models.BigAutoField(primary_key=True, serialize=False),
         ),
         migrations.AlterField(
-            model_name='code',
-            name='id',
+            model_name="code",
+            name="id",
             field=models.BigAutoField(primary_key=True, serialize=False),
         ),
         migrations.AlterField(
-            model_name='nonce',
-            name='id',
+            model_name="nonce",
+            name="id",
             field=models.BigAutoField(primary_key=True, serialize=False),
         ),
         migrations.AlterField(
-            model_name='partial',
-            name='id',
+            model_name="partial",
+            name="id",
             field=models.BigAutoField(primary_key=True, serialize=False),
         ),
         migrations.AlterField(
-            model_name='usersocialauth',
-            name='id',
+            model_name="usersocialauth",
+            name="id",
             field=models.BigAutoField(primary_key=True, serialize=False),
         ),
     ]
