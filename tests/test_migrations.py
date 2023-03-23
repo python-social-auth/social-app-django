@@ -16,6 +16,4 @@ class PendingMigrationsTests(TestCase):
                 stderr=StringIO(),
             )
         except SystemExit:  # pragma: no cover
-            raise AssertionError(
-                "Pending migrations:\n" + out.getvalue()
-            ) from None
+            raise AssertionError("Pending migrations:\n" + out.getvalue()) from None
