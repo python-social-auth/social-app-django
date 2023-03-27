@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## Next - unreleased yet
+
+### Changed
+- Removed support for Django<3.2
+
+
 ## [5.1.0](https://github.com/python-social-auth/social-app-django/releases/tag/5.1.0) - 2023-03-15
 
 ### Changed
