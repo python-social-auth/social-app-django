@@ -9,6 +9,7 @@ repos:
   - id: debug-statements
   - id: mixed-line-ending
     args: [--fix=lf]
+  - id: requirements-txt-fixer
 - repo: https://github.com/charliermarsh/ruff-pre-commit
   rev: v0.0.259
   hooks:
