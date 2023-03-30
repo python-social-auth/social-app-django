@@ -1,1 +1,2 @@
+Django>=3.2
 social-auth-core >= 4.1.0
