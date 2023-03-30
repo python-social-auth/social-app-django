@@ -6,9 +6,11 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Next - unreleased yet
+## [5.2.0](https://github.com/python-social-auth/social-app-django/releases/tag/5.2.0) - 2023-03-31
 
 ### Changed
 - Removed support for Django<3.2
+- Fixed missing migration issue
 
 
 ## [5.1.0](https://github.com/python-social-auth/social-app-django/releases/tag/5.1.0) - 2023-03-15
