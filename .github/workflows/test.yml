@@ -62,6 +62,11 @@ jobs:
         tox -e "py${PYTHON_VERSION/\./}-djangomain"
       if: ${{ env.PYTHON_VERSION == '3.10' || env.PYTHON_VERSION == '3.11' }}
 
+    - name: social-core master Test
+      run: |
+        tox -e "py${PYTHON_VERSION/\./}-socialmaster"
+      if: ${{ env.PYTHON_VERSION == '3.10' || env.PYTHON_VERSION == '3.11' }}
+
     - name: Coverage
       run: |
         coverage combine
