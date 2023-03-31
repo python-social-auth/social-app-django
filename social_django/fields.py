@@ -4,8 +4,18 @@ import warnings
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
-from django.utils.encoding import force_str
+import six
+ force_str
 from social_core.utils import setting_name
+
+if six.PY2:
+    from django.utils.encoding import force_text,
+
+else:
+    from django.utils.encoding import force_str,
+
+
+# use force_unicode instead of force_text or force_str
 
 POSTGRES_JSONFIELD = getattr(settings, setting_name("POSTGRES_JSONFIELD"), False)
 
@@ -85,8 +95,10 @@ class JSONField(JSONFieldBase):
 
     def value_to_string(self, obj):
         """Return value from object converted to string properly"""
+        if six.PY2:
+            return force_text(self.value_from_object(obj))
         return force_str(self.value_from_object(obj))
-
+        
     def value_from_object(self, obj):
         """Return value dumped to string."""
         orig_val = super().value_from_object(obj)
