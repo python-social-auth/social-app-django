@@ -1,10 +1,10 @@
 import json
 import warnings
 
+import six
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
-import six
 from social_core.utils import setting_name
 
 if six.PY2:
@@ -97,7 +97,7 @@ class JSONField(JSONFieldBase):
         if six.PY2:
             return force_text(self.value_from_object(obj))
         return force_str(self.value_from_object(obj))
-        
+
     def value_from_object(self, obj):
         """Return value dumped to string."""
         orig_val = super().value_from_object(obj)
