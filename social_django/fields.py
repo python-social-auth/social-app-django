@@ -5,7 +5,6 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 import six
- force_str
 from social_core.utils import setting_name
 
 if six.PY2:
