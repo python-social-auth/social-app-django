@@ -3,3 +3,4 @@ codecov==2.1.12
 pre-commit==3.2.1; python_version >= '3.8'
 pre-commit==2.21.0; python_version < '3.8'
 tox==4.4.8
+six
