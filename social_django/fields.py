@@ -8,10 +8,10 @@ import six
 from social_core.utils import setting_name
 
 if six.PY2:
-    from django.utils.encoding import force_text,
+    from django.utils.encoding import force_text
 
 else:
-    from django.utils.encoding import force_str,
+    from django.utils.encoding import force_str
 
 
 # use force_unicode instead of force_text or force_str
