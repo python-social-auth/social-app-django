@@ -11,7 +11,7 @@ repos:
     args: [--fix=lf]
   - id: requirements-txt-fixer
 - repo: https://github.com/charliermarsh/ruff-pre-commit
-  rev: v0.0.265
+  rev: v0.0.267
   hooks:
   - id: ruff
     args: [--format, github, --fix, --exit-non-zero-on-fix]
@@ -24,7 +24,7 @@ repos:
   - id: check-hooks-apply
   - id: check-useless-excludes
 - repo: https://github.com/macisamuele/language-formatters-pre-commit-hooks
-  rev: v2.8.0
+  rev: v2.9.0
   hooks:
   - id: pretty-format-toml
     args: [--autofix]
