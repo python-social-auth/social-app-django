@@ -4,7 +4,6 @@ from django.db import models
 from django.db.utils import IntegrityError
 from social_core.utils import setting_name
 
-from .fields import JSONField
 from .managers import UserSocialAuthManager
 from .storage import (
     BaseDjangoStorage,
@@ -41,7 +40,7 @@ class AbstractUserSocialAuth(models.Model, DjangoUserMixin):
     )
     provider = models.CharField(max_length=32)
     uid = models.CharField(max_length=UID_LENGTH, db_index=True)
-    extra_data = JSONField()
+    extra_data = models.JSONField(default=dict)
     created = models.DateTimeField(auto_now_add=True)
     modified = models.DateTimeField(auto_now=True)
     objects = UserSocialAuthManager()
@@ -130,7 +129,7 @@ class Partial(models.Model, DjangoPartialMixin):
     token = models.CharField(max_length=32, db_index=True)
     next_step = models.PositiveSmallIntegerField(default=0)
     backend = models.CharField(max_length=32)
-    data = JSONField()
+    data = models.JSONField(default=dict)
     timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
 
     class Meta:
