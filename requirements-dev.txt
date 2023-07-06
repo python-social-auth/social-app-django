@@ -2,4 +2,4 @@
 coverage
 pre-commit==3.3.3; python_version >= '3.8'
 pre-commit==2.21.0; python_version < '3.8'
-tox==4.6.3
+tox==4.6.4
