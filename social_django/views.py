@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.contrib.auth import REDIRECT_FIELD_NAME, login
 from django.contrib.auth.decorators import login_required
+from django.http import HttpResponseNotAllowed
 from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_exempt, csrf_protect
 from django.views.decorators.http import require_POST
@@ -10,6 +11,7 @@ from social_core.utils import setting_name
 from .utils import psa
 
 NAMESPACE = getattr(settings, setting_name("URL_NAMESPACE"), None) or "social"
+REQUIRE_POST = getattr(settings, setting_name("REQUIRE_POST"), False)
 
 # Calling `session.set_expiry(None)` results in a session lifetime equal to
 # platform default session lifetime.
@@ -19,6 +21,9 @@ DEFAULT_SESSION_TIMEOUT = None
 @never_cache
 @psa(f"{NAMESPACE}:complete")
 def auth(request, backend):
+    if REQUIRE_POST and request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+
     return do_auth(request.backend, redirect_name=REDIRECT_FIELD_NAME)
 
 
