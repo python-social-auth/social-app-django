@@ -1,7 +1,7 @@
 from functools import wraps
 
 from django.conf import settings
-from django.http import Http404
+from django.http import Http404, HttpResponseNotAllowed
 from django.urls import reverse
 from social_core.exceptions import MissingBackend
 from social_core.utils import get_strategy, module_member, setting_name
@@ -12,6 +12,8 @@ STRATEGY = getattr(
 STORAGE = getattr(
     settings, setting_name("STORAGE"), "social_django.models.DjangoStorage"
 )
+REQUIRE_POST = setting_name("REQUIRE_POST")
+
 Strategy = module_member(STRATEGY)
 Storage = module_member(STORAGE)
 
@@ -48,3 +50,15 @@ def psa(redirect_uri=None, load_strategy=load_strategy):
         return wrapper
 
     return decorator
+
+
+def maybe_require_post(func):
+    @wraps(func)
+    def wrapper(request, backend, *args, **kwargs):
+        require_post = getattr(settings, REQUIRE_POST, False)
+        if require_post and request.method != "POST":
+            return HttpResponseNotAllowed(["POST"])
+
+        return func(request, backend, *args, **kwargs)
+
+    return wrapper
