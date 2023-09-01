@@ -1,7 +1,6 @@
 __version__ = "5.3.0"
 
 
-import django
 from social_core.backends.base import BaseAuth
 
 # django.contrib.auth.load_backend() will import and instanciate the
