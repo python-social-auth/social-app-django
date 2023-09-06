@@ -11,7 +11,7 @@ repos:
     args: [--fix=lf]
   - id: requirements-txt-fixer
 - repo: https://github.com/astral-sh/ruff-pre-commit
-  rev: v0.0.286
+  rev: v0.0.287
   hooks:
   - id: ruff
     args: [--format, github, --fix, --exit-non-zero-on-fix]
