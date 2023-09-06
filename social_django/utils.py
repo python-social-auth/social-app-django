@@ -1,8 +1,9 @@
 from functools import wraps
 
 from django.conf import settings
-from django.http import Http404, HttpResponseNotAllowed
+from django.http import Http404
 from django.urls import reverse
+from django.views.decorators.http import require_POST
 from social_core.exceptions import MissingBackend
 from social_core.utils import get_strategy, module_member, setting_name
 
@@ -56,8 +57,8 @@ def maybe_require_post(func):
     @wraps(func)
     def wrapper(request, backend, *args, **kwargs):
         require_post = getattr(settings, REQUIRE_POST, False)
-        if require_post and request.method != "POST":
-            return HttpResponseNotAllowed(["POST"])
+        if require_post:
+            return require_POST(func)(request, backend, *args, **kwargs)
 
         return func(request, backend, *args, **kwargs)
 
