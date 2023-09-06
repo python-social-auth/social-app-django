@@ -7,7 +7,7 @@ from django.views.decorators.http import require_POST
 from social_core.actions import do_auth, do_complete, do_disconnect
 from social_core.utils import setting_name
 
-from .utils import psa, maybe_require_post
+from .utils import maybe_require_post, psa
 
 NAMESPACE = getattr(settings, setting_name("URL_NAMESPACE"), None) or "social"
 
