@@ -26,6 +26,13 @@ class TestViews(TestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, 404)
 
+    def test_require_post_works(self):
+        with override_settings(SOCIAL_AUTH_REQUIRE_POST=True):
+            response = self.client.get(
+                reverse("social:begin", kwargs={"backend": "facebook"})
+            )
+            self.assertEqual(response.status_code, 405)
+
     @mock.patch("social_core.backends.base.BaseAuth.request")
     def test_complete(self, mock_request):
         url = reverse("social:complete", kwargs={"backend": "facebook"})
