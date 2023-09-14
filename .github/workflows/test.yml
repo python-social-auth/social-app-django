@@ -72,7 +72,7 @@ jobs:
         coverage combine
         coverage xml
 
-    - uses: codecov/codecov-action@v3
+    - uses: codecov/codecov-action@v4
       with:
         flags: unittests
         name: Python ${{ matrix.python-version }}
