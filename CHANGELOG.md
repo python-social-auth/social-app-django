@@ -5,11 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+- Introduce configuration to request POST only requests for social authentication
+
 ## [5.3.0](https://github.com/python-social-auth/social-app-django/releases/tag/5.2.0) - 2023-09-01
 
 ### Changed
 - Uses Django native JSON field
-- Introduce configuration to request POST only requests for social authentication
 
 ## [5.2.0](https://github.com/python-social-auth/social-app-django/releases/tag/5.2.0) - 2023-03-31
 
