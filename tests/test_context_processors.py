@@ -19,3 +19,17 @@ class TestContextProcessors(TestCase):
                 "REDIRECT_QUERYSTRING": "next=profile/sj%C3%B3",
             },
         )
+
+    def test_login_redirect_malformed_post(self):
+        request = self.request_factory.post(
+            "/", data="no boundary", content_type="multipart/form-data"
+        )
+        result = login_redirect(request)
+        self.assertEqual(
+            result,
+            {
+                "REDIRECT_FIELD_NAME": "next",
+                "REDIRECT_FIELD_VALUE": None,
+                "REDIRECT_QUERYSTRING": "",
+            },
+        )

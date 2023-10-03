@@ -2,6 +2,7 @@ from urllib.parse import quote
 
 from django.conf import settings
 from django.contrib.auth import REDIRECT_FIELD_NAME
+from django.http.multipartparser import MultiPartParserError
 from django.utils.functional import SimpleLazyObject
 
 try:
@@ -45,11 +46,15 @@ def backends(request):
 
 def login_redirect(request):
     """Load current redirect to context."""
-    value = (
-        request.method == "POST"
-        and request.POST.get(REDIRECT_FIELD_NAME)
-        or request.GET.get(REDIRECT_FIELD_NAME)
-    )
+    try:
+        value = (
+            request.method == "POST"
+            and request.POST.get(REDIRECT_FIELD_NAME)
+            or request.GET.get(REDIRECT_FIELD_NAME)
+        )
+    except MultiPartParserError:
+        # request POST may be malformed
+        value = None
     if value:
         value = quote(value)
         querystring = REDIRECT_FIELD_NAME + "=" + value
