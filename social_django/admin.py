@@ -11,9 +11,10 @@ from .models import Association, Nonce, UserSocialAuth
 class UserSocialAuthOption(admin.ModelAdmin):
     """Social Auth user options"""
 
-    list_display = ("user", "id", "provider", "uid")
+    list_display = ("user", "id", "provider", "uid", "created", "modified")
     list_filter = ("provider",)
     raw_id_fields = ("user",)
+    readonly_fields = ("created", "modified")
     list_select_related = True
 
     def get_search_fields(self, request=None):
