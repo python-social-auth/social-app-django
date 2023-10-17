@@ -17,6 +17,7 @@ jobs:
         - '3.9'
         - '3.10'
         - '3.11'
+        - '3.12'
     env:
       PYTHON_VERSION: ${{ matrix.python-version }}
 
@@ -41,11 +42,12 @@ jobs:
     - name: Django 3.2.x Test
       run: |
         tox -e "py${PYTHON_VERSION/\./}-django32"
+      if: ${{ env.PYTHON_VERSION == '3.7' || env.PYTHON_VERSION == '3.8' || env.PYTHON_VERSION == '3.9' || env.PYTHON_VERSION == '3.10' }}
 
     - name: Django 4.0.x Test
       run: |
         tox -e "py${PYTHON_VERSION/\./}-django40"
-      if: ${{ env.PYTHON_VERSION == '3.8' || env.PYTHON_VERSION == '3.9' || env.PYTHON_VERSION == '3.10' || env.PYTHON_VERSION == '3.11' }}
+      if: ${{ env.PYTHON_VERSION == '3.8' || env.PYTHON_VERSION == '3.9' || env.PYTHON_VERSION == '3.10' }}
 
     - name: Django 4.1.x Test
       run: |
@@ -57,10 +59,15 @@ jobs:
         tox -e "py${PYTHON_VERSION/\./}-django42"
       if: ${{ env.PYTHON_VERSION == '3.8' || env.PYTHON_VERSION == '3.9' || env.PYTHON_VERSION == '3.10' || env.PYTHON_VERSION == '3.11' }}
 
+    - name: Django 5.0.x Test
+      run: |
+        tox -e "py${PYTHON_VERSION/\./}-django50"
+      if: ${{ env.PYTHON_VERSION == '3.10' || env.PYTHON_VERSION == '3.11' || env.PYTHON_VERSION == '3.12' }}
+
     - name: Django main Test
       run: |
         tox -e "py${PYTHON_VERSION/\./}-djangomain"
-      if: ${{ env.PYTHON_VERSION == '3.10' || env.PYTHON_VERSION == '3.11' }}
+      if: ${{ env.PYTHON_VERSION == '3.10' || env.PYTHON_VERSION == '3.11' || env.PYTHON_VERSION == '3.12' }}
 
     - name: social-core master Test
       run: |
