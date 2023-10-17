@@ -8,6 +8,7 @@ from social_core.utils import setting_name
 from .models import Association, Nonce, UserSocialAuth
 
 
+@admin.register(UserSocialAuth)
 class UserSocialAuthOption(admin.ModelAdmin):
     """Social Auth user options"""
 
@@ -48,6 +49,7 @@ class UserSocialAuthOption(admin.ModelAdmin):
         return list(set(names))
 
 
+@admin.register(Nonce)
 class NonceOption(admin.ModelAdmin):
     """Nonce options"""
 
@@ -55,14 +57,10 @@ class NonceOption(admin.ModelAdmin):
     search_fields = ("server_url",)
 
 
+@admin.register(Association)
 class AssociationOption(admin.ModelAdmin):
     """Association options"""
 
     list_display = ("id", "server_url", "assoc_type")
     list_filter = ("assoc_type",)
     search_fields = ("server_url",)
-
-
-admin.site.register(UserSocialAuth, UserSocialAuthOption)
-admin.site.register(Nonce, NonceOption)
-admin.site.register(Association, AssociationOption)
