@@ -9,7 +9,10 @@ def migrate_json_field(apps, schema_editor):
     UserSocialAuth = apps.get_model("social_django", "UserSocialAuth")
     Partial = apps.get_model("social_django", "Partial")
     db_alias = schema_editor.connection.alias
-    for auth in UserSocialAuth.objects.using(db_alias).all():
+    to_be_updated = []
+    for auth in (
+        UserSocialAuth.objects.using(db_alias).exclude(extra_data='""').iterator()
+    ):
         old_value = auth.extra_data
         if isinstance(old_value, str):
             try:
@@ -17,7 +20,16 @@ def migrate_json_field(apps, schema_editor):
             except json.JSONDecodeError as error:
                 print(f"Failed to migrate extra_data {old_value}: {error}")
         auth.extra_data_new = old_value
-        auth.save(update_fields=["extra_data_new"])
+        to_be_updated.append(auth)
+
+        if len(to_be_updated) >= 1000:
+            UserSocialAuth.objects.bulk_update(to_be_updated, ["extra_data_new"])
+            to_be_updated.clear()
+
+    if to_be_updated:
+        UserSocialAuth.objects.bulk_update(to_be_updated, ["extra_data_new"])
+        to_be_updated.clear()
+
     for auth in Partial.objects.using(db_alias).all():
         old_value = auth.data
         if isinstance(old_value, str):
