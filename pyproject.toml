@@ -11,9 +11,9 @@ exclude = [
   "doc",
   "site"
 ]
-format = "github"
 ignore = []
 line-length = 120
+output-format = "github"
 select = ["E", "F", "I", "PLC", "PLE", "UP"]
 target-version = "py37"
 
