@@ -2,7 +2,7 @@
 
 import json
 
-from django.db import migrations
+from django.db import migrations, models
 
 
 def migrate_json_field(apps, schema_editor):
@@ -46,10 +46,16 @@ def migrate_json_field_backwards(apps, schema_editor):
     Partial = apps.get_model("social_django", "Partial")
     db_alias = schema_editor.connection.alias
     to_be_updated = []
+
+    is_text_field = isinstance(
+        UserSocialAuth._meta.get_field("extra_data"),
+        models.TextField,
+    )
     for auth in UserSocialAuth.objects.using(db_alias).iterator():
         new_value = auth.extra_data_new
-        old_value = json.dumps(new_value)
-        auth.extra_data = old_value
+        if is_text_field:
+            new_value = json.dumps(new_value)
+        auth.extra_data = new_value
         to_be_updated.append(auth)
 
         if len(to_be_updated) >= 1000:
@@ -60,9 +66,15 @@ def migrate_json_field_backwards(apps, schema_editor):
         UserSocialAuth.objects.bulk_update(to_be_updated, ["extra_data"])
         to_be_updated.clear()
 
+    is_text_field = issubclass(
+        Partial._meta.get_field("data"),
+        models.TextField,
+    )
     for auth in Partial.objects.using(db_alias).all():
         new_value = auth.data_new
-        auth.data = json.dumps(new_value)
+        if is_text_field:
+            new_value = json.dumps(new_value)
+        auth.data = new_value
         auth.save(update_fields=["data"])
 
 
