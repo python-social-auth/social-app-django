@@ -47,5 +47,7 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunPython(migrate_json_field, migrations.RunPython.noop, elidable=True),
+        migrations.RunPython(
+            migrate_json_field, migrations.RunPython.noop, elidable=True
+        ),
     ]
