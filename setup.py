@@ -1,4 +1,5 @@
 """Setup file for easy installation"""
+
 import re
 from os.path import dirname, join
 
