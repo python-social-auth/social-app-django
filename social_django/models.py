@@ -2,6 +2,7 @@
 
 from typing import Union
 
+import django
 from django.conf import settings
 from django.db import models
 from django.db.utils import IntegrityError
@@ -43,6 +44,10 @@ class AbstractUserSocialAuth(models.Model, DjangoUserMixin):
 
     class Meta:
         app_label = "social_django"
+        if django.VERSION[0] < 6:
+            constraints = [models.CheckConstraint(check=~models.Q(uid=""), name="user_social_auth_uid_required")]
+        else:
+            constraints = [models.CheckConstraint(condition=~models.Q(uid=""), name="user_social_auth_uid_required")]
         abstract = True
 
     @classmethod
@@ -70,7 +75,7 @@ class AbstractUserSocialAuth(models.Model, DjangoUserMixin):
 class UserSocialAuth(AbstractUserSocialAuth):
     """Social Auth association model"""
 
-    class Meta:
+    class Meta(AbstractUserSocialAuth.Meta):
         """Meta data"""
 
         app_label = "social_django"
