@@ -1,2 +1,2 @@
 Django>=3.2
-social-auth-core>=4.4.1
+social-auth-core>=4.5.2
