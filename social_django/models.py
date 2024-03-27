@@ -80,6 +80,11 @@ class UserSocialAuth(AbstractUserSocialAuth):
         app_label = "social_django"
         unique_together = ("provider", "uid")
         db_table = "social_auth_usersocialauth"
+        constraints = [
+            models.CheckConstraint(
+                check=~models.Q(uid=""), name="user_social_auth_uid_required"
+            ),
+        ]
 
 
 class Nonce(models.Model, DjangoNonceMixin):
