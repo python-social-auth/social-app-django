@@ -54,11 +54,15 @@ class AbstractUserSocialAuth(models.Model, DjangoUserMixin):
         abstract = True
 
     @classmethod
-    def get_social_auth(cls, provider, uid):
-        try:
-            return cls.objects.select_related("user").get(provider=provider, uid=uid)
-        except cls.DoesNotExist:
-            return None
+    def get_social_auth(cls, provider: str, uid: str):
+        for social in cls.objects.select_related("user").filter(
+            provider=provider, uid=uid
+        ):
+            # We need to compare to filter out case-insensitive lookups in
+            # some databases (MySQL/MariaDB)
+            if social.uid == uid:
+                return social
+        return None
 
     @classmethod
     def username_max_length(cls):
