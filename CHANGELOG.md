@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [5.4.1](https://github.com/python-social-auth/social-app-django/releases/tag/5.4.1) - 2024-04-24
+
+### Changed
+- Added reverse migration for JSON field
+- Fixed improper handling of case sensitivity with MySQL/MariaDB (CVE-2024-32879)
+
 ## [5.4.0](https://github.com/python-social-auth/social-app-django/releases/tag/5.4.0) - 2023-10-17
 
 ### Changed
