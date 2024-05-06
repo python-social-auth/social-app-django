@@ -1,5 +1,7 @@
 """Django ORM models for Social Auth"""
 
+from typing import Union
+
 from django.conf import settings
 from django.db import models
 from django.db.utils import IntegrityError
@@ -54,7 +56,9 @@ class AbstractUserSocialAuth(models.Model, DjangoUserMixin):
         abstract = True
 
     @classmethod
-    def get_social_auth(cls, provider: str, uid: str):
+    def get_social_auth(cls, provider: str, uid: Union[str, int]):
+        if not isinstance(uid, str):
+            uid = str(uid)
         for social in cls.objects.select_related("user").filter(
             provider=provider, uid=uid
         ):
