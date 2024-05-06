@@ -144,7 +144,7 @@ class TestUserSocialAuth(TestCase):
         self.assertEqual(
             UserSocialAuth.get_social_auth(provider=usa.provider, uid=usa.uid), usa
         )
-        self.assertIsNone(UserSocialAuth.get_social_auth(provider="a", uid=1))
+        self.assertIsNone(UserSocialAuth.get_social_auth(provider="a", uid="1"))
 
         # Mixin
         self.assertEqual(
@@ -154,7 +154,7 @@ class TestUserSocialAuth(TestCase):
             usa,
         )
         self.assertIsNone(
-            super(AbstractUserSocialAuth, usa).get_social_auth(provider="a", uid=1)
+            super(AbstractUserSocialAuth, usa).get_social_auth(provider="a", uid="1")
         )
 
         # Manager
@@ -162,7 +162,30 @@ class TestUserSocialAuth(TestCase):
             UserSocialAuth.objects.get_social_auth(provider=usa.provider, uid=usa.uid),
             usa,
         )
-        self.assertIsNone(UserSocialAuth.objects.get_social_auth(provider="a", uid=1))
+        self.assertIsNone(UserSocialAuth.objects.get_social_auth(provider="a", uid="1"))
+
+    def test_get_social_auth_int_uid(self):
+        usa = self.usa
+        int_uid = int(usa.uid)
+
+        # Model
+        self.assertEqual(
+            UserSocialAuth.get_social_auth(provider=usa.provider, uid=int_uid), usa
+        )
+
+        # Mixin
+        self.assertEqual(
+            super(AbstractUserSocialAuth, usa).get_social_auth(
+                provider=usa.provider, uid=usa.uid
+            ),
+            usa,
+        )
+
+        # Manager
+        self.assertEqual(
+            UserSocialAuth.get_social_auth(provider=usa.provider, uid=int_uid),
+            usa,
+        )
 
     def test_get_social_auth_for_user(self):
         qs = UserSocialAuth.get_social_auth_for_user(
