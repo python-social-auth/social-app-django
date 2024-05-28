@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('social_django', '0015_rename_extra_data_new_usersocialauth_extra_data'),
+        ("social_django", "0015_rename_extra_data_new_usersocialauth_extra_data"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='usersocialauth',
-            name='extra_data',
+            model_name="usersocialauth",
+            name="extra_data",
             field=models.JSONField(blank=True, default=dict, null=True),
         ),
     ]
