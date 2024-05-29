@@ -13,6 +13,6 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name="usersocialauth",
             name="extra_data",
-            field=models.JSONField(blank=True, default=dict, null=True),
+            field=models.JSONField(blank=True, default=dict),
         ),
     ]
