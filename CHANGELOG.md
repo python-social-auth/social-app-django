@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [5.4.2](https://github.com/python-social-auth/social-app-django/releases/tag/5.4.2) - 2024-07-12
+
+### Changed
+- Fixed `UserSocialAuth` creation by allowing `JSONField` to be blank
+- Fixed the assumption that UID can only be an integer (#571)
+
 ## [5.4.1](https://github.com/python-social-auth/social-app-django/releases/tag/5.4.1) - 2024-04-24
 
 ### Changed
