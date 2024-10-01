@@ -1,4 +1,4 @@
 -r requirements.txt
 coverage
 pre-commit==3.5.0
-tox==4.20.0
+tox==4.21.0
