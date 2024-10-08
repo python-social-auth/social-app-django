@@ -5,7 +5,6 @@ from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.db import IntegrityError
 from django.test import TestCase
-
 from social_django.models import (
     AbstractUserSocialAuth,
     Association,
@@ -15,6 +14,7 @@ from social_django.models import (
     Partial,
     UserSocialAuth,
 )
+from myapp.models import Product  # Added import for Product model
 
 
 class TestSocialAuthUser(TestCase):
@@ -255,3 +255,19 @@ class TestPartial(TestCase):
 class TestDjangoStorage(TestCase):
     def test_is_integrity_error(self):
         self.assertTrue(DjangoStorage.is_integrity_error(IntegrityError()))
+
+
+# Adding the Product model test case
+class ProductModelTest(TestCase):
+    def setUp(self):
+        # Create a test product
+        self.product = Product.objects.create(
+            name="Test Product", 
+            category="Test Category", 
+            price=10, 
+            available=True
+        )
+
+    def test_read_product(self):
+        # Read the product from the database
+        product = Product.objects.get(name
