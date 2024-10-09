@@ -57,17 +57,17 @@ jobs:
     - name: Django 5.0.x Test
       run: |
         tox -e "py${PYTHON_VERSION/\./}-django50"
-      if: ${{ env.PYTHON_VERSION == '3.10' || env.PYTHON_VERSION == '3.11' || env.PYTHON_VERSION == '3.12' }}
+      if: ${{ env.PYTHON_VERSION == '3.10' || env.PYTHON_VERSION == '3.11' || env.PYTHON_VERSION == '3.12' || env.PYTHON_VERSION == '3.13' }}
 
     - name: Django main Test
       run: |
         tox -e "py${PYTHON_VERSION/\./}-djangomain"
-      if: ${{ env.PYTHON_VERSION == '3.10' || env.PYTHON_VERSION == '3.11' || env.PYTHON_VERSION == '3.12' }}
+      if: ${{ env.PYTHON_VERSION == '3.10' || env.PYTHON_VERSION == '3.11' || env.PYTHON_VERSION == '3.12' || env.PYTHON_VERSION == '3.13' }}
 
     - name: social-core master Test
       run: |
         tox -e "py${PYTHON_VERSION/\./}-socialmaster"
-      if: ${{ env.PYTHON_VERSION == '3.10' || env.PYTHON_VERSION == '3.11' }}
+      if: ${{ env.PYTHON_VERSION == '3.10' || env.PYTHON_VERSION == '3.11' || env.PYTHON_VERSION == '3.13' }}
 
     - name: Coverage
       run: |
