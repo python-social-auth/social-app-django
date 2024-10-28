@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Changed
 - Fixed `UserSocialAuth` creation by allowing `JSONField` to be blank
 - Fixed the assumption that UID can only be an integer (#571)
+- Fixed revert of migration `0013_migrate_extra_data.py`
 
 ## [5.4.1](https://github.com/python-social-auth/social-app-django/releases/tag/5.4.1) - 2024-04-24
 
