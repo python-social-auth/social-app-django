@@ -2,6 +2,13 @@
 build-backend = "setuptools.build_meta"
 requires = ["setuptools"]
 
+[dependency-groups]
+dev = [
+  "tox",
+  "pre-commit",
+  "coverage>=3.6"
+]
+
 [project]
 authors = [
   {name = "Matias Aguirre", email = "matiasaguirre@gmail.com"}
@@ -31,6 +38,13 @@ name = "social-auth-app-django"
 readme = "README.md"
 requires-python = ">=3.9"
 version = "5.4.2"
+
+[project.optional-dependencies]
+# This is present until pip implements supports for PEP 735
+# see https://github.com/pypa/pip/issues/12963
+dev = [
+  "coverage>=3.6"
+]
 
 [project.urls]
 Homepage = "https://github.com/python-social-auth/social-app-django"
