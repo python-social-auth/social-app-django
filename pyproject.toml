@@ -1,3 +1,54 @@
+[build-system]
+build-backend = "setuptools.build_meta"
+requires = ["setuptools"]
+
+[dependency-groups]
+dev = [
+  "tox",
+  "pre-commit",
+  "coverage>=3.6"
+]
+
+[project]
+authors = [
+  {name = "Matias Aguirre", email = "matiasaguirre@gmail.com"}
+]
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Environment :: Web Environment",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: BSD License",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.9",
+  "Topic :: Internet"
+]
+dependencies = [
+  "Django>=3.2",
+  "social-auth-core~=4.4"
+]
+description = "Python Social Authentication, Django integration."
+keywords = ["django", "openid", "oauth", "saml", "social auth"]
+license = {text = "BSD"}
+name = "social-auth-app-django"
+readme = "README.md"
+requires-python = ">=3.9"
+version = "5.4.2"
+
+[project.optional-dependencies]
+# This is present until pip implements supports for PEP 735
+# see https://github.com/pypa/pip/issues/12963
+dev = [
+  "coverage>=3.6"
+]
+
+[project.urls]
+Homepage = "https://github.com/python-social-auth/social-app-django"
+
 [tool.ruff]
 # Ignore some well known paths
 exclude = [
@@ -19,3 +70,6 @@ target-version = "py37"
 
 [tool.ruff.mccabe]
 max-complexity = 10
+
+[tool.setuptools]
+packages = ["social_django"]

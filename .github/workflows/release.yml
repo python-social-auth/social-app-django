@@ -3,24 +3,20 @@ name: Release
 on:
   release:
     types: [published]
+  push:
+  pull_request:
 
 jobs:
   release:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-
-    - name: Set up Python
-      uses: actions/setup-python@v5
       with:
-        python-version: '3.9'
-
-    - name: Install Python dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install wheel twine
+        persist-credentials: false
+    - uses: astral-sh/setup-uv@v5
 
     - name: Verify tag is documented
+      if: github.event_name == 'release'
       run: |
         CURRENT_TAG=${GITHUB_REF#refs/tags/}
         CURRENT_VERSION=$(head -n1 social_django/__init__.py | awk '{print $3}' | sed 's/[^0-9\.]//g')
@@ -32,9 +28,10 @@ jobs:
         fi
 
     - name: Build dist
-      run: python setup.py sdist bdist_wheel --python-tag py3
+      run: uv build
 
     - name: Archive dist
+      if: github.event_name == 'release'
       uses: actions/upload-artifact@v4
       with:
         name: dist
@@ -43,10 +40,11 @@ jobs:
           dist/*.whl
 
     - name: Verify long description rendering
-      run: twine check dist/*
+      run: uvx twine check dist/*
 
     - name: Publish
       env:
-        PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
-      run: |
-        twine upload --non-interactive -u __token__ -p "${PYPI_API_TOKEN}" dist/*
+          # TODO: remove once trusted publishing is configured
+        UV_PUBLISH_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+      if: github.event_name == 'release' && github.repository == 'python-social-auth/social-app-django'
+      run: uv publish
