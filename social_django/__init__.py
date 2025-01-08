@@ -1,6 +1,6 @@
 import importlib.metadata
 
-__version__ = importlib.metadata.version("social-app-django")
+__version__ = importlib.metadata.version("social-auth-app-django")
 
 
 from social_core.backends.base import BaseAuth
