@@ -16,6 +16,7 @@ jobs:
     - uses: astral-sh/setup-uv@v5
 
     - name: Verify tag is documented
+      if: github.event_name == 'release'
       run: |
         CURRENT_TAG=${GITHUB_REF#refs/tags/}
         CURRENT_VERSION=$(head -n1 social_django/__init__.py | awk '{print $3}' | sed 's/[^0-9\.]//g')
