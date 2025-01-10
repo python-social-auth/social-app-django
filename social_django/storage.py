@@ -83,9 +83,7 @@ class DjangoUserMixin(UserMixin):
                 # stays undamaged by wrapping the create in an atomic.
                 using = router.db_for_write(cls.user_model())
                 with transaction.atomic(using=using):
-                    user = cls.user_model()._default_manager.create_user(
-                        *args, **kwargs
-                    )
+                    user = cls.user_model()._default_manager.create_user(*args, **kwargs)
             else:
                 user = cls.user_model()._default_manager.create_user(*args, **kwargs)
         except IntegrityError as exc:
@@ -153,9 +151,7 @@ class DjangoUserMixin(UserMixin):
 class DjangoNonceMixin(NonceMixin):
     @classmethod
     def use(cls, server_url, timestamp, salt):
-        return cls.objects.get_or_create(
-            server_url=server_url, timestamp=timestamp, salt=salt
-        )[1]
+        return cls.objects.get_or_create(server_url=server_url, timestamp=timestamp, salt=salt)[1]
 
     @classmethod
     def get(cls, server_url, salt):

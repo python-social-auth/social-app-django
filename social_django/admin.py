@@ -20,23 +20,14 @@ class UserSocialAuthOption(admin.ModelAdmin):
     list_select_related = True
 
     def get_search_fields(self, request=None):
-        search_fields = getattr(
-            settings, setting_name("ADMIN_USER_SEARCH_FIELDS"), None
-        )
+        search_fields = getattr(settings, setting_name("ADMIN_USER_SEARCH_FIELDS"), None)
         if search_fields is None:
             _User = UserSocialAuth.user_model()
-            username = (
-                getattr(_User, "USERNAME_FIELD", None)
-                or hasattr(_User, "username")
-                and "username"
-                or None
-            )
+            username = getattr(_User, "USERNAME_FIELD", None) or hasattr(_User, "username") and "username" or None
             fieldnames = ("first_name", "last_name", "email", username)
             all_names = self._get_all_field_names(_User._meta)
             search_fields = [name for name in fieldnames if name and name in all_names]
-        return ["user__" + name for name in search_fields] + getattr(
-            settings, setting_name("ADMIN_SEARCH_FIELDS"), []
-        )
+        return ["user__" + name for name in search_fields] + getattr(settings, setting_name("ADMIN_SEARCH_FIELDS"), [])
 
     @staticmethod
     def _get_all_field_names(model):

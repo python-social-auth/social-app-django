@@ -36,9 +36,7 @@ class TestSocialAuthUser(TestCase):
     def test_get_social_auth(self):
         User = get_user_model()
         user = User._default_manager.create_user(username="randomtester")
-        user_social = UserSocialAuth.objects.create(
-            user=user, provider="my-provider", uid="1234"
-        )
+        user_social = UserSocialAuth.objects.create(user=user, provider="my-provider", uid="1234")
         other = UserSocialAuth.get_social_auth("my-provider", "1234")
         self.assertEqual(other, user_social)
 
@@ -67,12 +65,8 @@ class TestSocialAuthUser(TestCase):
 class TestUserSocialAuth(TestCase):
     def setUp(self):
         self.user_model = get_user_model()
-        self.user = self.user_model._default_manager.create_user(
-            username="randomtester", email="user@example.com"
-        )
-        self.usa = UserSocialAuth.objects.create(
-            user=self.user, provider="my-provider", uid="1234"
-        )
+        self.user = self.user_model._default_manager.create_user(username="randomtester", email="user@example.com")
+        self.usa = UserSocialAuth.objects.create(user=self.user, provider="my-provider", uid="1234")
 
     def test_changed(self):
         self.user.email = eml = "test@example.com"
@@ -114,21 +108,15 @@ class TestUserSocialAuth(TestCase):
         with self.assertRaises(IntegrityError):
             UserSocialAuth.create_user(username=self.user.username, email=None)
 
-    @mock.patch(
-        "social_django.models.UserSocialAuth.username_field", return_value="email"
-    )
-    @mock.patch(
-        "django.contrib.auth.models.UserManager.create_user", side_effect=IntegrityError
-    )
+    @mock.patch("social_django.models.UserSocialAuth.username_field", return_value="email")
+    @mock.patch("django.contrib.auth.models.UserManager.create_user", side_effect=IntegrityError)
     def test_create_user_custom_username(self, *args):
         UserSocialAuth.create_user(username=self.user.email)
 
     @mock.patch("social_django.storage.transaction", spec=[])
     def test_create_user_without_transaction_atomic(self, *args):
         UserSocialAuth.create_user(username="test")
-        self.assertTrue(
-            self.user_model._default_manager.filter(username="test").exists()
-        )
+        self.assertTrue(self.user_model._default_manager.filter(username="test").exists())
 
     def test_get_user(self):
         self.assertEqual(UserSocialAuth.get_user(pk=self.user.pk), self.user)
@@ -141,21 +129,15 @@ class TestUserSocialAuth(TestCase):
     def test_get_social_auth(self):
         usa = self.usa
         # Model
-        self.assertEqual(
-            UserSocialAuth.get_social_auth(provider=usa.provider, uid=usa.uid), usa
-        )
+        self.assertEqual(UserSocialAuth.get_social_auth(provider=usa.provider, uid=usa.uid), usa)
         self.assertIsNone(UserSocialAuth.get_social_auth(provider="a", uid="1"))
 
         # Mixin
         self.assertEqual(
-            super(AbstractUserSocialAuth, usa).get_social_auth(
-                provider=usa.provider, uid=usa.uid
-            ),
+            super(AbstractUserSocialAuth, usa).get_social_auth(provider=usa.provider, uid=usa.uid),
             usa,
         )
-        self.assertIsNone(
-            super(AbstractUserSocialAuth, usa).get_social_auth(provider="a", uid="1")
-        )
+        self.assertIsNone(super(AbstractUserSocialAuth, usa).get_social_auth(provider="a", uid="1"))
 
         # Manager
         self.assertEqual(
@@ -169,15 +151,11 @@ class TestUserSocialAuth(TestCase):
         int_uid = int(usa.uid)
 
         # Model
-        self.assertEqual(
-            UserSocialAuth.get_social_auth(provider=usa.provider, uid=int_uid), usa
-        )
+        self.assertEqual(UserSocialAuth.get_social_auth(provider=usa.provider, uid=int_uid), usa)
 
         # Mixin
         self.assertEqual(
-            super(AbstractUserSocialAuth, usa).get_social_auth(
-                provider=usa.provider, uid=usa.uid
-            ),
+            super(AbstractUserSocialAuth, usa).get_social_auth(provider=usa.provider, uid=usa.uid),
             usa,
         )
 
@@ -188,9 +166,7 @@ class TestUserSocialAuth(TestCase):
         )
 
     def test_get_social_auth_for_user(self):
-        qs = UserSocialAuth.get_social_auth_for_user(
-            user=self.user, provider=self.usa.provider, id=self.usa.id
-        )
+        qs = UserSocialAuth.get_social_auth_for_user(user=self.user, provider=self.usa.provider, id=self.usa.id)
         self.assertEqual(qs.count(), 1)
 
     def test_create_social_auth(self):
@@ -201,9 +177,7 @@ class TestUserSocialAuth(TestCase):
     @mock.patch("social_django.storage.transaction", spec=[])
     def test_create_social_auth_without_transaction_atomic(self, *args):
         with self.assertRaises(IntegrityError):
-            UserSocialAuth.create_social_auth(
-                user=self.user, provider=self.usa.provider, uid=self.usa.uid
-            )
+            UserSocialAuth.create_social_auth(user=self.user, provider=self.usa.provider, uid=self.usa.uid)
 
     def test_username_max_length(self):
         self.assertEqual(UserSocialAuth.username_max_length(), 150)
@@ -221,9 +195,7 @@ class TestAssociation(TestCase):
     def test_store_get_remove(self):
         Association.store(
             server_url="/",
-            association=mock.Mock(
-                handle="a", secret=b"b", issued=1, lifetime=2, assoc_type="c"
-            ),
+            association=mock.Mock(handle="a", secret=b"b", issued=1, lifetime=2, assoc_type="c"),
         )
 
         qs = Association.get(handle="a")

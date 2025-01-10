@@ -17,9 +17,7 @@ class TestViews(TestCase):
         session.save()
 
     def test_begin_view(self):
-        response = self.client.get(
-            reverse("social:begin", kwargs={"backend": "facebook"})
-        )
+        response = self.client.get(reverse("social:begin", kwargs={"backend": "facebook"}))
         self.assertEqual(response.status_code, 302)
 
         url = reverse("social:begin", kwargs={"backend": "blabla"})
@@ -28,9 +26,7 @@ class TestViews(TestCase):
 
     def test_require_post_works(self):
         with override_settings(SOCIAL_AUTH_REQUIRE_POST=True):
-            response = self.client.get(
-                reverse("social:begin", kwargs={"backend": "facebook"})
-            )
+            response = self.client.get(reverse("social:begin", kwargs={"backend": "facebook"}))
             self.assertEqual(response.status_code, 405)
 
     @mock.patch("social_core.backends.base.BaseAuth.request")
@@ -39,7 +35,7 @@ class TestViews(TestCase):
         url += "?code=2&state=1"
         mock_request.return_value.json.return_value = {"access_token": "123"}
         with mock.patch(
-            "django.contrib.sessions.backends.base.SessionBase" ".set_expiry",
+            "django.contrib.sessions.backends.base.SessionBase.set_expiry",
             side_effect=[OverflowError, None],
         ):
             response = self.client.get(url)
@@ -87,9 +83,7 @@ class TestGetSessionTimeout(TestCase):
 
     def test_expiration_disabled_no_max(self):
         self.set_user_expiration(60)
-        expiration_length = get_session_timeout(
-            self.social_user, enable_session_expiration=False
-        )
+        expiration_length = get_session_timeout(self.social_user, enable_session_expiration=False)
         self.assertIsNone(expiration_length)
 
     def test_expiration_disabled_with_max(self):
@@ -99,40 +93,28 @@ class TestGetSessionTimeout(TestCase):
         self.assertEqual(expiration_length, 60)
 
     def test_expiration_disabled_with_zero_max(self):
-        expiration_length = get_session_timeout(
-            self.social_user, enable_session_expiration=False, max_session_length=0
-        )
+        expiration_length = get_session_timeout(self.social_user, enable_session_expiration=False, max_session_length=0)
         self.assertEqual(expiration_length, 0)
 
     def test_user_has_session_length_no_max(self):
         self.set_user_expiration(60)
-        expiration_length = get_session_timeout(
-            self.social_user, enable_session_expiration=True
-        )
+        expiration_length = get_session_timeout(self.social_user, enable_session_expiration=True)
         self.assertEqual(expiration_length, 60)
 
     def test_user_has_session_length_larger_max(self):
         self.set_user_expiration(60)
-        expiration_length = get_session_timeout(
-            self.social_user, enable_session_expiration=True, max_session_length=90
-        )
+        expiration_length = get_session_timeout(self.social_user, enable_session_expiration=True, max_session_length=90)
         self.assertEqual(expiration_length, 60)
 
     def test_user_has_session_length_smaller_max(self):
         self.set_user_expiration(60)
-        expiration_length = get_session_timeout(
-            self.social_user, enable_session_expiration=True, max_session_length=30
-        )
+        expiration_length = get_session_timeout(self.social_user, enable_session_expiration=True, max_session_length=30)
         self.assertEqual(expiration_length, 30)
 
     def test_user_has_no_session_length_with_max(self):
-        expiration_length = get_session_timeout(
-            self.social_user, enable_session_expiration=True, max_session_length=60
-        )
+        expiration_length = get_session_timeout(self.social_user, enable_session_expiration=True, max_session_length=60)
         self.assertEqual(expiration_length, 60)
 
     def test_user_has_no_session_length_no_max(self):
-        expiration_length = get_session_timeout(
-            self.social_user, enable_session_expiration=True
-        )
+        expiration_length = get_session_timeout(self.social_user, enable_session_expiration=True)
         self.assertIsNone(expiration_length)

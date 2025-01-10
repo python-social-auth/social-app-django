@@ -7,12 +7,8 @@ from django.views.decorators.http import require_POST
 from social_core.exceptions import MissingBackend
 from social_core.utils import get_strategy, module_member, setting_name
 
-STRATEGY = getattr(
-    settings, setting_name("STRATEGY"), "social_django.strategy.DjangoStrategy"
-)
-STORAGE = getattr(
-    settings, setting_name("STORAGE"), "social_django.models.DjangoStorage"
-)
+STRATEGY = getattr(settings, setting_name("STRATEGY"), "social_django.strategy.DjangoStrategy")
+STORAGE = getattr(settings, setting_name("STORAGE"), "social_django.models.DjangoStorage")
 REQUIRE_POST = setting_name("REQUIRE_POST")
 
 Strategy = module_member(STRATEGY)
@@ -41,9 +37,7 @@ def psa(redirect_uri=None, load_strategy=load_strategy):
                 request.strategy = request.social_strategy
 
             try:
-                request.backend = load_backend(
-                    request.social_strategy, backend, redirect_uri=uri
-                )
+                request.backend = load_backend(request.social_strategy, backend, redirect_uri=uri)
             except MissingBackend:
                 raise Http404("Backend not found")
             return func(request, backend, *args, **kwargs)

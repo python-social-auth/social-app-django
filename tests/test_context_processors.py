@@ -21,9 +21,7 @@ class TestContextProcessors(TestCase):
         )
 
     def test_login_redirect_malformed_post(self):
-        request = self.request_factory.post(
-            "/", data="no boundary", content_type="multipart/form-data"
-        )
+        request = self.request_factory.post("/", data="no boundary", content_type="multipart/form-data")
         result = login_redirect(request)
         self.assertEqual(
             result,

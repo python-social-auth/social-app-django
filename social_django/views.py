@@ -46,14 +46,10 @@ def complete(request, backend, *args, **kwargs):
 @csrf_protect
 def disconnect(request, backend, association_id=None):
     """Disconnects given backend from current logged in user."""
-    return do_disconnect(
-        request.backend, request.user, association_id, redirect_name=REDIRECT_FIELD_NAME
-    )
+    return do_disconnect(request.backend, request.user, association_id, redirect_name=REDIRECT_FIELD_NAME)
 
 
-def get_session_timeout(
-    social_user, enable_session_expiration=False, max_session_length=None
-):
+def get_session_timeout(social_user, enable_session_expiration=False, max_session_length=None):
     if enable_session_expiration:
         # Retrieve an expiration date from the social user who just finished
         # logging in; this value was set by the social auth backend, and was

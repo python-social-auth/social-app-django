@@ -13,9 +13,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="partial",
             name="timestamp",
-            field=models.DateTimeField(
-                auto_now_add=True, db_index=True, default=timezone.now
-            ),
+            field=models.DateTimeField(auto_now_add=True, db_index=True, default=timezone.now),
             preserve_default=False,
         ),
     ]
