@@ -1,0 +1,10 @@
+name: pre-commit check
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  pre-commit:
+    uses: python-social-auth/social-core/.github/workflows/pre-commit-shared.yml@master
+    if: github.repository == 'python-social-auth/social-core'
