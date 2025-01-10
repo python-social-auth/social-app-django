@@ -38,7 +38,7 @@ See the [https://github.com/python-social-auth/.github/blob/main/CONTRIBUTING.md
 
 ## Versioning
 
-This project follows [Semantic Versioning 2.0.0](http://semver.org/spec/v2.0.0.html).
+This project follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
 
 ## License
 
