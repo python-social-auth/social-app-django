@@ -78,7 +78,7 @@ class TestStrategy(TestCase):
 
         ctx = {"x": 1}
         result = self.strategy.tpl.render_template(tpl="test.html", context=ctx)
-        self.assertEqual(result, "test")
+        self.assertEqual(result, "test\n")
 
         result = self.strategy.tpl.render_string(html="xoxo", context=ctx)
         self.assertEqual(result, "xoxo")
