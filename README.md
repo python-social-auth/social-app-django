@@ -1,10 +1,5 @@
 # Python Social Auth - Django
 
-![Build Status](https://github.com/python-social-auth/social-app-django/workflows/Flake8/badge.svg)
-![Build Status](https://github.com/python-social-auth/social-app-django/workflows/Tests/badge.svg)
-[![PyPI version](https://badge.fury.io/py/social-auth-app-django.svg)](https://badge.fury.io/py/social-auth-app-django)
-[![Donate](https://img.shields.io/badge/Donate-PayPal-orange.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=matiasaguirre%40gmail%2ecom&lc=US&item_name=Python%20Social%20Auth&no_note=0&currency_code=USD&bn=PP%2dDonationsBF%3abtn_donate_SM%2egif%3aNonHostedGuest)
-
 Python Social Auth is an easy to setup social authentication/registration
 mechanism with support for several frameworks and auth providers.
 
@@ -25,7 +20,7 @@ Backward compatibility with unsupported versions won't be enforced.
 
 ## Documentation
 
-Project documentation is available at https://python-social-auth.readthedocs.org/.
+Project documentation is available at https://python-social-auth.readthedocs.io/.
 
 ## Setup
 
@@ -35,7 +30,11 @@ $ pip install social-auth-app-django
 
 ## Contributing
 
-See the [CONTRIBUTING.md](CONTRIBUTING.md) document for details.
+Contributions are welcome!
+
+Only the core and Django modules are currently in development. All others are in maintenance only mode, and maintainers are especially welcome there.
+
+See the [https://github.com/python-social-auth/.github/blob/main/CONTRIBUTING.md](CONTRIBUTING.md) document for details.
 
 ## Versioning
 
@@ -47,7 +46,7 @@ This project follows the BSD license. See the [LICENSE](LICENSE) for details.
 
 ## Donations
 
-This project is maintained on my spare time, consider donating to keep
-it improving.
+This project welcomes donations to make the development sustainable, you can fund Python Social Auth on following platforms:
 
-[![Donate](https://img.shields.io/badge/Donate-PayPal-orange.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=matiasaguirre%40gmail%2ecom&lc=US&item_name=Python%20Social%20Auth&no_note=0&currency_code=USD&bn=PP%2dDonationsBF%3abtn_donate_SM%2egif%3aNonHostedGuest)
+- [GitHub Sponsors](https://github.com/sponsors/python-social-auth/)
+- [Open Collective](https://opencollective.com/python-social-auth)
