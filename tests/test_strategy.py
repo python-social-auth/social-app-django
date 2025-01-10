@@ -64,7 +64,7 @@ class TestStrategy(TestCase):
 
     def test_html(self):
         result = self.strategy.render_html(tpl="test.html")
-        self.assertEqual(result, "test")
+        self.assertEqual(result, "test\n")
 
         result = self.strategy.render_html(html="xoxo")
         self.assertEqual(result, "xoxo")
