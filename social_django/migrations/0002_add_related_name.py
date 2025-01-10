@@ -3,9 +3,7 @@ from django.db import migrations, models
 from social_core.utils import setting_name
 
 USER_MODEL = (
-    getattr(settings, setting_name("USER_MODEL"), None)
-    or getattr(settings, "AUTH_USER_MODEL", None)
-    or "auth.User"
+    getattr(settings, setting_name("USER_MODEL"), None) or getattr(settings, "AUTH_USER_MODEL", None) or "auth.User"
 )
 
 

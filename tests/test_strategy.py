@@ -69,9 +69,7 @@ class TestStrategy(TestCase):
         result = self.strategy.render_html(html="xoxo")
         self.assertEqual(result, "xoxo")
 
-        with self.assertRaisesMessage(
-            ValueError, "Missing template or html parameters"
-        ):
+        with self.assertRaisesMessage(ValueError, "Missing template or html parameters"):
             self.strategy.render_html()
 
         result = self.strategy.html(content="xoxo")
@@ -86,18 +84,12 @@ class TestStrategy(TestCase):
         self.assertEqual(result, "xoxo")
 
     def test_authenticate(self):
-        backend = load_backend(
-            strategy=self.strategy, name="facebook", redirect_uri="/"
-        )
+        backend = load_backend(strategy=self.strategy, name="facebook", redirect_uri="/")
         user = mock.Mock()
-        with mock.patch(
-            "social_core.backends.base.BaseAuth.pipeline", return_value=user
-        ):
+        with mock.patch("social_core.backends.base.BaseAuth.pipeline", return_value=user):
             result = self.strategy.authenticate(backend=backend, response=mock.Mock())
             self.assertEqual(result, user)
-            self.assertEqual(
-                result.backend, "social_core.backends.facebook.FacebookOAuth2"
-            )
+            self.assertEqual(result.backend, "social_core.backends.facebook.FacebookOAuth2")
 
     def test_clean_authenticate_args(self):
         args, kwargs = self.strategy.clean_authenticate_args(self.request)

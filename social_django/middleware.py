@@ -42,14 +42,10 @@ class SocialAuthExceptionMiddleware:
             if apps.is_installed("django.contrib.messages"):
                 social_logger.info(message)
                 try:
-                    messages.error(
-                        request, message, extra_tags=f"social-auth {backend_name}"
-                    )
+                    messages.error(request, message, extra_tags=f"social-auth {backend_name}")
                 except MessageFailure:
                     if url:
-                        url += (
-                            "?" in url and "&" or "?"
-                        ) + f"message={quote(message)}&backend={backend_name}"
+                        url += ("?" in url and "&" or "?") + f"message={quote(message)}&backend={backend_name}"
             else:
                 social_logger.error(message)
 
