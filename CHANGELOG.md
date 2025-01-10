@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## [5.4.2](https://github.com/python-social-auth/social-app-django/releases/tag/5.4.2) - 2024-07-12
 
 ### Changed
+
 - Fixed `UserSocialAuth` creation by allowing `JSONField` to be blank
 - Fixed the assumption that UID can only be an integer (#571)
 - Fixed revert of migration `0013_migrate_extra_data.py`
@@ -15,12 +16,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## [5.4.1](https://github.com/python-social-auth/social-app-django/releases/tag/5.4.1) - 2024-04-24
 
 ### Changed
+
 - Added reverse migration for JSON field
 - Fixed improper handling of case sensitivity with MySQL/MariaDB (CVE-2024-32879)
 
 ## [5.4.0](https://github.com/python-social-auth/social-app-django/releases/tag/5.4.0) - 2023-10-17
 
 ### Changed
+
 - Improved JSON field migration performance
 - Introduce configuration to request POST only requests for social authentication
 - Updated list of supported Django and Python versions
@@ -28,18 +31,20 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## [5.3.0](https://github.com/python-social-auth/social-app-django/releases/tag/5.3.0) - 2023-09-01
 
 ### Changed
+
 - Uses Django native JSON field
 
 ## [5.2.0](https://github.com/python-social-auth/social-app-django/releases/tag/5.2.0) - 2023-03-31
 
 ### Changed
-- Removed support for Django<3.2
-- Fixed missing migration issue
 
+- Removed support for Django\<3.2
+- Fixed missing migration issue
 
 ## [5.1.0](https://github.com/python-social-auth/social-app-django/releases/tag/5.1.0) - 2023-03-15
 
 ### Changed
+
 - Compatibility with recent Django and Python versions
 - Coding style improvements
 - Improved error handling in SocialAuthExceptionMiddleware
@@ -47,6 +52,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## [5.0.0](https://github.com/python-social-auth/social-app-django/releases/tag/5.0.0) - 2021-08-05
 
 ### Changed
+
 - Removed compat shims for obsolete Django versions
 - Switch from deprecated `django.conf.urls.url` to `django.urls.path`
 - Use query `.exists()` instead of `.count() > 0`
@@ -59,37 +65,44 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## [4.0.0](https://github.com/python-social-auth/social-app-django/releases/tag/4.0.0) - 2020-06-20
 
 ### Changed
+
 - Dropped support for older Django versions (1.8, 1.9, 1.10, 2.0)
 - Fix `TypeError` when continuing a pipeline in Django 2.1
 
 ## [3.4.0](https://github.com/python-social-auth/social-app-django/releases/tag/3.4.0) - 2020-05-30
 
 ### Changed
+
 - Correct release mechanism
 
 ## [3.3.0](https://github.com/python-social-auth/social-app-django/releases/tag/3.3.0) - 2020-05-30
 
 ### Changed
+
 - Updated release and tests mechanism
 
 ## [3.2.0](https://github.com/python-social-auth/social-app-django/releases/tag/3.2.0) - 2020-05-30
 
 ### Changed
+
 - Increase social-core dependency version
 
 ### Added
+
 - Implement `get` and `delete` class methods for `DjangoNonceMixin`
 - Added `created` and `modified` fields to `UserSocialAuth` model
 
 ## [3.1.0](https://github.com/python-social-auth/social-app-django/releases/tag/3.1.0) - 2018-10-31
 
 ### Changed
+
 - Updated `JSONField.from_db_value` signature to support multiple Django
   versions by accepting just the needed parameters.
 
 ## [3.0.0](https://github.com/python-social-auth/social-app-django/releases/tag/3.0.0) - 2018-10-28
 
 ### Changed
+
 - Reduce log level of exceptions to `INFO` if messages app is installed
 - Encode association secret with `encodebytes` if available
 - Decode association secret for proper storage
@@ -104,6 +117,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## [2.1.0](https://github.com/python-social-auth/social-app-django/releases/tag/2.1.0) - 2017-12-22
 
 ### Changed
+
 - Use Django `urlquote` since it handles unicode
 - Remove version check in favor of import error catch
 - Remove call to deprecated method `_get_val_from_obj()`
@@ -112,6 +126,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## [2.0.0](https://github.com/python-social-auth/social-app-django/releases/tag/2.0.0) - 2017-10-28
 
 ### Changed
+
 - Better default when checking if the middleware should raise the exception
 - Update `JSONField` default value to `dict` callable
 - Updated `authenticate()` parameters cleanup to avoid double arguments errors
@@ -122,6 +137,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Management command to clean stale data (partial sessions and codes)
 
 ### Added
+
 - Added `JSONField` support PostgreSQL builtin option if configured
 - Added strategy / models / views tests
 - Added timestamps to Partial and Code models
@@ -129,31 +145,37 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## [1.2.0](https://github.com/python-social-auth/social-app-django/releases/tag/1.2.0) - 2017-05-06
 
 ### Added
+
 - Check for a `MAX_SESSION_LENGTH` setting when logging in and setting session expiry.
 
 ### Changed
-- Addded `on_cascade` clauses to migrations.
+
+- Added `on_cascade` clauses to migrations.
 - Restrict association URL to just integer ids
 
 ## [1.1.0](https://github.com/python-social-auth/social-app-django/releases/tag/1.1.0) - 2017-02-10
 
 ### Added
+
 - Authenticate cleanup method override to discard request parameter
   getting passed starting from Django 1.11
 
 ## [1.0.1](https://github.com/python-social-auth/social-app-django/releases/tag/1.0.1) - 2017-01-29
 
 ### Changed
+
 - Remove migration replacement to nonexistent reference
 - Ensure atomic transaction if active
 
 ## [1.0.0](https://github.com/python-social-auth/social-app-django/releases/tag/1.0.0) - 2017-01-22
 
 ### Added
+
 - Partial pipeline DB storage implementation
 - Explicit app_label definition in model classes
 
 ### Changed
+
 - Monkey patch BaseAuth to load the current strategy to workaround django load_backend() call
 - Remove usage of set/get current strategy methods
 - Remove usage of `social_auth` related name since it should be consider a simple helper.
@@ -161,12 +183,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## [0.1.0](https://github.com/python-social-auth/social-app-django/releases/tag/0.1.0) - 2016-12-28
 
 ### Added
+
 - Let Django resolve URL when getting from settings (port of [#905](https://github.com/omab/python-social-auth/pull/905)
   by webjunkie)
 - Add setting to fine-tune admin search fields (port of [#1035](https://github.com/omab/python-social-auth/pull/1035)
   by atugushev)
 
 ### Changed
+
 - Fixed `REDIRECT_URL_VALUE` value to be quoted by default.
   Refs [#875](https://github.com/omab/python-social-auth/issues/875)
 - Django strategy should respect X-Forwarded-Port (port of [#841](https://github.com/omab/python-social-auth/pull/841)
@@ -181,5 +205,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## [0.0.1](https://github.com/python-social-auth/social-app-django/releases/tag/0.0.1) - 2016-11-27
 
 ### Changed
+
 - Split from the monolitic [python-social-auth](https://github.com/omab/python-social-auth)
   codebase

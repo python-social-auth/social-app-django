@@ -5,7 +5,7 @@ __version__ = importlib.metadata.version("social-auth-app-django")
 
 from social_core.backends.base import BaseAuth
 
-# django.contrib.auth.load_backend() will import and instanciate the
+# django.contrib.auth.load_backend() will import and instantiate the
 # authentication backend ignoring the possibility that it might
 # require more arguments. Here we set a monkey patch to
 # BaseAuth.__init__ to ignore the mandatory strategy argument and load
