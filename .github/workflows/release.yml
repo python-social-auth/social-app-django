@@ -8,43 +8,8 @@ on:
 
 jobs:
   release:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        persist-credentials: false
-    - uses: astral-sh/setup-uv@v5
-
-    - name: Verify tag is documented
-      if: github.event_name == 'release'
-      run: |
-        CURRENT_TAG=${GITHUB_REF#refs/tags/}
-        CURRENT_VERSION=$(head -n1 social_django/__init__.py | awk '{print $3}' | sed 's/[^0-9\.]//g')
-        if [ "${CURRENT_VERSION}" != "${CURRENT_TAG}" ]; then
-            echo "========================================================================"
-            echo "Error: tag '${CURRENT_TAG}' and version '${CURRENT_VERSION}' don't match"
-            echo "========================================================================"
-            exit 1;
-        fi
-
-    - name: Build dist
-      run: uv build
-
-    - name: Archive dist
-      if: github.event_name == 'release'
-      uses: actions/upload-artifact@v4
-      with:
-        name: dist
-        path: |
-          dist/*.tar.gz
-          dist/*.whl
-
-    - name: Verify long description rendering
-      run: uvx twine check dist/*
-
-    - name: Publish
-      env:
-          # TODO: remove once trusted publishing is configured
-        UV_PUBLISH_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
-      if: github.event_name == 'release' && github.repository == 'python-social-auth/social-app-django'
-      run: uv publish
+    uses: python-social-auth/social-core/.github/workflows/release-shared.yml@master
+    with:
+      github_event_name: ${{ github.event_name }}
+    permissions:
+      id-token: write
