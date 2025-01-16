@@ -4,6 +4,10 @@
     "config:recommended",
     ":dependencyDashboard"
   ],
+  "automerge": true,
+  "automergeType": "pr",
+  "automergeStrategy": "rebase",
+  "platformAutomerge": true,
   "pre-commit": {
     "enabled": true
   },
