@@ -65,7 +65,7 @@ jobs:
     - name: Django main Test
       run: |
         tox -e "py${PYTHON_VERSION/\./}-djangomain"
-      if: ${{ env.PYTHON_VERSION == '3.10' || env.PYTHON_VERSION == '3.11' || env.PYTHON_VERSION == '3.12' || env.PYTHON_VERSION == '3.13' }}
+      if: ${{ env.PYTHON_VERSION == '3.12' || env.PYTHON_VERSION == '3.13' }}
 
     - name: social-core master Test
       run: |
