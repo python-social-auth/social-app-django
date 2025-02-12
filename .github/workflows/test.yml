@@ -62,6 +62,16 @@ jobs:
         tox -e "py${PYTHON_VERSION/\./}-django50"
       if: ${{ env.PYTHON_VERSION == '3.10' || env.PYTHON_VERSION == '3.11' || env.PYTHON_VERSION == '3.12' || env.PYTHON_VERSION == '3.13' }}
 
+    - name: Django 5.1.x Test
+      run: |
+        tox -e "py${PYTHON_VERSION/\./}-django51"
+      if: ${{ env.PYTHON_VERSION == '3.10' || env.PYTHON_VERSION == '3.11' || env.PYTHON_VERSION == '3.12' || env.PYTHON_VERSION == '3.13' }}
+
+    - name: Django 5.2.x Test
+      run: |
+        tox -e "py${PYTHON_VERSION/\./}-django52"
+      if: ${{ env.PYTHON_VERSION == '3.10' || env.PYTHON_VERSION == '3.11' || env.PYTHON_VERSION == '3.12' || env.PYTHON_VERSION == '3.13' }}
+
     - name: Django main Test
       run: |
         tox -e "py${PYTHON_VERSION/\./}-djangomain"
