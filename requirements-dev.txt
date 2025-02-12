@@ -1,4 +1,0 @@
--r requirements.txt
-coverage
-pre-commit==4.1.0
-tox==4.24.1
