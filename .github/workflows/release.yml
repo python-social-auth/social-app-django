@@ -8,8 +8,36 @@ on:
 
 jobs:
   release:
-    uses: python-social-auth/social-core/.github/workflows/release-shared.yml@master
-    with:
-      github_event_name: ${{ github.event_name }}
+    runs-on: ubuntu-latest
     permissions:
       id-token: write
+    steps:
+    - uses: actions/checkout@v4
+    - uses: astral-sh/setup-uv@v5
+
+    - run: uv build
+
+    - name: Verify wheel install
+      run: |
+        uv venv venv-install-whl
+        source venv-install-whl/bin/activate
+        uv pip install dist/*.whl
+
+    - name: Verify source install
+      run: |
+        uv venv venv-install-tar
+        source venv-install-tar/bin/activate
+        uv pip install dist/*.tar.gz
+
+    - uses: actions/upload-artifact@v4
+      if: github.event_name == 'release'
+      with:
+        name: dist
+        path: |
+          dist/*.tar.gz
+          dist/*.whl
+
+    - run: uvx twine check dist/*
+
+    - if: github.event_name == 'release'
+      run: uv publish --verbose --verbose  --trusted-publishing always
