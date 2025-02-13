@@ -4,6 +4,9 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   pre-commit:
     uses: python-social-auth/social-core/.github/workflows/pre-commit-shared.yml@master
