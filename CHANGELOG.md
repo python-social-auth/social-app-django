@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [5.4.3](https://github.com/python-social-auth/social-app-django/releases/tag/5.4.3) - 2025-02-13
+
+### Changed
+
+- Tested with recent Django and Python
+- Modernized build system
+- Fixed rollback of migrations
+
 ## [5.4.2](https://github.com/python-social-auth/social-app-django/releases/tag/5.4.2) - 2024-07-12
 
 ### Changed
