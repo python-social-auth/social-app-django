@@ -1,8 +1,6 @@
 name: Release
 
 on:
-  release:
-    types: [published]
   push:
   pull_request:
 
@@ -30,7 +28,7 @@ jobs:
         uv pip install dist/*.tar.gz
 
     - uses: actions/upload-artifact@v4
-      if: github.event_name == 'release'
+      if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/')
       with:
         name: dist
         path: |
@@ -39,5 +37,5 @@ jobs:
 
     - run: uvx twine check dist/*
 
-    - if: github.event_name == 'release'
+    - if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/')
       run: uv publish --verbose --verbose  --trusted-publishing always
