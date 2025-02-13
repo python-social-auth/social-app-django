@@ -72,4 +72,5 @@ target-version = "py37"
 max-complexity = 10
 
 [tool.setuptools]
+license-files = []
 packages = ["social_django"]
