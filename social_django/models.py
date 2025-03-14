@@ -43,6 +43,9 @@ class AbstractUserSocialAuth(models.Model, DjangoUserMixin):
 
     class Meta:
         app_label = "social_django"
+        constraints = [
+            models.CheckConstraint(check=~models.Q(uid=""), name="user_social_auth_uid_required"),
+        ]
         abstract = True
 
     @classmethod
@@ -70,7 +73,7 @@ class AbstractUserSocialAuth(models.Model, DjangoUserMixin):
 class UserSocialAuth(AbstractUserSocialAuth):
     """Social Auth association model"""
 
-    class Meta:
+    class Meta(AbstractUserSocialAuth.Meta):
         """Meta data"""
 
         app_label = "social_django"
