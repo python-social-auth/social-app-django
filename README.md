@@ -34,7 +34,7 @@ Contributions are welcome!
 
 Only the core and Django modules are currently in development. All others are in maintenance only mode, and maintainers are especially welcome there.
 
-See the [https://github.com/python-social-auth/.github/blob/main/CONTRIBUTING.md](CONTRIBUTING.md) document for details.
+See the [CONTRIBUTING.md](https://github.com/python-social-auth/.github/blob/main/CONTRIBUTING.md) document for details.
 
 ## Versioning
 
