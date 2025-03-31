@@ -45,16 +45,6 @@ jobs:
         python -m pip install --upgrade pip
         pip install tox coverage
 
-    - name: Django 3.2.x Test
-      run: |
-        tox -e "py${PYTHON_VERSION/\./}-django32"
-      if: ${{ env.PYTHON_VERSION == '3.8' || env.PYTHON_VERSION == '3.9' || env.PYTHON_VERSION == '3.10' }}
-
-    - name: Django 4.1.x Test
-      run: |
-        tox -e "py${PYTHON_VERSION/\./}-django41"
-      if: ${{ env.PYTHON_VERSION == '3.8' || env.PYTHON_VERSION == '3.9' || env.PYTHON_VERSION == '3.10' || env.PYTHON_VERSION == '3.11' }}
-
     - name: Django 4.2.x Test
       run: |
         tox -e "py${PYTHON_VERSION/\./}-django42"

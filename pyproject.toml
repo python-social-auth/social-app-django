@@ -27,7 +27,7 @@ classifiers = [
   "Topic :: Internet"
 ]
 dependencies = [
-  "Django>=3.2",
+  "Django>=4.2",
   "social-auth-core~=4.4"
 ]
 description = "Python Social Authentication, Django integration."
