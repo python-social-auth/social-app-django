@@ -19,6 +19,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="usersocialauth",
             name="modified",
-            field=models.DateTimeField(auto_now=True),
+            field=models.DateTimeField(auto_now=True, default=django.utils.timezone.now),
+            preserve_default=False,
         ),
     ]
