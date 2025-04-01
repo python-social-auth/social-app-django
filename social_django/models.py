@@ -42,7 +42,6 @@ class AbstractUserSocialAuth(models.Model, DjangoUserMixin):
         return str(self.user)
 
     class Meta:
-        app_label = "social_django"
         abstract = True
 
     @classmethod
