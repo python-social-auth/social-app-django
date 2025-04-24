@@ -25,6 +25,7 @@ pip-log.txt
 .coverage
 .coverage.*
 .tox
+uv.lock
 
 # Translations
 *.mo

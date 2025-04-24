@@ -6,12 +6,17 @@ requires = ["setuptools>=78.0.2"]
 dev = [
   "tox",
   "pre-commit",
-  "coverage>=3.6"
+  "coverage>=3.6",
+  "pyright==1.1.397",
+  "django-stubs-ext==5.1.3",
+  "django-stubs==5.1.3",
+  "mypy==1.15.0"
 ]
 
 [project]
 authors = [
-  {name = "Matias Aguirre", email = "matiasaguirre@gmail.com"}
+  {name = "Matias Aguirre", email = "matiasaguirre@gmail.com"},
+  {email = "michal@weblate.org", name = "Michal Čihař"}
 ]
 classifiers = [
   "Development Status :: 5 - Production/Stable",
@@ -43,7 +48,13 @@ version = "5.4.3"
 # This is present until pip implements supports for PEP 735
 # see https://github.com/pypa/pip/issues/12963
 dev = [
-  "coverage>=3.6"
+  "coverage>=3.6",
+  "django-stubs-ext==5.1.3",
+  "django-stubs==5.1.3",
+  "tox",
+  "pre-commit",
+  "pyright==1.1.397",
+  "mypy==1.15.0"
 ]
 
 [project.urls]
@@ -62,6 +73,22 @@ ignore = [
   "W004"  # Django migrations fail here
 ]
 
+[tool.django-stubs]
+django_settings_module = "tests.settings"
+strict_settings = false
+
+[tool.mypy]
+check_untyped_defs = true
+plugins = [
+  "mypy_django_plugin.main"
+]
+
+[tool.pyright]
+pythonVersion = "3.9"
+reportAttributeAccessIssue = "none"
+reportOptionalMemberAccess = "none"
+reportPossiblyUnboundVariable = "none"
+
 [tool.ruff]
 # Ignore some well known paths
 exclude = [
@@ -75,13 +102,15 @@ exclude = [
   "doc",
   "site"
 ]
-ignore = []
 line-length = 120
 output-format = "github"
-select = ["E", "F", "I", "PLC", "PLE", "UP"]
 target-version = "py37"
 
-[tool.ruff.mccabe]
+[tool.ruff.lint]
+ignore = []
+select = ["E", "F", "I", "PLC", "PLE", "UP"]
+
+[tool.ruff.lint.mccabe]
 max-complexity = 10
 
 [tool.setuptools]
