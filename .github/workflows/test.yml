@@ -48,7 +48,7 @@ jobs:
     - name: Django 4.2.x Test
       run: |
         tox -e "py${PYTHON_VERSION/\./}-django42"
-      if: ${{ env.PYTHON_VERSION == '3.8' || env.PYTHON_VERSION == '3.9' || env.PYTHON_VERSION == '3.10' || env.PYTHON_VERSION == '3.11' }}
+      if: ${{ env.PYTHON_VERSION == '3.9' || env.PYTHON_VERSION == '3.10' || env.PYTHON_VERSION == '3.11' }}
 
     - name: Django 5.0.x Test
       run: |
