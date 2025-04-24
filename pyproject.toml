@@ -115,3 +115,11 @@ max-complexity = 10
 
 [tool.setuptools]
 packages = ["social_django"]
+
+
+[tool.tomlsort]
+ignore_case = true
+sort_inline_arrays = true
+sort_inline_tables = true
+sort_table_keys = true
+spaces_before_inline_comment = 2
