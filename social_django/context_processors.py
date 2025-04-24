@@ -3,16 +3,7 @@ from urllib.parse import quote
 from django.conf import settings
 from django.contrib.auth import REDIRECT_FIELD_NAME
 from django.http.multipartparser import MultiPartParserError
-from django.utils.functional import SimpleLazyObject
-
-try:
-    from django.utils.functional import empty as _empty
-
-    empty = _empty
-except ImportError:  # django < 1.4
-    empty = None
-
-
+from django.utils.functional import SimpleLazyObject, empty
 from social_core.backends.utils import user_backends_data
 
 from .utils import Storage
