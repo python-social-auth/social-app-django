@@ -49,6 +49,19 @@ dev = [
 [project.urls]
 Homepage = "https://github.com/python-social-auth/social-app-django"
 
+[tool.check-manifest]
+ignore = [
+  ".coveragerc",
+  ".pre-commit-config.yaml",
+  ".well-known/funding-manifest-urls",
+  "tox.ini"
+]
+
+[tool.check-wheel-contents]
+ignore = [
+  "W004"  # Django migrations fail here
+]
+
 [tool.ruff]
 # Ignore some well known paths
 exclude = [
