@@ -1,4 +1,7 @@
-global-include *.py
+recursive-include social_django *.py
+recursive-include tests *.py
+include manage.py
 include *.txt CHANGELOG.md LICENSE README.md
 recursive-exclude social_django *.pyc
+recursive-include tests *.html
 exclude .tox .git
