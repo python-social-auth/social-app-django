@@ -22,14 +22,14 @@ jobs:
 
     - name: Verify wheel install
       run: |
-        uv venv venv-install-whl
-        source venv-install-whl/bin/activate
+        uv venv .venv-install-whl
+        source .venv-install-whl/bin/activate
         uv pip install dist/*.whl
 
     - name: Verify source install
       run: |
-        uv venv venv-install-tar
-        source venv-install-tar/bin/activate
+        uv venv .venv-install-tar
+        source .venv-install-tar/bin/activate
         uv pip install dist/*.tar.gz
 
     - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -41,6 +41,10 @@ jobs:
           dist/*.whl
 
     - run: uvx twine check dist/*
+    - run: uvx pydistcheck --inspect dist/*
+    - run: uvx pyroma dist/*.tar.gz
+    - run: uvx check-wheel-contents dist/*.whl
+    - run: uvx check-manifest -v
 
     - if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/')
       run: uv publish --trusted-publishing always
