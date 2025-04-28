@@ -58,6 +58,8 @@ dev = [
 ]
 
 [project.urls]
+Changelog = "https://github.com/python-social-auth/social-app-django/blob/master/CHANGELOG.md"
+Funding = "https://opencollective.com/python-social-auth"
 Homepage = "https://github.com/python-social-auth/social-app-django"
 
 [tool.check-manifest]
