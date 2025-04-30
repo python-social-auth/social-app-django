@@ -84,3 +84,4 @@ jobs:
       with:
         flags: unittests
         name: Python ${{ matrix.python-version }}
+        token: ${{secrets.CODECOV_TOKEN}}
