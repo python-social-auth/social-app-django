@@ -15,7 +15,6 @@ jobs:
     strategy:
       matrix:
         python-version:
-        - '3.9'
         - '3.10'
         - '3.11'
         - '3.12'
@@ -44,16 +43,6 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install tox coverage
-
-    - name: Django 4.2.x Test
-      run: |
-        tox -e "py${PYTHON_VERSION/\./}-django42"
-      if: ${{ env.PYTHON_VERSION == '3.9' || env.PYTHON_VERSION == '3.10' || env.PYTHON_VERSION == '3.11' }}
-
-    - name: Django 5.0.x Test
-      run: |
-        tox -e "py${PYTHON_VERSION/\./}-django50"
-      if: ${{ env.PYTHON_VERSION == '3.10' || env.PYTHON_VERSION == '3.11' || env.PYTHON_VERSION == '3.12' || env.PYTHON_VERSION == '3.13' }}
 
     - name: Django 5.1.x Test
       run: |

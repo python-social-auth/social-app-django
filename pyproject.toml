@@ -27,12 +27,11 @@ classifiers = [
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
-  "Programming Language :: Python :: 3.9",
   "Programming Language :: Python",
   "Topic :: Internet"
 ]
 dependencies = [
-  "Django>=4.2",
+  "Django>=5.1",
   "social-auth-core~=4.4"
 ]
 description = "Python Social Authentication, Django integration."
@@ -41,7 +40,7 @@ license = "BSD-3-Clause"
 license-files = ["LICENSE"]
 name = "social-auth-app-django"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 version = "5.4.3"
 
 [project.optional-dependencies]
@@ -86,7 +85,7 @@ plugins = [
 ]
 
 [tool.pyright]
-pythonVersion = "3.9"
+pythonVersion = "3.10"
 reportAttributeAccessIssue = "none"
 reportOptionalMemberAccess = "none"
 reportPossiblyUnboundVariable = "none"
@@ -106,7 +105,6 @@ exclude = [
 ]
 line-length = 120
 output-format = "github"
-target-version = "py37"
 
 [tool.ruff.lint]
 ignore = []
