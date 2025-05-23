@@ -46,7 +46,7 @@ class TestViews(TestCase):
     def test_disconnect(self, mock_request):
         user_model = get_user_model()
         user = user_model._default_manager.create_user(username="test", password="pwd")
-        UserSocialAuth.objects.create(user=user, provider="facebook")
+        UserSocialAuth.objects.create(user=user, provider="facebook", uid="some-mock-facebook-uid")
         self.client.login(username="test", password="pwd")
 
         url = reverse("social:disconnect", kwargs={"backend": "facebook"})
