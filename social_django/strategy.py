@@ -1,8 +1,14 @@
+from __future__ import annotations
+
+from importlib import import_module
+from typing import Any
+
 from django.conf import settings
-from django.contrib.auth import authenticate
+from django.contrib.auth import authenticate, get_user
 from django.contrib.contenttypes.models import ContentType
+from django.contrib.sessions.backends.base import SessionBase
 from django.db.models import Model
-from django.http import HttpResponse
+from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, resolve_url
 from django.template import TemplateDoesNotExist, engines, loader
 from django.utils.crypto import get_random_string
@@ -28,12 +34,17 @@ class DjangoTemplateStrategy(BaseTemplateStrategy):
         return render_template_string(self.strategy.request, html, context)
 
 
+def create_session(session_key: str | None = None) -> SessionBase:
+    engine = import_module(settings.SESSION_ENGINE)
+    return engine.SessionStore(session_key)
+
+
 class DjangoStrategy(BaseStrategy):
     DEFAULT_TEMPLATE_STRATEGY = DjangoTemplateStrategy
 
-    def __init__(self, storage, request=None, tpl=None):
-        self.request = request
-        self.session = request.session if request else {}
+    def __init__(self, storage, request: None | HttpRequest = None, tpl=None):
+        self.request: HttpRequest = request
+        self.session: SessionBase = request.session if request else create_session()
         super().__init__(storage, tpl)
 
     def get_setting(self, name):
@@ -149,3 +160,16 @@ class DjangoStrategy(BaseStrategy):
     def get_language(self):
         """Return current language"""
         return get_language()
+
+    def get_session_id(self) -> str | None:
+        return self.session.session_key
+
+    def restore_session(self, session_id: str, kwargs: dict[str, Any]) -> None:
+        # Load session
+        self.request.session = self.session = create_session(session_id)
+        # Update request user
+        self.request.user = get_user(self.request)
+        if "user" in kwargs:
+            kwargs["user"] = self.request.user
+        # Rotate session key to avoid reuse
+        self.session.cycle_key()
