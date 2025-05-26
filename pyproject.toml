@@ -104,14 +104,31 @@ exclude = [
   "site"
 ]
 line-length = 120
-output-format = "github"
 
 [tool.ruff.lint]
-ignore = []
-select = ["E", "F", "I", "PLC", "PLE", "UP"]
+ignore = [
+  "ANN",  # TODO: Missing type annotations
+  "ARG001",  # TODO: Unused function argument (mostly for API compatibility)
+  "ARG002",  # TODO: Unused method argument (mostly for API compatibility)
+  "B026",  # TODO: Star-arg unpacking after a keyword argument is strongly discouraged
+  "COM812",  # CONFIG: incompatible with formatter
+  "D",  # TODO: Missing documentation
+  "D203",  # CONFIG: incompatible with D211
+  "D212",  # CONFIG: incompatible with D213
+  "DJ008",  # TODO: Model does not define `__str__` method
+  "FBT002",  # TODO: Boolean default positional argument in function definition
+  "FBT003",  # TODO: Boolean positional value in function call
+  "PT",  # CONFIG: Not using pytest
+  "RUF012"  # TODO: ClassVar type annotations
+]
+select = ["ALL"]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 10
+
+[tool.ruff.lint.per-file-ignores]
+"social_django/migrations/*.py" = ["RUF012"]
+"tests/settings.py" = ["PTH"]
 
 [tool.setuptools]
 packages = ["social_django"]

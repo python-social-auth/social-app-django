@@ -50,7 +50,7 @@ class TestStrategy(TestCase):
 
     def test_session_value(self):
         user_model = get_user_model()
-        user = user_model._default_manager.create_user(username="test")
+        user = user_model._default_manager.create_user(username="test")  # noqa: SLF001
         ctype = ContentType.objects.get_for_model(user_model)
 
         val = self.strategy.to_session_value(val=user)

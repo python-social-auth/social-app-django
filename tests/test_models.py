@@ -20,22 +20,22 @@ from social_django.models import (
 class TestSocialAuthUser(TestCase):
     def test_user_relationship_none(self):
         """Accessing User.social_user outside of the pipeline doesn't work"""
-        User = get_user_model()
-        user = User._default_manager.create_user(username="randomtester")
+        User = get_user_model()  # noqa: N806
+        user = User._default_manager.create_user(username="randomtester")  # noqa: SLF001
         with self.assertRaises(AttributeError):
-            user.social_user
+            user.social_user  # noqa: B018
 
     def test_user_existing_relationship(self):
         """Accessing User.social_user outside of the pipeline doesn't work"""
-        User = get_user_model()
-        user = User._default_manager.create_user(username="randomtester")
+        User = get_user_model()  # noqa: N806
+        user = User._default_manager.create_user(username="randomtester")  # noqa: SLF001
         UserSocialAuth.objects.create(user=user, provider="my-provider", uid="1234")
         with self.assertRaises(AttributeError):
-            user.social_user
+            user.social_user  # noqa: B018
 
     def test_get_social_auth(self):
-        User = get_user_model()
-        user = User._default_manager.create_user(username="randomtester")
+        User = get_user_model()  # noqa: N806
+        user = User._default_manager.create_user(username="randomtester")  # noqa: SLF001
         user_social = UserSocialAuth.objects.create(user=user, provider="my-provider", uid="1234")
         other = UserSocialAuth.get_social_auth("my-provider", "1234")
         self.assertEqual(other, user_social)
@@ -65,13 +65,13 @@ class TestSocialAuthUser(TestCase):
 class TestUserSocialAuth(TestCase):
     def setUp(self):
         self.user_model = get_user_model()
-        self.user = self.user_model._default_manager.create_user(username="randomtester", email="user@example.com")
+        self.user = self.user_model._default_manager.create_user(username="randomtester", email="user@example.com")  # noqa: SLF001
         self.usa = UserSocialAuth.objects.create(user=self.user, provider="my-provider", uid="1234")
 
     def test_changed(self):
         self.user.email = eml = "test@example.com"
         UserSocialAuth.changed(user=self.user)
-        db_eml = self.user_model._default_manager.get(username=self.user.username).email
+        db_eml = self.user_model._default_manager.get(username=self.user.username).email  # noqa: SLF001
         self.assertEqual(db_eml, eml)
 
     def test_set_extra_data(self):
@@ -116,7 +116,7 @@ class TestUserSocialAuth(TestCase):
     @mock.patch("social_django.storage.transaction", spec=[])
     def test_create_user_without_transaction_atomic(self, *args):
         UserSocialAuth.create_user(username="test")
-        self.assertTrue(self.user_model._default_manager.filter(username="test").exists())
+        self.assertTrue(self.user_model._default_manager.filter(username="test").exists())  # noqa: SLF001
 
     def test_get_user(self):
         self.assertEqual(UserSocialAuth.get_user(pk=self.user.pk), self.user)
@@ -216,11 +216,12 @@ class TestCode(TestCase):
 
 class TestPartial(TestCase):
     def test_load_destroy(self):
-        p = Partial.objects.create(token="x", backend="y", data={})
-        self.assertEqual(Partial.load(token="x"), p)
-        self.assertIsNone(Partial.load(token="y"))
+        token_value = "x"  # noqa: S105
+        p = Partial.objects.create(token=token_value, backend="y", data={})
+        self.assertEqual(Partial.load(token=token_value), p)
+        self.assertIsNone(Partial.load(token="y"))  # noqa: S106
 
-        Partial.destroy(token="x")
+        Partial.destroy(token=token_value)
         self.assertEqual(Partial.objects.count(), 0)
 
 

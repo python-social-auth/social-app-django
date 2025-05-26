@@ -38,8 +38,9 @@ def psa(redirect_uri=None, load_strategy=load_strategy):
 
             try:
                 request.backend = load_backend(request.social_strategy, backend, redirect_uri=uri)
-            except MissingBackend:
-                raise Http404("Backend not found")
+            except MissingBackend as error:
+                msg = "Backend not found"
+                raise Http404(msg) from error
             return func(request, backend, *args, **kwargs)
 
         return wrapper

@@ -59,10 +59,7 @@ def get_session_timeout(social_user, enable_session_expiration=False, max_sessio
         # We've enabled session expiration. Check to see if we got
         # a specific expiration time from the provider for this user;
         # if not, use the platform default expiration.
-        if expiration:
-            received_expiration_time = expiration.total_seconds()
-        else:
-            received_expiration_time = DEFAULT_SESSION_TIMEOUT
+        received_expiration_time = expiration.total_seconds() if expiration else DEFAULT_SESSION_TIMEOUT
 
         # Check to see if the backend set a value as a maximum length
         # that a session may be; if they did, then we should use the minimum
@@ -83,14 +80,13 @@ def get_session_timeout(social_user, enable_session_expiration=False, max_sessio
             # We received an expiration time from the backend, and we also
             # have a set maximum session length. Use the smaller of the two.
             session_expiry = min(received_expiration_time, max_session_length)
+    # If there's an explicitly-set maximum session length, use that
+    # even if we don't want to retrieve session expiry times from
+    # the backend. If there isn't, then use the platform default.
+    elif max_session_length is None:
+        session_expiry = DEFAULT_SESSION_TIMEOUT
     else:
-        # If there's an explicitly-set maximum session length, use that
-        # even if we don't want to retrieve session expiry times from
-        # the backend. If there isn't, then use the platform default.
-        if max_session_length is None:
-            session_expiry = DEFAULT_SESSION_TIMEOUT
-        else:
-            session_expiry = max_session_length
+        session_expiry = max_session_length
 
     return session_expiry
 

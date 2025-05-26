@@ -36,12 +36,12 @@ class AbstractUserSocialAuth(models.Model, DjangoUserMixin):
     modified = models.DateTimeField(auto_now=True)
     objects = UserSocialAuthManager()
 
-    def __str__(self):
-        return str(self.user)
-
     class Meta:
         constraints = [models.CheckConstraint(condition=~models.Q(uid=""), name="user_social_auth_uid_required")]
         abstract = True
+
+    def __str__(self):
+        return str(self.user)
 
     @classmethod
     def get_social_auth(cls, provider: str, uid: str | int):
@@ -57,7 +57,7 @@ class AbstractUserSocialAuth(models.Model, DjangoUserMixin):
     @classmethod
     def username_max_length(cls):
         username_field = cls.username_field()
-        field = cls.user_model()._meta.get_field(username_field)
+        field = cls.user_model()._meta.get_field(username_field)  # noqa: SLF001
         return field.max_length
 
     @classmethod
