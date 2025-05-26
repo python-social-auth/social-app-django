@@ -23,4 +23,4 @@ def baseauth_init_workaround(original_init):
 
 if not getattr(BaseAuth, "__init_patched", False):
     BaseAuth.__init__ = baseauth_init_workaround(BaseAuth.__init__)  # type: ignore[method-assign]
-    BaseAuth.__init_patched = True  # type: ignore[attr-defined]
+    BaseAuth.__init_patched = True  # type: ignore[attr-defined] # noqa: SLF001

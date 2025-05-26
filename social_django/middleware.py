@@ -10,7 +10,8 @@ from social_core.utils import social_logger
 
 
 class SocialAuthExceptionMiddleware:
-    """Middleware that handles Social Auth AuthExceptions by providing the user
+    """
+    Middleware that handles Social Auth AuthExceptions by providing the user
     with a message, logging an error, and redirecting to some next location.
 
     By default, the exception message itself is sent to the user and they are
@@ -30,7 +31,7 @@ class SocialAuthExceptionMiddleware:
     def process_exception(self, request, exception):
         strategy = getattr(request, "social_strategy", None)
         if strategy is None or self.raise_exception(request, exception):
-            return
+            return None
 
         if isinstance(exception, SocialAuthBaseException):
             backend = getattr(request, "backend", None)
@@ -45,17 +46,20 @@ class SocialAuthExceptionMiddleware:
                     messages.error(request, message, extra_tags=f"social-auth {backend_name}")
                 except MessageFailure:
                     if url:
-                        url += ("?" in url and "&" or "?") + f"message={quote(message)}&backend={backend_name}"
+                        url += (("?" in url and "&") or "?") + f"message={quote(message)}&backend={backend_name}"
             else:
                 social_logger.error(message)
 
             if url:
                 return redirect(url)
+            return None
+        return None
 
     def raise_exception(self, request, exception):
         strategy = getattr(request, "social_strategy", None)
         if strategy is not None:
             return strategy.setting("RAISE_EXCEPTIONS", settings.DEBUG)
+        return None
 
     def get_message(self, request, exception):
         return str(exception)

@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 from importlib import import_module
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from django.conf import settings
 from django.contrib.auth import authenticate, get_user
 from django.contrib.contenttypes.models import ContentType
-from django.contrib.sessions.backends.base import SessionBase
 from django.db.models import Model
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, resolve_url
@@ -17,10 +16,15 @@ from django.utils.functional import Promise
 from django.utils.translation import get_language
 from social_core.strategy import BaseStrategy, BaseTemplateStrategy
 
+if TYPE_CHECKING:
+    from django.contrib.sessions.backends.base import SessionBase
+
 
 def render_template_string(request, html, context=None):
-    """Take a template in the form of a string and render it for the
-    given context"""
+    """
+    Take a template in the form of a string and render it for the
+    given context
+    """
     template = engines["django"].from_string(html)
     return template.render(context=context, request=request)
 
@@ -71,13 +75,14 @@ class DjangoStrategy(BaseStrategy):
     def request_host(self):
         if self.request:
             return self.request.get_host()
+        return None
 
     def request_is_secure(self):
         """Is the request using HTTPS?"""
         return self.request.is_secure()
 
     def request_path(self):
-        """path of the current request"""
+        """Path of the current request"""
         return self.request.path
 
     def request_port(self):
@@ -100,7 +105,8 @@ class DjangoStrategy(BaseStrategy):
 
     def render_html(self, tpl=None, html=None, context=None):
         if not tpl and not html:
-            raise ValueError("Missing template or html parameters")
+            msg = "Missing template or html parameters"
+            raise ValueError(msg)
         context = context or {}
         try:
             template = loader.get_template(tpl)
@@ -136,15 +142,16 @@ class DjangoStrategy(BaseStrategy):
     def build_absolute_uri(self, path=None):
         if self.request:
             return self.request.build_absolute_uri(path)
-        else:
-            return path
+        return path
 
     def random_string(self, length=12, chars=BaseStrategy.ALLOWED_CHARS):
         return get_random_string(length, chars)
 
     def to_session_value(self, val):
-        """Converts values that are instance of Model to a dictionary
-        with enough information to retrieve the instance back later."""
+        """
+        Converts values that are instance of Model to a dictionary
+        with enough information to retrieve the instance back later.
+        """
         if isinstance(val, Model):
             val = {"pk": val.pk, "ctype": ContentType.objects.get_for_model(val).pk}
         return val
@@ -153,8 +160,9 @@ class DjangoStrategy(BaseStrategy):
         """Converts back the instance saved by self._ctype function."""
         if isinstance(val, dict) and "pk" in val and "ctype" in val:
             ctype = ContentType.objects.get_for_id(val["ctype"])
-            ModelClass = ctype.model_class()
-            val = ModelClass._default_manager.get(pk=val["pk"])
+            ModelClass = ctype.model_class()  # noqa: N806
+            val = ModelClass._default_manager.get(pk=val["pk"])  # noqa: SLF001
+
         return val
 
     def get_language(self):

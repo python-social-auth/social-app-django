@@ -8,10 +8,7 @@ from social_core.utils import setting_name
 
 POSTGRES_JSONFIELD = getattr(settings, setting_name("POSTGRES_JSONFIELD"), False)
 
-if POSTGRES_JSONFIELD:
-    JSONFIELD_ENABLED = True
-else:
-    JSONFIELD_ENABLED = getattr(settings, setting_name("JSONFIELD_ENABLED"), False)
+JSONFIELD_ENABLED = True if POSTGRES_JSONFIELD else getattr(settings, setting_name("JSONFIELD_ENABLED"), False)
 
 if JSONFIELD_ENABLED:
     JSONFIELD_CUSTOM = getattr(settings, setting_name("JSONFIELD_CUSTOM"), None)

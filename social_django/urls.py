@@ -6,7 +6,7 @@ from social_core.utils import setting_name
 
 from . import views
 
-extra = getattr(settings, setting_name("TRAILING_SLASH"), True) and "/" or ""
+extra = (getattr(settings, setting_name("TRAILING_SLASH"), True) and "/") or ""
 
 app_name = "social"
 

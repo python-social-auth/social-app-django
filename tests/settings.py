@@ -9,7 +9,7 @@ DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
         "NAME": ":memory:",
-    }
+    },
 }
 
 ROOT_URLCONF = "tests.urls"
@@ -55,6 +55,6 @@ TEMPLATES = [
     },
 ]
 
-SECRET_KEY = "6p%gef2(6kvjsgl*7!51a7z8c3=u4uc&6ulpua0g1^&sthiifp"
+SECRET_KEY = "6p%gef2(6kvjsgl*7!51a7z8c3=u4uc&6ulpua0g1^&sthiifp"  # noqa: S105
 
 STATIC_URL = "/static/"

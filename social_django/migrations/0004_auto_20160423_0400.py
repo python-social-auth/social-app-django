@@ -1,6 +1,6 @@
 from django.db import migrations
 
-from ..fields import JSONField
+from social_django.fields import JSONField
 
 
 class Migration(migrations.Migration):
@@ -18,5 +18,5 @@ class Migration(migrations.Migration):
             model_name="usersocialauth",
             name="extra_data",
             field=JSONField(default=dict),
-        )
+        ),
     ]

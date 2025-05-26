@@ -34,10 +34,7 @@ class DjangoUserMixin(UserMixin):
             qs = cls.objects.exclude(provider=backend_name)
         qs = qs.filter(user=user)
 
-        if hasattr(user, "has_usable_password"):
-            valid_password = user.has_usable_password()
-        else:
-            valid_password = True
+        valid_password = user.has_usable_password() if hasattr(user, "has_usable_password") else True
         return valid_password or qs.exists()
 
     @classmethod
@@ -56,7 +53,7 @@ class DjangoUserMixin(UserMixin):
         """
         if "username" in kwargs:
             kwargs[cls.username_field()] = kwargs.pop("username")
-        return cls.user_model()._default_manager.filter(*args, **kwargs).exists()
+        return cls.user_model()._default_manager.filter(*args, **kwargs).exists()  # noqa: SLF001
 
     @classmethod
     def get_username(cls, user):
@@ -65,6 +62,7 @@ class DjangoUserMixin(UserMixin):
     @classmethod
     def create_user(cls, *args, **kwargs):
         username_field = cls.username_field()
+        manager = cls.user_model()._default_manager  # noqa: SLF001
         if "username" in kwargs:
             if username_field not in kwargs:
                 kwargs[username_field] = kwargs.pop("username")
@@ -72,7 +70,7 @@ class DjangoUserMixin(UserMixin):
                 # If username_field is 'email' and there is no field named "username"
                 # then latest should be removed from kwargs.
                 try:
-                    cls.user_model()._meta.get_field("username")
+                    cls.user_model()._meta.get_field("username")  # noqa: SLF001
                 except FieldDoesNotExist:
                     kwargs.pop("username")
         try:
@@ -83,17 +81,17 @@ class DjangoUserMixin(UserMixin):
                 # stays undamaged by wrapping the create in an atomic.
                 using = router.db_for_write(cls.user_model())
                 with transaction.atomic(using=using):
-                    user = cls.user_model()._default_manager.create_user(*args, **kwargs)
+                    user = manager.create_user(*args, **kwargs)
             else:
-                user = cls.user_model()._default_manager.create_user(*args, **kwargs)
+                user = manager.create_user(*args, **kwargs)
         except IntegrityError as exc:
             # If email comes in as None it won't get found in the get
             if kwargs.get("email", True) is None:
                 kwargs["email"] = ""
             try:
-                user = cls.user_model()._default_manager.get(*args, **kwargs)
+                user = manager.get(*args, **kwargs)
             except cls.user_model().DoesNotExist:
-                raise exc
+                raise exc from None
         return user
 
     @classmethod
@@ -101,7 +99,7 @@ class DjangoUserMixin(UserMixin):
         if pk:
             kwargs = {"pk": pk}
         try:
-            return cls.user_model()._default_manager.get(**kwargs)
+            return cls.user_model()._default_manager.get(**kwargs)  # noqa: SLF001
         except cls.user_model().DoesNotExist:
             return None
 
@@ -109,7 +107,9 @@ class DjangoUserMixin(UserMixin):
     def get_users_by_email(cls, email):
         user_model = cls.user_model()
         email_field = getattr(user_model, "EMAIL_FIELD", "email")
-        return user_model._default_manager.filter(**{email_field + "__iexact": email})
+        return user_model._default_manager.filter(  # noqa: SLF001
+            **{email_field + "__iexact": email}
+        )
 
     @classmethod
     def get_social_auth(cls, provider, uid):
@@ -121,7 +121,7 @@ class DjangoUserMixin(UserMixin):
             return None
 
     @classmethod
-    def get_social_auth_for_user(cls, user, provider=None, id=None):
+    def get_social_auth_for_user(cls, user, provider=None, id=None):  # noqa: A002
         qs = cls.objects.filter(user=user)
 
         if provider:
