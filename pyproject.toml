@@ -5,7 +5,7 @@ requires = ["setuptools>=78.0.2"]
 [dependency-groups]
 dev = [
   "coverage>=3.6",
-  "django-stubs-ext==5.2.0",
+  "django-stubs-ext==5.2.1",
   "django-stubs==5.2.0",
   "mypy==1.16.1",
   "pre-commit",
@@ -48,7 +48,7 @@ version = "5.4.3"
 # see https://github.com/pypa/pip/issues/12963
 dev = [
   "coverage>=3.6",
-  "django-stubs-ext==5.2.0",
+  "django-stubs-ext==5.2.1",
   "django-stubs==5.2.0",
   "mypy==1.16.1",
   "pre-commit",
