@@ -14,7 +14,7 @@ from social_core.backends.base import BaseAuth
 
 def baseauth_init_workaround(original_init):
     def fake_init(self, strategy=None, *args, **kwargs):
-        from .utils import load_strategy
+        from .utils import load_strategy  # noqa: PLC0415
 
         original_init(self, strategy or load_strategy(), *args, **kwargs)
 
