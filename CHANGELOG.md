@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [5.5.1](https://github.com/python-social-auth/social-app-django/releases/tag/5.5.1) - 2025-06-27
+
+### Changed
+
+- Fixed authentication with OpenID based services
+
 ## [5.5.0](https://github.com/python-social-auth/social-app-django/releases/tag/5.5.0) - 2025-06-27
 
 ### Changed
