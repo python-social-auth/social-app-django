@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [5.5.0](https://github.com/python-social-auth/social-app-django/releases/tag/5.5.0) - 2025-06-27
+
+### Changed
+
+- Dropped support for older Django versions.
+- Added non-empty constraind on `uid`.
+- Added support for session restore with stricter SameSite cookie policy.
+
 ## [5.4.3](https://github.com/python-social-auth/social-app-django/releases/tag/5.4.3) - 2025-02-13
 
 ### Changed
