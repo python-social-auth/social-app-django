@@ -177,7 +177,7 @@ class DjangoStrategy(BaseStrategy):
         self.request.session = self.session = create_session(session_id)
         # Update request user
         self.request.user = get_user(self.request)
-        if "user" in kwargs:
+        if "user" in kwargs and self.request.user.is_authenticated:
             kwargs["user"] = self.request.user
         # Rotate session key to avoid reuse
         self.session.cycle_key()
