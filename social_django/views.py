@@ -1,6 +1,6 @@
 from django.conf import settings
 from django.contrib.auth import REDIRECT_FIELD_NAME, login
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_not_required, login_required
 from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_exempt, csrf_protect
 from django.views.decorators.http import require_POST
@@ -17,6 +17,7 @@ DEFAULT_SESSION_TIMEOUT = None
 
 
 @never_cache
+@login_not_required
 @maybe_require_post
 @psa(f"{NAMESPACE}:complete")
 def auth(request, backend):
@@ -24,6 +25,7 @@ def auth(request, backend):
 
 
 @never_cache
+@login_not_required
 @csrf_exempt
 @psa(f"{NAMESPACE}:complete")
 def complete(request, backend, *args, **kwargs):
