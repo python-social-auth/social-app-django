@@ -39,11 +39,6 @@ jobs:
       with:
         cache-suffix: ${{ matrix.python-version }}
 
-    - name: Install System dependencies
-      run: |
-        sudo apt update -qq -y
-        sudo apt install -qq -y --no-install-recommends libxmlsec1-dev swig
-
     - name: Django 5.1.x Test
       run: |
         uvx tox -e "py${PYTHON_VERSION/\./}-django51"
