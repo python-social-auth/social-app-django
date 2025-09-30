@@ -1,6 +1,9 @@
 """Django ORM models for Social Auth"""
 
+from __future__ import annotations
+
 import base64
+from typing import TYPE_CHECKING
 
 from django.core.exceptions import FieldDoesNotExist
 from django.db import router, transaction
@@ -13,6 +16,9 @@ from social_core.storage import (
     PartialMixin,
     UserMixin,
 )
+
+if TYPE_CHECKING:
+    from django.db.models import QuerySet
 
 
 class DjangoUserMixin(UserMixin):
@@ -53,7 +59,7 @@ class DjangoUserMixin(UserMixin):
         """
         if "username" in kwargs:
             kwargs[cls.username_field()] = kwargs.pop("username")
-        return cls.user_model()._default_manager.filter(*args, **kwargs).exists()  # noqa: SLF001
+        return cls.filter_users(*args, **kwargs).exists()
 
     @classmethod
     def get_username(cls, user):
@@ -95,11 +101,17 @@ class DjangoUserMixin(UserMixin):
         return user
 
     @classmethod
+    def filter_users(cls, *args, **kwargs) -> QuerySet:
+        model = cls.user_model()
+        manager = model._default_manager  # noqa: SLF001
+        return manager.filter(*args, **kwargs)
+
+    @classmethod
     def get_user(cls, pk=None, **kwargs):
         if pk:
             kwargs = {"pk": pk}
         try:
-            return cls.user_model()._default_manager.get(**kwargs)  # noqa: SLF001
+            return cls.filter_users(**kwargs).get()
         except cls.user_model().DoesNotExist:
             return None
 
@@ -107,9 +119,7 @@ class DjangoUserMixin(UserMixin):
     def get_users_by_email(cls, email):
         user_model = cls.user_model()
         email_field = getattr(user_model, "EMAIL_FIELD", "email")
-        return user_model._default_manager.filter(  # noqa: SLF001
-            **{email_field + "__iexact": email}
-        )
+        return cls.filter_users(**{f"{email_field}__iexact": email})
 
     @classmethod
     def get_social_auth(cls, provider, uid):
