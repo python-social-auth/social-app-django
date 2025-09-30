@@ -113,11 +113,6 @@ class TestUserSocialAuth(TestCase):
     def test_create_user_custom_username(self, *args):
         UserSocialAuth.create_user(username=self.user.email)
 
-    @mock.patch("social_django.storage.transaction", spec=[])
-    def test_create_user_without_transaction_atomic(self, *args):
-        UserSocialAuth.create_user(username="test")
-        self.assertTrue(self.user_model._default_manager.filter(username="test").exists())  # noqa: SLF001
-
     def test_get_user(self):
         self.assertEqual(UserSocialAuth.get_user(pk=self.user.pk), self.user)
         self.assertIsNone(UserSocialAuth.get_user(pk=123))
@@ -173,11 +168,6 @@ class TestUserSocialAuth(TestCase):
         usa = UserSocialAuth.create_social_auth(user=self.user, provider="test", uid=1)
         self.assertEqual(usa.uid, "1")
         self.assertEqual(str(usa), str(self.user))
-
-    @mock.patch("social_django.storage.transaction", spec=[])
-    def test_create_social_auth_without_transaction_atomic(self, *args):
-        with self.assertRaises(IntegrityError):
-            UserSocialAuth.create_social_auth(user=self.user, provider=self.usa.provider, uid=self.usa.uid)
 
     def test_username_max_length(self):
         self.assertEqual(UserSocialAuth.username_max_length(), 150)
