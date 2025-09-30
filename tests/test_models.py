@@ -4,7 +4,7 @@ from unittest import mock
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.db import IntegrityError
-from django.test import TestCase
+from django.test import TestCase, override_settings
 
 from social_django.models import (
     AbstractUserSocialAuth,
@@ -120,6 +120,13 @@ class TestUserSocialAuth(TestCase):
     def test_get_users_by_email(self):
         qs = UserSocialAuth.get_users_by_email(email=self.user.email)
         self.assertEqual(qs.count(), 1)
+        self.user.is_active = False
+        self.user.save()
+        qs = UserSocialAuth.get_users_by_email(email=self.user.email)
+        self.assertEqual(qs.count(), 0)
+        with override_settings(SOCIAL_AUTH_ACTIVE_USERS_FILTER={}):
+            qs = UserSocialAuth.get_users_by_email(email=self.user.email)
+            self.assertEqual(qs.count(), 1)
 
     def test_get_social_auth(self):
         usa = self.usa

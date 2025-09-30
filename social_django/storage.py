@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 from typing import TYPE_CHECKING
 
+from django.conf import settings
 from django.core.exceptions import FieldDoesNotExist
 from django.db import router, transaction
 from django.db.utils import IntegrityError
@@ -16,6 +17,7 @@ from social_core.storage import (
     PartialMixin,
     UserMixin,
 )
+from social_core.utils import setting_name
 
 if TYPE_CHECKING:
     from django.db.models import QuerySet
@@ -101,19 +103,25 @@ class DjangoUserMixin(UserMixin):
         return manager.filter(*args, **kwargs)
 
     @classmethod
+    def filter_active_users(cls, *args, **kwargs) -> QuerySet:
+        active_filter = getattr(settings, setting_name("ACTIVE_USERS_FILTER"), {"is_active": True})
+        kwargs.update(active_filter)
+        return cls.filter_users(*args, **kwargs)
+
+    @classmethod
     def get_user(cls, pk=None, **kwargs):
         if pk:
             kwargs = {"pk": pk}
-        try:
-            return cls.filter_users(**kwargs).get()
-        except cls.user_model().DoesNotExist:
+        users = cls.filter_active_users(**kwargs)
+        if len(users) != 1:
             return None
+        return users[0]
 
     @classmethod
     def get_users_by_email(cls, email):
         user_model = cls.user_model()
         email_field = getattr(user_model, "EMAIL_FIELD", "email")
-        return cls.filter_users(**{f"{email_field}__iexact": email})
+        return cls.filter_active_users(**{f"{email_field}__iexact": email})
 
     @classmethod
     def get_social_auth(cls, provider, uid):
