@@ -80,25 +80,19 @@ class DjangoUserMixin(UserMixin):
                 except FieldDoesNotExist:
                     kwargs.pop("username")
         try:
-            if hasattr(transaction, "atomic"):
-                # In Django versions that have an "atomic" transaction decorator / context
-                # manager, there's a transaction wrapped around this call.
-                # If the create fails below due to an IntegrityError, ensure that the transaction
-                # stays undamaged by wrapping the create in an atomic.
-                using = router.db_for_write(cls.user_model())
-                with transaction.atomic(using=using):
-                    user = manager.create_user(*args, **kwargs)
-            else:
-                user = manager.create_user(*args, **kwargs)
+            # If the create fails below due to an IntegrityError, ensure that the transaction
+            # stays undamaged by wrapping the create in an atomic.
+            using = router.db_for_write(cls.user_model())
+            with transaction.atomic(using=using):
+                return manager.create_user(*args, **kwargs)
         except IntegrityError as exc:
             # If email comes in as None it won't get found in the get
             if kwargs.get("email", True) is None:
                 kwargs["email"] = ""
             try:
-                user = manager.get(*args, **kwargs)
+                return manager.get(*args, **kwargs)
             except cls.user_model().DoesNotExist:
                 raise exc from None
-        return user
 
     @classmethod
     def filter_users(cls, *args, **kwargs) -> QuerySet:
@@ -145,17 +139,11 @@ class DjangoUserMixin(UserMixin):
     def create_social_auth(cls, user, uid, provider):
         if not isinstance(uid, str):
             uid = str(uid)
-        if hasattr(transaction, "atomic"):
-            # In Django versions that have an "atomic" transaction decorator / context
-            # manager, there's a transaction wrapped around this call.
-            # If the create fails below due to an IntegrityError, ensure that the transaction
-            # stays undamaged by wrapping the create in an atomic.
-            using = router.db_for_write(cls)
-            with transaction.atomic(using=using):
-                social_auth = cls.objects.create(user=user, uid=uid, provider=provider)
-        else:
-            social_auth = cls.objects.create(user=user, uid=uid, provider=provider)
-        return social_auth
+        # If the create fails below due to an IntegrityError, ensure that the transaction
+        # stays undamaged by wrapping the create in an atomic.
+        using = router.db_for_write(cls)
+        with transaction.atomic(using=using):
+            return cls.objects.create(user=user, uid=uid, provider=provider)
 
 
 class DjangoNonceMixin(NonceMixin):
