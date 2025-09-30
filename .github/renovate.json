@@ -1,10 +1,11 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "config:recommended",
+    "config:best-practices",
     ":dependencyDashboard",
     "helpers:pinGitHubActionDigests"
   ],
+  "rangeStrategy": "widen",
   "automerge": true,
   "automergeType": "pr",
   "automergeStrategy": "rebase",
@@ -12,11 +13,14 @@
   "pre-commit": {
     "enabled": true
   },
+  "poetry": {
+    "enabled": false
+  },
   "customManagers": [
     {
       "customType": "regex",
-      "fileMatch": [
-        "\\.pre-commit-config\\.yaml"
+      "managerFilePatterns": [
+        "/\\.pre-commit-config\\.yaml/"
       ],
       "matchStrings": [
         "(?<depName>[^'\" ]+)==(?<currentValue>[^'\" ,\\s]+)"
@@ -26,8 +30,8 @@
     },
     {
       "customType": "regex",
-      "fileMatch": [
-        "\\.pre-commit-config\\.yaml"
+      "managerFilePatterns": [
+        "/\\.pre-commit-config\\.yaml/"
       ],
       "matchStrings": [
         "(?<depName>[^'\" ]+)@(?<currentValue>[^'\" ,\\s]+)"
