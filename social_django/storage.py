@@ -9,6 +9,7 @@ from django.conf import settings
 from django.core.exceptions import FieldDoesNotExist
 from django.db import router, transaction
 from django.db.utils import IntegrityError
+from social_core.exceptions import AuthAlreadyAssociated
 from social_core.storage import (
     AssociationMixin,
     BaseStorage,
@@ -81,20 +82,15 @@ class DjangoUserMixin(UserMixin):
                     cls.user_model()._meta.get_field("username")  # noqa: SLF001
                 except FieldDoesNotExist:
                     kwargs.pop("username")
+
+        # If the create fails below due to an IntegrityError, ensure that the transaction
+        # stays undamaged by wrapping the create in an atomic.
+        using = router.db_for_write(cls.user_model())
         try:
-            # If the create fails below due to an IntegrityError, ensure that the transaction
-            # stays undamaged by wrapping the create in an atomic.
-            using = router.db_for_write(cls.user_model())
             with transaction.atomic(using=using):
                 return manager.create_user(*args, **kwargs)
         except IntegrityError as exc:
-            # If email comes in as None it won't get found in the get
-            if kwargs.get("email", True) is None:
-                kwargs["email"] = ""
-            try:
-                return manager.get(*args, **kwargs)
-            except cls.user_model().DoesNotExist:
-                raise exc from None
+            raise AuthAlreadyAssociated(None) from exc
 
     @classmethod
     def filter_users(cls, *args, **kwargs) -> QuerySet:

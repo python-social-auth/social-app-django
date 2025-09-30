@@ -5,6 +5,7 @@ from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.db import IntegrityError
 from django.test import TestCase, override_settings
+from social_core.exceptions import AuthAlreadyAssociated
 
 from social_django.models import (
     AbstractUserSocialAuth,
@@ -101,17 +102,21 @@ class TestUserSocialAuth(TestCase):
         self.assertEqual(UserSocialAuth.get_username(self.user), self.user.username)
 
     def test_create_user(self):
-        # Catch integrity error and find existing user
-        UserSocialAuth.create_user(username=self.user.username)
+        UserSocialAuth.create_user(username="testuser")
 
     def test_create_user_reraise(self):
-        with self.assertRaises(IntegrityError):
+        with self.assertRaises(AuthAlreadyAssociated):
             UserSocialAuth.create_user(username=self.user.username, email=None)
 
     @mock.patch("social_django.models.UserSocialAuth.username_field", return_value="email")
-    @mock.patch("django.contrib.auth.models.UserManager.create_user", side_effect=IntegrityError)
+    @mock.patch("django.contrib.auth.models.UserManager.create_user", return_value="<User>")
     def test_create_user_custom_username(self, *args):
         UserSocialAuth.create_user(username=self.user.email)
+
+    @mock.patch("django.contrib.auth.models.UserManager.create_user", side_effect=IntegrityError)
+    def test_create_user_existing(self, *args):
+        with self.assertRaises(AuthAlreadyAssociated):
+            UserSocialAuth.create_user(username=self.user.email)
 
     def test_get_user(self):
         self.assertEqual(UserSocialAuth.get_user(pk=self.user.pk), self.user)
