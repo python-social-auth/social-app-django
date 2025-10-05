@@ -6,7 +6,7 @@ requires = ["setuptools>=78.0.2"]
 dev = [
   "coverage>=3.6",
   "django-stubs-ext==5.2.6",
-  "django-stubs==5.2.5",
+  "django-stubs==5.2.6",
   "mypy==1.18.2",
   "pre-commit",
   "pyright==1.1.406",
@@ -49,7 +49,7 @@ version = "5.5.1"
 dev = [
   "coverage>=3.6",
   "django-stubs-ext==5.2.6",
-  "django-stubs==5.2.5",
+  "django-stubs==5.2.6",
   "mypy==1.18.2",
   "pre-commit",
   "pyright==1.1.406",
