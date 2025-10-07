@@ -1,5 +1,29 @@
-"""Integration tests for storage layer to catch breaking changes in social-core API"""
+"""Integration tests for storage layer to catch breaking changes in social-core API
 
+These tests are designed to catch breaking changes in the social-core storage API that could
+go unnoticed without integration testing. The issue that prompted these tests was:
+
+https://github.com/python-social-auth/social-core/pull/986 introduced a breaking change
+in the OpenID storage API (specifically in get_association method) that went unnoticed
+into release. The error manifested as:
+
+    NotImplementedError: Implement in subclass
+    File "social_core/storage.py", line 256, in get_association
+        raise NotImplementedError("Implement in subclass")
+
+The breaking change happened when:
+1. social-core's OpenIdStore.getAssociation() calls self.assoc.oids()
+2. AssociationMixin.oids() calls cls.get(**kwargs)
+3. If get() is not properly implemented in the Django storage layer, it raises NotImplementedError
+
+These integration tests ensure that:
+- DjangoAssociationMixin.get() works correctly and returns a QuerySet
+- DjangoAssociationMixin.oids() properly calls get() and converts results to OpenIdAssociation objects
+- OpenIdStore.getAssociation() can successfully retrieve associations through the full call stack
+- All OpenID association and nonce storage operations work end-to-end
+"""
+
+import time
 from unittest import mock
 
 from django.test import TestCase
@@ -20,8 +44,6 @@ class TestStorageIntegration(TestCase):
 
     def test_openid_store_association_workflow(self):
         """Test the full OpenID association workflow through OpenIdStore"""
-        import time
-
         # Create a mock OpenID association (using string handle as in real openid library)
         mock_association = mock.Mock()
         mock_association.handle = "test_handle"
@@ -60,8 +82,6 @@ class TestStorageIntegration(TestCase):
 
     def test_openid_store_association_expiration(self):
         """Test that expired associations are handled correctly"""
-        import time
-
         # Create an expired association
         mock_association = mock.Mock()
         mock_association.handle = "expired_handle"
@@ -82,8 +102,6 @@ class TestStorageIntegration(TestCase):
 
     def test_openid_store_multiple_associations(self):
         """Test handling multiple associations for the same server"""
-        import time
-
         server_url = "https://example.com/openid"
         current_time = int(time.time())
 
@@ -112,8 +130,6 @@ class TestStorageIntegration(TestCase):
 
     def test_openid_store_nonce_workflow(self):
         """Test the OpenID nonce workflow through OpenIdStore"""
-        import time
-
         server_url = "https://example.com/openid"
         timestamp = int(time.time())
         salt = "test_salt"
@@ -132,8 +148,6 @@ class TestStorageIntegration(TestCase):
 
     def test_openid_store_nonce_timestamp_skew(self):
         """Test that nonces with excessive timestamp skew are rejected"""
-        import time
-
         server_url = "https://example.com/openid"
         current_time = int(time.time())
         old_timestamp = current_time - 7 * 60 * 60  # 7 hours ago (exceeds 6 hour skew)
@@ -181,7 +195,9 @@ class TestAssociationMixinIntegration(TestCase):
 
     def test_get_method(self):
         """Test the get method that is called by oids"""
-        mock_assoc = mock.Mock(handle="test_handle", secret=b"secret", issued=1000, lifetime=3600, assoc_type="HMAC-SHA1")
+        mock_assoc = mock.Mock(
+            handle="test_handle", secret=b"secret", issued=1000, lifetime=3600, assoc_type="HMAC-SHA1"
+        )
 
         server_url = "https://example.com/openid"
         Association.store(server_url, mock_assoc)
