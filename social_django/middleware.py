@@ -58,7 +58,8 @@ class SocialAuthExceptionMiddleware:
     def raise_exception(self, request, exception):
         strategy = getattr(request, "social_strategy", None)
         if strategy is not None:
-            return strategy.setting("RAISE_EXCEPTIONS", settings.DEBUG)
+            backend = getattr(request, "backend", None)
+            return strategy.setting("RAISE_EXCEPTIONS", settings.DEBUG, backend=backend)
         return None
 
     def get_message(self, request, exception):
@@ -66,4 +67,5 @@ class SocialAuthExceptionMiddleware:
 
     def get_redirect_uri(self, request, exception):
         strategy = getattr(request, "social_strategy", None)
-        return strategy.setting("LOGIN_ERROR_URL")
+        backend = getattr(request, "backend", None)
+        return strategy.setting("LOGIN_ERROR_URL", backend=backend)
