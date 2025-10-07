@@ -51,3 +51,23 @@ class TestMiddleware(TestCase):
             response.url,
             "/?message=Authentication%20process%20canceled&backend=facebook",
         )
+
+    @override_settings(
+        SOCIAL_AUTH_LOGIN_ERROR_URL="/default-error",
+        SOCIAL_AUTH_FACEBOOK_LOGIN_ERROR_URL="/facebook-error",
+    )
+    def test_backend_specific_login_error_url(self, mocked):
+        response = self.client.get(self.complete_url)
+        self.assertTrue(isinstance(response, HttpResponseRedirect))
+        self.assertEqual(response.url, "/facebook-error")
+
+    @override_settings(
+        DEBUG=False,
+        SOCIAL_AUTH_RAISE_EXCEPTIONS=False,
+        SOCIAL_AUTH_FACEBOOK_RAISE_EXCEPTIONS=True,
+    )
+    def test_backend_specific_raise_exceptions(self, mocked):
+        logging.disable(logging.CRITICAL)
+        with self.assertRaises(MockAuthCanceled):
+            self.client.get(self.complete_url)
+        logging.disable(logging.NOTSET)

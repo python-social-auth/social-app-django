@@ -19,7 +19,8 @@ class SocialAuthExceptionMiddleware:
     setting.
 
     This middleware can be extended by overriding the get_message or
-    get_redirect_uri methods, which each accept request and exception.
+    get_redirect_uri methods, which each accept request, exception, and
+    optionally backend (for get_redirect_uri).
     """
 
     def __init__(self, get_response):
@@ -38,7 +39,7 @@ class SocialAuthExceptionMiddleware:
             backend_name = getattr(backend, "name", "unknown-backend")
 
             message = self.get_message(request, exception)
-            url = self.get_redirect_uri(request, exception)
+            url = self.get_redirect_uri(request, exception, backend)
 
             if apps.is_installed("django.contrib.messages"):
                 social_logger.info(message)
@@ -58,12 +59,13 @@ class SocialAuthExceptionMiddleware:
     def raise_exception(self, request, exception):
         strategy = getattr(request, "social_strategy", None)
         if strategy is not None:
-            return strategy.setting("RAISE_EXCEPTIONS", settings.DEBUG)
+            backend = getattr(request, "backend", None)
+            return strategy.setting("RAISE_EXCEPTIONS", settings.DEBUG, backend=backend)
         return None
 
     def get_message(self, request, exception):
         return str(exception)
 
-    def get_redirect_uri(self, request, exception):
+    def get_redirect_uri(self, request, exception, backend=None):
         strategy = getattr(request, "social_strategy", None)
-        return strategy.setting("LOGIN_ERROR_URL")
+        return strategy.setting("LOGIN_ERROR_URL", backend=backend)
