@@ -20,6 +20,7 @@ jobs:
         - '3.11'
         - '3.12'
         - '3.13'
+        - '3.14'
 
     env:
       PYTHON_VERSION: ${{ matrix.python-version }}
@@ -47,17 +48,17 @@ jobs:
     - name: Django 5.2.x Test
       run: |
         uvx tox -e "py${PYTHON_VERSION/\./}-django52"
-      if: ${{ env.PYTHON_VERSION == '3.10' || env.PYTHON_VERSION == '3.11' || env.PYTHON_VERSION == '3.12' || env.PYTHON_VERSION == '3.13' }}
+      if: ${{ env.PYTHON_VERSION == '3.10' || env.PYTHON_VERSION == '3.11' || env.PYTHON_VERSION == '3.12' || env.PYTHON_VERSION == '3.13' || env.PYTHON_VERSION == '3.14'}}
 
     - name: Django main Test
       run: |
         uvx tox -e "py${PYTHON_VERSION/\./}-djangomain"
-      if: ${{ env.PYTHON_VERSION == '3.12' || env.PYTHON_VERSION == '3.13' }}
+      if: ${{ env.PYTHON_VERSION == '3.12' || env.PYTHON_VERSION == '3.13' || env.PYTHON_VERSION == '3.14' }}
 
     - name: social-core master Test
       run: |
         uvx tox -e "py${PYTHON_VERSION/\./}-socialmaster"
-      if: ${{ env.PYTHON_VERSION == '3.10' || env.PYTHON_VERSION == '3.11' || env.PYTHON_VERSION == '3.13' }}
+      if: ${{ env.PYTHON_VERSION == '3.10' || env.PYTHON_VERSION == '3.11' || env.PYTHON_VERSION == '3.13' || env.PYTHON_VERSION == '3.14' }}
 
     - name: Coverage
       run: |
