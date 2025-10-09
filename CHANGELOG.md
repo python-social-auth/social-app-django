@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [5.6.0](https://github.com/python-social-auth/social-app-django/releases/tag/5.6.0) - 2025-10-09
+
+### Changed
+
+- Fixed possibly unsafe account association ([CVE-2025-61783](https://github.com/python-social-auth/social-app-django/security/advisories/GHSA-wv4w-6qv2-qqfg))
+- Storage now filters for active users
+
+### Added
+
+- Django 6.0 and Python 3.14 compatibility
+- Type annotations
+- LoginRequiredMiddleware compatibility
+- `RAISE_EXCEPTIONS` and `LOGIN_ERROR_URL` can be configured per backend
+
 ## [5.5.1](https://github.com/python-social-auth/social-app-django/releases/tag/5.5.1) - 2025-06-27
 
 ### Changed
