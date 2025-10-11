@@ -55,7 +55,7 @@ repos:
     additional_dependencies:
     - tomli
 - repo: https://github.com/rhysd/actionlint
-  rev: v1.7.7
+  rev: v1.7.8
   hooks:
   - id: actionlint
 - repo: https://github.com/woodruffw/zizmor-pre-commit
