@@ -5,7 +5,6 @@
     ":dependencyDashboard",
     "helpers:pinGitHubActionDigests"
   ],
-  "rangeStrategy": "widen",
   "automerge": true,
   "automergeType": "pr",
   "automergeStrategy": "rebase",
@@ -16,6 +15,14 @@
   "poetry": {
     "enabled": false
   },
+  "packageRules": [
+    {
+      "matchDatasources": [
+        "pypi"
+      ],
+      "rangeStrategy": "widen"
+    }
+  ],
   "customManagers": [
     {
       "customType": "regex",
