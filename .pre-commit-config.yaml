@@ -17,7 +17,7 @@ repos:
   - id: pretty-format-json
     args: [--no-sort-keys, --autofix, --no-ensure-ascii]
 - repo: https://github.com/astral-sh/ruff-pre-commit
-  rev: v0.14.1
+  rev: v0.14.2
   hooks:
   - id: ruff
     args: [--fix, --exit-non-zero-on-fix]
