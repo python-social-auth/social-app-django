@@ -9,7 +9,7 @@ dev = [
   "django-stubs==5.2.7",
   "mypy==1.18.2",
   "pre-commit",
-  "pyright==1.1.406",
+  "pyright==1.1.407",
   "tox"
 ]
 
@@ -53,7 +53,7 @@ dev = [
   "django-stubs==5.2.7",
   "mypy==1.18.2",
   "pre-commit",
-  "pyright==1.1.406",
+  "pyright==1.1.407",
   "tox"
 ]
 
