@@ -56,6 +56,6 @@ repos:
   hooks:
   - id: actionlint
 - repo: https://github.com/zizmorcore/zizmor-pre-commit
-  rev: v1.16.0
+  rev: v1.16.1
   hooks:
   - id: zizmor
