@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Changed
 
 - Fixed possibly unsafe account association ([CVE-2025-61783](https://github.com/python-social-auth/social-app-django/security/advisories/GHSA-wv4w-6qv2-qqfg))
-- Storage now filters for active users
+- Storage now filters for active users, you might need to customize `SOCIAL_AUTH_ACTIVE_USERS_FILTER` if your custom model does not have the `is_active` field
 
 ### Added
 
