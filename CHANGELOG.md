@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [5.7.0](https://github.com/python-social-auth/social-app-django/releases/tag/5.7.0) - 2025-12-18
+
+### Changed
+
+- Integrated with `social_core` using registry instead of monkey patching it
+
 ## [5.6.0](https://github.com/python-social-auth/social-app-django/releases/tag/5.6.0) - 2025-10-09
 
 ### Changed
