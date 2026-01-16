@@ -4,9 +4,31 @@ on:
   push:
   pull_request:
 
+
 permissions:
   contents: read
 
 jobs:
   pre-commit:
-    uses: python-social-auth/social-core/.github/workflows/pre-commit-shared.yml@master
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      with:
+        persist-credentials: false
+
+    - uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
+      with:
+        path: ~/.cache/prek
+        key: ${{ runner.os }}-prek-${{ hashFiles('.pre-commit-config.yaml', 'requirements*.txt') }}
+
+    - name: Setup Python
+      uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
+      with:
+        python-version: 3.x
+
+    - uses: astral-sh/setup-uv@61cb8a9741eeb8a550a1b8544337180c0fc8476b # v7.2.0
+
+    - run: uvx prek run --all-files
+      env:
+        RUFF_OUTPUT_FORMAT: github
