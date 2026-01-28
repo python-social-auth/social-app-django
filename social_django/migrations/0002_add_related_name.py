@@ -8,11 +8,6 @@ USER_MODEL = (
 
 
 class Migration(migrations.Migration):
-    replaces = [
-        ("default", "0002_add_related_name"),
-        ("social_auth", "0002_add_related_name"),
-    ]
-
     dependencies = [
         ("social_django", "0001_initial"),
     ]
