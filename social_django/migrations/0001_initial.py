@@ -15,8 +15,6 @@ ASSOCIATION_HANDLE_LENGTH = getattr(settings, setting_name("ASSOCIATION_HANDLE_L
 
 
 class Migration(migrations.Migration):
-    replaces = [("default", "0001_initial"), ("social_auth", "0001_initial")]
-
     dependencies = [
         migrations.swappable_dependency(USER_MODEL),
     ]
