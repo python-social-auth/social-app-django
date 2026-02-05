@@ -33,6 +33,7 @@ classifiers = [
   "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.14",
   "Programming Language :: Python",
+  "Programming Language :: Python",
   "Topic :: Internet"
 ]
 dependencies = [
@@ -136,6 +137,7 @@ max-complexity = 10
 "tests/settings.py" = ["PTH"]
 
 [tool.setuptools]
+license-files = []
 packages = ["social_django"]
 
 [tool.tomlsort]
