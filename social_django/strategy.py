@@ -45,11 +45,25 @@ def create_session(session_key: str | None = None) -> SessionBase:
 
 class DjangoStrategy(BaseStrategy):
     DEFAULT_TEMPLATE_STRATEGY = DjangoTemplateStrategy
+    _session: SessionBase
 
     def __init__(self, storage, request: None | HttpRequest = None, tpl=None):
         self.request: HttpRequest = request
-        self.session: SessionBase = request.session if request else create_session()
+        if request:
+            self.session = request.session
         super().__init__(storage, tpl)
+
+    @property
+    def session(self) -> SessionBase:
+        try:
+            return self._session
+        except AttributeError:
+            self._session = create_session()
+            return self._session
+
+    @session.setter
+    def session(self, value: SessionBase) -> None:
+        self._session = value
 
     def get_setting(self, name):
         value = getattr(settings, name)
