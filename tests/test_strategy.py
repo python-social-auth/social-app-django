@@ -101,3 +101,8 @@ class TestStrategy(TestCase):
         args, kwargs = self.strategy.clean_authenticate_args(None)
         self.assertEqual(args, ())
         self.assertEqual(kwargs, {"request": None})
+
+    def test_session_creation_without_request(self):
+        strategy = load_strategy()
+        self.assertIsNone(strategy.request)
+        self.assertIsNotNone(strategy.session)
