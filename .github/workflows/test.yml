@@ -69,4 +69,4 @@ jobs:
       with:
         flags: unittests
         name: Python ${{ matrix.python-version }}
-        token: ${{secrets.CODECOV_TOKEN}}
+        token: ${{secrets.CODECOV_TOKEN}} # zizmor: ignore[secrets-outside-env]
