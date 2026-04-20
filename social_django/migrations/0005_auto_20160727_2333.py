@@ -11,6 +11,6 @@ class Migration(migrations.Migration):
     operations = [
         migrations.AlterUniqueTogether(
             name="association",
-            unique_together={("server_url", "handle")},
+            unique_together=(("server_url", "handle"),),
         ),
     ]
