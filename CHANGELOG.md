@@ -36,7 +36,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Changed
 
 - Dropped support for older Django versions.
-- Added non-empty constraind on `uid`.
+- Added non-empty constraint on `uid`.
 - Added support for session restore with stricter SameSite cookie policy.
 
 ## [5.4.3](https://github.com/python-social-auth/social-app-django/releases/tag/5.4.3) - 2025-02-13
