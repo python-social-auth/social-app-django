@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [5.8.0](https://github.com/python-social-auth/social-app-django/releases/tag/5.8.0) - 2026-04-20
+
+### Changed
+
+- Added explicit Django 5.1, 5.2, and 6.0 package classifiers
+- `DjangoStrategy` now lazily creates a session when initialized without a request
+- Removed legacy `replaces` metadata from historical squashed migrations
+- Updated historical `unique_together` migration declarations for newer Django compatibility
+
 ## [5.7.0](https://github.com/python-social-auth/social-app-django/releases/tag/5.7.0) - 2025-12-18
 
 ### Changed
