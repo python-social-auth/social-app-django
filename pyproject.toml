@@ -21,7 +21,6 @@ authors = [
 classifiers = [
   "Development Status :: 5 - Production/Stable",
   "Environment :: Web Environment",
-  "Framework :: Django :: 5.1",
   "Framework :: Django :: 5.2",
   "Framework :: Django :: 6.0",
   "Framework :: Django",
@@ -36,7 +35,7 @@ classifiers = [
   "Topic :: Internet"
 ]
 dependencies = [
-  "Django>=5.1",
+  "Django>=5.2",
   "social-auth-core~=4.8.3"
 ]
 description = "Python Social Authentication, Django integration."
