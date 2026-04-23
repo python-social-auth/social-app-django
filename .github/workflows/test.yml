@@ -40,11 +40,6 @@ jobs:
       with:
         cache-suffix: ${{ matrix.python-version }}
 
-    - name: Django 5.1.x Test
-      run: |
-        uvx tox -e "py${PYTHON_VERSION/\./}-django51"
-      if: ${{ env.PYTHON_VERSION == '3.10' || env.PYTHON_VERSION == '3.11' || env.PYTHON_VERSION == '3.12' || env.PYTHON_VERSION == '3.13' }}
-
     - name: Django 5.2.x Test
       run: |
         uvx tox -e "py${PYTHON_VERSION/\./}-django52"
