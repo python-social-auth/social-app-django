@@ -1,14 +1,17 @@
 from urllib.parse import quote
 
+from asgiref.sync import iscoroutinefunction, markcoroutinefunction
 from django.apps import apps
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.messages.api import MessageFailure
 from django.shortcuts import redirect
+from django.utils.decorators import sync_and_async_middleware
 from social_core.exceptions import SocialAuthBaseException
 from social_core.utils import social_logger
 
 
+@sync_and_async_middleware
 class SocialAuthExceptionMiddleware:
     """
     Middleware that handles Social Auth AuthExceptions by providing the user
@@ -24,6 +27,9 @@ class SocialAuthExceptionMiddleware:
 
     def __init__(self, get_response):
         self.get_response = get_response
+
+        if iscoroutinefunction(get_response):
+            markcoroutinefunction(self)
 
     def __call__(self, request):
         return self.get_response(request)
