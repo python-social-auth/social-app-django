@@ -35,6 +35,7 @@ classifiers = [
   "Topic :: Internet"
 ]
 dependencies = [
+  "asgiref>=3.8.1",
   "Django>=5.2",
   "social-auth-core~=4.8.3"
 ]

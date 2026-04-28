@@ -1,11 +1,14 @@
 import logging
 from unittest import mock
 
+from asgiref.sync import iscoroutinefunction
 from django.contrib.messages import MessageFailure
-from django.http import HttpResponseRedirect
-from django.test import TestCase, override_settings
+from django.http import HttpResponse, HttpResponseRedirect
+from django.test import AsyncRequestFactory, RequestFactory, TestCase, override_settings
 from django.urls import reverse
 from social_core.exceptions import AuthCanceled
+
+from social_django.middleware import SocialAuthExceptionMiddleware
 
 
 class MockAuthCanceled(AuthCanceled):
@@ -24,6 +27,32 @@ class TestMiddleware(TestCase):
 
         self.complete_url = reverse("social:complete", kwargs={"backend": "facebook"})
         self.complete_url += "?code=2&state=1"
+
+    def test_sync_middleware(self, mocked):
+        expected = HttpResponse()
+        get_response = mock.Mock(return_value=expected)
+        rf = RequestFactory()
+        request = rf.get("/")
+
+        middleware = SocialAuthExceptionMiddleware(get_response)
+        resp = middleware(request)
+
+        self.assertFalse(iscoroutinefunction(middleware))
+        self.assertIs(resp, expected)
+        get_response.assert_called_once_with(request)
+
+    async def test_async_middleware(self, mocked):
+        expected = HttpResponse()
+        get_response = mock.AsyncMock(return_value=expected)
+        async_rf = AsyncRequestFactory()
+        request = async_rf.get("/")
+
+        middleware = SocialAuthExceptionMiddleware(get_response)
+        resp = await middleware(request)
+
+        self.assertTrue(iscoroutinefunction(middleware))
+        self.assertIs(resp, expected)
+        get_response.assert_awaited_once_with(request)
 
     def test_exception(self, mocked):
         with self.assertRaises(MockAuthCanceled):
