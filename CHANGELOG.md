@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [5.9.0](https://github.com/python-social-auth/social-app-django/releases/tag/5.9.0) - 2026-04-29
+
+### Changed
+
+- Added async support to `SocialAuthExceptionMiddleware`
+- Dropped support for Django 5.1, Django 5.2 is now the minimum supported version
+- Loosened the `social-auth-core` dependency to allow compatible 4.x releases
+- Improved release automation and GitHub release asset publishing
+
 ## [5.8.0](https://github.com/python-social-auth/social-app-django/releases/tag/5.8.0) - 2026-04-20
 
 ### Changed
