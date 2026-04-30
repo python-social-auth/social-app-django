@@ -7,7 +7,7 @@ from django.views.decorators.http import require_POST
 from social_core.actions import do_auth, do_complete, do_disconnect
 from social_core.utils import setting_name
 
-from .utils import maybe_require_post, psa
+from .utils import psa
 
 NAMESPACE = getattr(settings, setting_name("URL_NAMESPACE"), None) or "social"
 
@@ -18,7 +18,7 @@ DEFAULT_SESSION_TIMEOUT = None
 
 @never_cache
 @login_not_required
-@maybe_require_post
+@require_POST
 @psa(f"{NAMESPACE}:complete")
 def auth(request, backend):
     return do_auth(request.backend, redirect_name=REDIRECT_FIELD_NAME)
