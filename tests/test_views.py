@@ -17,17 +17,16 @@ class TestViews(TestCase):
         session.save()
 
     def test_begin_view(self):
-        response = self.client.get(reverse("social:begin", kwargs={"backend": "facebook"}))
+        response = self.client.post(reverse("social:begin", kwargs={"backend": "facebook"}))
         self.assertEqual(response.status_code, 302)
 
         url = reverse("social:begin", kwargs={"backend": "blabla"})
-        response = self.client.get(url)
+        response = self.client.post(url)
         self.assertEqual(response.status_code, 404)
 
-    def test_require_post_works(self):
-        with override_settings(SOCIAL_AUTH_REQUIRE_POST=True):
-            response = self.client.get(reverse("social:begin", kwargs={"backend": "facebook"}))
-            self.assertEqual(response.status_code, 405)
+    def test_begin_view_requires_post(self):
+        response = self.client.get(reverse("social:begin", kwargs={"backend": "facebook"}))
+        self.assertEqual(response.status_code, 405)
 
     @mock.patch("social_core.backends.base.BaseAuth.request")
     def test_complete(self, mock_request):
