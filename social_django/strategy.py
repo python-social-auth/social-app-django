@@ -8,16 +8,23 @@ from django.contrib.auth import authenticate, get_user
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Model
 from django.http import HttpRequest, HttpResponse
-from django.shortcuts import redirect, resolve_url
+from django.shortcuts import redirect, render, resolve_url
 from django.template import TemplateDoesNotExist, engines, loader
 from django.utils.crypto import get_random_string
+from django.utils.datastructures import MultiValueDict
 from django.utils.encoding import force_str
 from django.utils.functional import Promise
 from django.utils.translation import get_language
 from social_core.strategy import BaseStrategy, BaseTemplateStrategy
+from social_core.utils import PARTIAL_TOKEN_PENDING_CONFIRMATION_SESSION_NAME
 
 if TYPE_CHECKING:
     from django.contrib.sessions.backends.base import SessionBase
+    from social_core.backends.base import BaseAuth
+    from social_core.storage import PartialMixin
+
+
+PARTIAL_PIPELINE_CONFIRMATION_NONCE_PARAMETER = "partial_pipeline_confirm_nonce"
 
 
 def render_template_string(request, html, context=None):
@@ -117,6 +124,55 @@ class DjangoStrategy(BaseStrategy):
     def html(self, content):
         return HttpResponse(content, content_type="text/html;charset=UTF-8")
 
+    def partial_pipeline_external_resume_confirmation(
+        self,
+        backend: BaseAuth,
+        partial: PartialMixin,
+        request_data: dict[str, Any],
+    ) -> HttpResponse | None:
+        if not self.request:
+            return None
+
+        nonce = self.random_string(32)
+        self.session_set(PARTIAL_TOKEN_PENDING_CONFIRMATION_SESSION_NAME, nonce)
+        confirmation_parameter = backend.setting(
+            "PARTIAL_PIPELINE_EXTERNAL_RESUME_CONFIRMATION_PARAMETER",
+            "partial_pipeline_confirm",
+        )
+        return render(
+            self.request,
+            "social_django/partial_pipeline_external_resume.html",
+            {
+                "action_url": self.request.path,
+                "backend": backend,
+                "backend_name": backend.name,
+                "confirmation_parameter": confirmation_parameter,
+                "confirmation_value": "1",
+                "confirmation_nonce_parameter": (PARTIAL_PIPELINE_CONFIRMATION_NONCE_PARAMETER),
+                "confirmation_nonce": nonce,
+                "partial": partial,
+            },
+        )
+
+    def partial_pipeline_external_resume_confirmed(
+        self,
+        backend: BaseAuth,
+        request_data: dict[str, Any],
+    ) -> bool:
+        if not self.request or self.request.method != "POST":
+            return False
+
+        confirmation_parameter = backend.setting(
+            "PARTIAL_PIPELINE_EXTERNAL_RESUME_CONFIRMATION_PARAMETER",
+            "partial_pipeline_confirm",
+        )
+        if not confirmation_parameter or confirmation_parameter not in request_data:
+            return False
+
+        expected_nonce = self.session_get(PARTIAL_TOKEN_PENDING_CONFIRMATION_SESSION_NAME)
+        submitted_nonce = request_data.get(PARTIAL_PIPELINE_CONFIRMATION_NONCE_PARAMETER)
+        return bool(expected_nonce) and submitted_nonce == expected_nonce
+
     def render_html(self, tpl=None, html=None, context=None):
         if not tpl and not html:
             msg = "Missing template or html parameters"
@@ -166,7 +222,9 @@ class DjangoStrategy(BaseStrategy):
         Converts values that are instance of Model to a dictionary
         with enough information to retrieve the instance back later.
         """
-        if isinstance(val, Model):
+        if isinstance(val, MultiValueDict):
+            val = val.dict()
+        elif isinstance(val, Model):
             val = {"pk": val.pk, "ctype": ContentType.objects.get_for_model(val).pk}
         return val
 

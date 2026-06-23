@@ -6,7 +6,9 @@ from django.contrib.sessions.middleware import SessionMiddleware
 from django.http import HttpResponse, QueryDict
 from django.test import RequestFactory, TestCase
 from django.utils.translation import gettext_lazy
+from social_core.utils import PARTIAL_TOKEN_PENDING_CONFIRMATION_SESSION_NAME
 
+from social_django.strategy import PARTIAL_PIPELINE_CONFIRMATION_NONCE_PARAMETER
 from social_django.utils import load_backend, load_strategy
 
 
@@ -59,6 +61,21 @@ class TestStrategy(TestCase):
         instance = self.strategy.from_session_value(val=val)
         self.assertEqual(instance, user)
 
+    def test_session_value_flattens_request_data(self):
+        request = self.request_factory.get(
+            "/complete/facebook/",
+            data={"partial_token": "external-token", "verification_code": "code"},
+        )
+        SessionMiddleware(lambda: None).process_request(request)
+        strategy = load_strategy(request=request)
+
+        val = strategy.to_session_value(strategy.request_data())
+
+        self.assertEqual(
+            val,
+            {"partial_token": "external-token", "verification_code": "code"},
+        )
+
     def test_get_language(self):
         self.assertEqual(self.strategy.get_language(), "en-us")
 
@@ -82,6 +99,142 @@ class TestStrategy(TestCase):
 
         result = self.strategy.tpl.render_string(html="xoxo", context=ctx)
         self.assertEqual(result, "xoxo")
+
+    def test_partial_pipeline_external_resume_confirmation(self):
+        request = self.request_factory.get(
+            "/complete/facebook/",
+            data={"partial_token": "external-token", "verification_code": "code"},
+        )
+        SessionMiddleware(lambda: None).process_request(request)
+        strategy = load_strategy(request=request)
+        backend = load_backend(strategy=strategy, name="facebook", redirect_uri="/")
+
+        response = strategy.partial_pipeline_external_resume_confirmation(backend, mock.Mock(), strategy.request_data())
+
+        self.assertIsInstance(response, HttpResponse)
+        nonce = strategy.session_get(PARTIAL_TOKEN_PENDING_CONFIRMATION_SESSION_NAME)
+        self.assertTrue(nonce)
+        content = response.content.decode()
+        self.assertIn('action="/complete/facebook/"', content)
+        self.assertIn('name="partial_pipeline_confirm"', content)
+        self.assertIn(f'name="{PARTIAL_PIPELINE_CONFIRMATION_NONCE_PARAMETER}"', content)
+        self.assertIn(f'value="{nonce}"', content)
+        self.assertNotIn("partial_token", content)
+        self.assertNotIn("verification_code", content)
+
+    def test_partial_pipeline_external_resume_confirmation_uses_custom_parameter(self):
+        request = self.request_factory.get("/complete/facebook/")
+        SessionMiddleware(lambda: None).process_request(request)
+        strategy = load_strategy(request=request)
+        backend = load_backend(strategy=strategy, name="facebook", redirect_uri="/")
+
+        with self.settings(SOCIAL_AUTH_PARTIAL_PIPELINE_EXTERNAL_RESUME_CONFIRMATION_PARAMETER="continue_auth"):
+            response = strategy.partial_pipeline_external_resume_confirmation(
+                backend, mock.Mock(), strategy.request_data()
+            )
+
+        content = response.content.decode()
+        self.assertIn('name="continue_auth"', content)
+        self.assertNotIn('name="partial_pipeline_confirm"', content)
+        self.assertIn(f'name="{PARTIAL_PIPELINE_CONFIRMATION_NONCE_PARAMETER}"', content)
+
+    def test_partial_pipeline_external_resume_confirmed(self):
+        request = self.request_factory.post(
+            "/complete/facebook/",
+            data={
+                "partial_pipeline_confirm": "1",
+                PARTIAL_PIPELINE_CONFIRMATION_NONCE_PARAMETER: "nonce",
+            },
+        )
+        SessionMiddleware(lambda: None).process_request(request)
+        strategy = load_strategy(request=request)
+        backend = load_backend(strategy=strategy, name="facebook", redirect_uri="/")
+        strategy.session_set(PARTIAL_TOKEN_PENDING_CONFIRMATION_SESSION_NAME, "nonce")
+
+        self.assertTrue(strategy.partial_pipeline_external_resume_confirmed(backend, strategy.request_data()))
+
+    def test_partial_pipeline_external_resume_confirmed_uses_custom_parameter(self):
+        request = self.request_factory.post(
+            "/complete/facebook/",
+            data={
+                "continue_auth": "1",
+                PARTIAL_PIPELINE_CONFIRMATION_NONCE_PARAMETER: "nonce",
+            },
+        )
+        SessionMiddleware(lambda: None).process_request(request)
+        strategy = load_strategy(request=request)
+        backend = load_backend(strategy=strategy, name="facebook", redirect_uri="/")
+        strategy.session_set(PARTIAL_TOKEN_PENDING_CONFIRMATION_SESSION_NAME, "nonce")
+
+        with self.settings(SOCIAL_AUTH_PARTIAL_PIPELINE_EXTERNAL_RESUME_CONFIRMATION_PARAMETER="continue_auth"):
+            self.assertTrue(strategy.partial_pipeline_external_resume_confirmed(backend, strategy.request_data()))
+
+    def test_partial_pipeline_external_resume_confirmation_without_request(self):
+        strategy = load_strategy()
+        backend = load_backend(strategy=strategy, name="facebook", redirect_uri="/")
+
+        self.assertIsNone(strategy.partial_pipeline_external_resume_confirmation(backend, mock.Mock(), {}))
+
+    def test_partial_pipeline_external_resume_confirmed_without_request(self):
+        strategy = load_strategy()
+        backend = load_backend(strategy=strategy, name="facebook", redirect_uri="/")
+        strategy.session_set(PARTIAL_TOKEN_PENDING_CONFIRMATION_SESSION_NAME, "nonce")
+
+        self.assertFalse(
+            strategy.partial_pipeline_external_resume_confirmed(
+                backend,
+                {
+                    "partial_pipeline_confirm": "1",
+                    PARTIAL_PIPELINE_CONFIRMATION_NONCE_PARAMETER: "nonce",
+                },
+            )
+        )
+
+    def test_partial_pipeline_external_resume_confirmation_rejects_get(self):
+        strategy = load_strategy(request=self.request)
+        backend = load_backend(strategy=strategy, name="facebook", redirect_uri="/")
+        strategy.session_set(PARTIAL_TOKEN_PENDING_CONFIRMATION_SESSION_NAME, "nonce")
+
+        self.assertFalse(strategy.partial_pipeline_external_resume_confirmed(backend, strategy.request_data()))
+
+    def test_partial_pipeline_external_resume_confirmation_rejects_missing_parameter(self):
+        request = self.request_factory.post(
+            "/complete/facebook/",
+            data={PARTIAL_PIPELINE_CONFIRMATION_NONCE_PARAMETER: "nonce"},
+        )
+        SessionMiddleware(lambda: None).process_request(request)
+        strategy = load_strategy(request=request)
+        backend = load_backend(strategy=strategy, name="facebook", redirect_uri="/")
+        strategy.session_set(PARTIAL_TOKEN_PENDING_CONFIRMATION_SESSION_NAME, "nonce")
+
+        self.assertFalse(strategy.partial_pipeline_external_resume_confirmed(backend, strategy.request_data()))
+
+    def test_partial_pipeline_external_resume_confirmation_rejects_missing_nonce(self):
+        request = self.request_factory.post(
+            "/complete/facebook/",
+            data={"partial_pipeline_confirm": "1"},
+        )
+        SessionMiddleware(lambda: None).process_request(request)
+        strategy = load_strategy(request=request)
+        backend = load_backend(strategy=strategy, name="facebook", redirect_uri="/")
+        strategy.session_set(PARTIAL_TOKEN_PENDING_CONFIRMATION_SESSION_NAME, "nonce")
+
+        self.assertFalse(strategy.partial_pipeline_external_resume_confirmed(backend, strategy.request_data()))
+
+    def test_partial_pipeline_external_resume_confirmation_rejects_wrong_nonce(self):
+        request = self.request_factory.post(
+            "/complete/facebook/",
+            data={
+                "partial_pipeline_confirm": "1",
+                PARTIAL_PIPELINE_CONFIRMATION_NONCE_PARAMETER: "wrong",
+            },
+        )
+        SessionMiddleware(lambda: None).process_request(request)
+        strategy = load_strategy(request=request)
+        backend = load_backend(strategy=strategy, name="facebook", redirect_uri="/")
+        strategy.session_set(PARTIAL_TOKEN_PENDING_CONFIRMATION_SESSION_NAME, "nonce")
+
+        self.assertFalse(strategy.partial_pipeline_external_resume_confirmed(backend, strategy.request_data()))
 
     def test_authenticate(self):
         backend = load_backend(strategy=self.strategy, name="facebook", redirect_uri="/")

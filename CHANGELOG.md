@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [Unreleased]
+
+### Security
+
+- Added the default Django confirmation page for externally resumed partial
+  pipelines and raised the `social-auth-core` dependency to the next major
+  release with the required Strategy hooks.
+
 ## [5.9.0](https://github.com/python-social-auth/social-app-django/releases/tag/5.9.0) - 2026-04-29
 
 ### Changed

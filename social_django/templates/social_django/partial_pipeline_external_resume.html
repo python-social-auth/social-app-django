@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Continue authentication</title>
+  </head>
+  <body>
+    <form method="post" action="{{ action_url }}">
+      {% csrf_token %}
+      <input type="hidden" name="{{ confirmation_parameter }}" value="{{ confirmation_value }}">
+      <input type="hidden" name="{{ confirmation_nonce_parameter }}" value="{{ confirmation_nonce }}">
+      <button type="submit">Continue authentication</button>
+    </form>
+  </body>
+</html>
