@@ -1,4 +1,5 @@
 recursive-include social_django *.py
+recursive-include social_django/templates *.html
 recursive-include tests *.py
 include manage.py
 include *.txt CHANGELOG.md LICENSE README.md
