@@ -7,7 +7,7 @@ dev = [
   "coverage>=3.6",
   "django-stubs-ext==6.0.6",
   "django-stubs==6.0.6",
-  "mypy==2.1.0",
+  "mypy==2.2.0",
   "pre-commit",
   "pyright==1.1.411",
   "tox"
@@ -55,7 +55,7 @@ dev = [
   "coverage>=3.6",
   "django-stubs-ext==6.0.6",
   "django-stubs==6.0.6",
-  "mypy==2.1.0",
+  "mypy==2.2.0",
   "pre-commit",
   "pyright==1.1.411",
   "tox"
