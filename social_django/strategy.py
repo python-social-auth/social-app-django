@@ -54,7 +54,7 @@ class DjangoStrategy(BaseStrategy):
     DEFAULT_TEMPLATE_STRATEGY = DjangoTemplateStrategy
     _session: SessionBase
 
-    def __init__(self, storage, request: None | HttpRequest = None, tpl=None):
+    def __init__(self, storage, request: HttpRequest | None = None, tpl=None):
         self.request: HttpRequest = request
         if request:
             self.session = request.session
