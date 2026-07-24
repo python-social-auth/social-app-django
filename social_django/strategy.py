@@ -242,6 +242,8 @@ class DjangoStrategy(BaseStrategy):
         return get_language()
 
     def get_session_id(self) -> str | None:
+        if self.session.session_key is None:
+            self.session.create()
         return self.session.session_key
 
     def restore_session(self, session_id: str, kwargs: dict[str, Any]) -> None:
