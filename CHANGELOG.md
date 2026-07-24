@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [6.0.1](https://github.com/python-social-auth/social-app-django/releases/tag/6.0.1) - 2026-07-24
+
+### Fixed
+
+- Created sessions before authentication so cross-site SAML POST callbacks can restore authentication request IDs.
+
 ## [6.0.0](https://github.com/python-social-auth/social-app-django/releases/tag/6.0.0) - 2026-06-23
 
 ### Security
