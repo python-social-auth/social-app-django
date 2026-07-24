@@ -45,6 +45,35 @@ class TestStrategy(TestCase):
         self.assertEqual(self.strategy.session_setdefault("k", "x"), "v")
         self.assertEqual(self.strategy.session_pop("k"), "v")
 
+    def test_get_session_id_creates_session(self):
+        self.assertIsNone(self.strategy.session.session_key)
+
+        session_id = self.strategy.get_session_id()
+
+        self.assertIsNotNone(session_id)
+        self.assertTrue(self.strategy.session.exists(session_id))
+
+    def test_get_session_id_reuses_existing_session(self):
+        self.strategy.session.create()
+        session_id = self.strategy.session.session_key
+
+        self.assertEqual(self.strategy.get_session_id(), session_id)
+
+    def test_new_session_can_be_restored_without_cookie(self):
+        session_id = self.strategy.get_session_id()
+        if session_id is None:
+            self.fail("session ID was not created")
+        self.strategy.session_set("saml_authn_request_id", "TEST_ID")
+        self.strategy.session.save()
+
+        callback_request = self.request_factory.post("/")
+        SessionMiddleware(lambda _request: HttpResponse()).process_request(callback_request)
+        callback_strategy = load_strategy(request=callback_request)
+        callback_strategy.restore_session(session_id, {})
+
+        self.assertEqual(callback_strategy.session_get("saml_authn_request_id"), "TEST_ID")
+        self.assertNotEqual(callback_strategy.get_session_id(), session_id)
+
     def test_random_string(self):
         rs1 = self.strategy.random_string()
         self.assertEqual(len(rs1), 12)
