@@ -117,6 +117,7 @@ ignore = [
   "ARG002",  # TODO: Unused method argument (mostly for API compatibility)
   "B026",  # TODO: Star-arg unpacking after a keyword argument is strongly discouraged
   "COM812",  # CONFIG: incompatible with formatter
+  "CPY001",  # TODO: Copyright not documented
   "D",  # TODO: Missing documentation
   "D203",  # CONFIG: incompatible with D211
   "D212",  # CONFIG: incompatible with D213
