@@ -1,5 +1,9 @@
 """Django ORM models for Social Auth"""
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from django.conf import settings
 from django.db import models
 from django.db.utils import IntegrityError
@@ -14,6 +18,9 @@ from .storage import (
     DjangoPartialMixin,
     DjangoUserMixin,
 )
+
+if TYPE_CHECKING:
+    from typing import ClassVar
 
 USER_MODEL = (
     getattr(settings, setting_name("USER_MODEL"), None) or getattr(settings, "AUTH_USER_MODEL", None) or "auth.User"
@@ -34,7 +41,7 @@ class AbstractUserSocialAuth(models.Model, DjangoUserMixin):
     extra_data = models.JSONField(default=dict, blank=True)
     created = models.DateTimeField(auto_now_add=True)
     modified = models.DateTimeField(auto_now=True)
-    objects = UserSocialAuthManager()
+    objects: ClassVar[UserSocialAuthManager[AbstractUserSocialAuth]] = UserSocialAuthManager()
 
     class Meta:
         constraints = [models.CheckConstraint(condition=~models.Q(uid=""), name="user_social_auth_uid_required")]
@@ -62,7 +69,11 @@ class AbstractUserSocialAuth(models.Model, DjangoUserMixin):
 
     @classmethod
     def user_model(cls):
-        return cls._meta.get_field("user").remote_field.model
+        remote_field = cls._meta.get_field("user").remote_field
+        if remote_field is None:
+            msg = "User field does not reference a model"
+            raise TypeError(msg)
+        return remote_field.model
 
 
 class UserSocialAuth(AbstractUserSocialAuth):

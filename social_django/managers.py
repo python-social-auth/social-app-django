@@ -10,5 +10,5 @@ class UserSocialAuthManager(models.Manager):
     def get_social_auth(self, provider, uid):
         try:
             return self.select_related("user").get(provider=provider, uid=uid)
-        except self.model.DoesNotExist:
+        except self.model.DoesNotExist:  # type: ignore[attr-defined]
             return None

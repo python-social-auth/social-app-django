@@ -74,4 +74,6 @@ class SocialAuthExceptionMiddleware:
     def get_redirect_uri(self, request, exception):
         strategy = getattr(request, "social_strategy", None)
         backend = getattr(request, "backend", None)
+        if strategy is None:
+            return None
         return strategy.setting("LOGIN_ERROR_URL", backend=backend)

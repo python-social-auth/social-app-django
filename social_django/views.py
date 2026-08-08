@@ -30,15 +30,12 @@ def auth(request, backend):
 @psa(f"{NAMESPACE}:complete")
 def complete(request, backend, *args, **kwargs):
     """Authentication complete view"""
-    return do_complete(
-        request.backend,
-        _do_login,
+    kwargs.update(
         user=request.user,
         redirect_name=REDIRECT_FIELD_NAME,
         request=request,
-        *args,
-        **kwargs,
     )
+    return do_complete(request.backend, _do_login, *args, **kwargs)
 
 
 @never_cache

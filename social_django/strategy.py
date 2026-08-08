@@ -55,10 +55,16 @@ class DjangoStrategy(BaseStrategy):
     _session: SessionBase
 
     def __init__(self, storage, request: HttpRequest | None = None, tpl=None):
-        self.request: HttpRequest = request
+        self.request = request
         if request:
             self.session = request.session
         super().__init__(storage, tpl)
+
+    def _require_request(self) -> HttpRequest:
+        if self.request is None:
+            msg = "This strategy operation requires an HTTP request"
+            raise RuntimeError(msg)
+        return self.request
 
     @property
     def session(self) -> SessionBase:
@@ -100,23 +106,23 @@ class DjangoStrategy(BaseStrategy):
 
     def request_is_secure(self):
         """Is the request using HTTPS?"""
-        return self.request.is_secure()
+        return self._require_request().is_secure()
 
     def request_path(self):
         """Path of the current request"""
-        return self.request.path
+        return self._require_request().path
 
     def request_port(self):
         """Port in use for this request"""
-        return self.request.get_port()
+        return self._require_request().get_port()
 
     def request_get(self):
         """Request GET data"""
-        return self.request.GET.copy()
+        return self._require_request().GET.copy()
 
     def request_post(self):
         """Request POST data"""
-        return self.request.POST.copy()
+        return self._require_request().POST.copy()
 
     def redirect(self, url):
         return redirect(url)
@@ -124,7 +130,7 @@ class DjangoStrategy(BaseStrategy):
     def html(self, content):
         return HttpResponse(content, content_type="text/html;charset=UTF-8")
 
-    def partial_pipeline_external_resume_confirmation(
+    def partial_pipeline_external_resume_confirmation(  # type: ignore[override]
         self,
         backend: BaseAuth,
         partial: PartialMixin,
@@ -232,8 +238,11 @@ class DjangoStrategy(BaseStrategy):
         """Converts back the instance saved by self._ctype function."""
         if isinstance(val, dict) and "pk" in val and "ctype" in val:
             ctype = ContentType.objects.get_for_id(val["ctype"])
-            ModelClass = ctype.model_class()  # noqa: N806
-            val = ModelClass._default_manager.get(pk=val["pk"])  # noqa: SLF001
+            model_class = ctype.model_class()
+            if model_class is None:
+                msg = f"Content type {ctype.pk} does not reference a model"
+                raise TypeError(msg)
+            val = model_class._default_manager.get(pk=val["pk"])  # noqa: SLF001
 
         return val
 
@@ -247,11 +256,12 @@ class DjangoStrategy(BaseStrategy):
         return self.session.session_key
 
     def restore_session(self, session_id: str, kwargs: dict[str, Any]) -> None:
+        request = self._require_request()
         # Load session
-        self.request.session = self.session = create_session(session_id)
+        request.session = self.session = create_session(session_id)
         # Update request user
-        self.request.user = get_user(self.request)
-        if "user" in kwargs and self.request.user.is_authenticated:
-            kwargs["user"] = self.request.user
+        request.user = get_user(request)
+        if "user" in kwargs and request.user.is_authenticated:
+            kwargs["user"] = request.user
         # Rotate session key to avoid reuse
         self.session.cycle_key()
