@@ -21,11 +21,47 @@ from social_core.storage import (
 from social_core.utils import setting_name
 
 if TYPE_CHECKING:
-    from django.db.models import QuerySet
+    from collections.abc import Callable
+    from typing import ClassVar
+
+    from django.core.exceptions import ObjectDoesNotExist
+    from django.db.models import Manager, Model, QuerySet
+
+    # These model/manager intersections must stay type-only. Defining them at
+    # runtime would register additional models with Django.
+    class _DjangoUserManager(Manager["_DjangoUser"]):
+        def create_user(self, *args, **kwargs) -> _DjangoUser: ...
+
+    class _DjangoUser(Model):
+        _default_manager: ClassVar[_DjangoUserManager]
+        USERNAME_FIELD: ClassVar[str]
+        EMAIL_FIELD: ClassVar[str]
+        id: int
+        username: str
+        is_active: bool | Callable[[], bool]
+        is_authenticated: bool | Callable[[], bool]
+
+    class _DjangoAssociation(Model):
+        secret: str
+        issued: int
+        lifetime: int
+        assoc_type: str
 
 
 class DjangoUserMixin(UserMixin):
     """Social Auth association model"""
+
+    objects: ClassVar[Manager[Model]]
+    DoesNotExist: ClassVar[type[ObjectDoesNotExist]]
+
+    @classmethod
+    def user_model(cls) -> type[_DjangoUser]:
+        """Return the Django user model."""
+        raise NotImplementedError
+
+    @classmethod
+    def _manager(cls) -> Manager[Model]:
+        return cls.objects
 
     @classmethod
     def changed(cls, user):
@@ -38,9 +74,9 @@ class DjangoUserMixin(UserMixin):
     @classmethod
     def allowed_to_disconnect(cls, user, backend_name, association_id=None):
         if association_id is not None:
-            qs = cls.objects.exclude(id=association_id)
+            qs = cls._manager().exclude(id=association_id)
         else:
-            qs = cls.objects.exclude(provider=backend_name)
+            qs = cls._manager().exclude(provider=backend_name)
         qs = qs.filter(user=user)
 
         valid_password = user.has_usable_password() if hasattr(user, "has_usable_password") else True
@@ -71,7 +107,8 @@ class DjangoUserMixin(UserMixin):
     @classmethod
     def create_user(cls, *args, **kwargs):
         username_field = cls.username_field()
-        manager = cls.user_model()._default_manager  # noqa: SLF001
+        model = cls.user_model()
+        manager = model._default_manager  # noqa: SLF001
         if "username" in kwargs:
             if username_field not in kwargs:
                 kwargs[username_field] = kwargs.pop("username")
@@ -79,18 +116,18 @@ class DjangoUserMixin(UserMixin):
                 # If username_field is 'email' and there is no field named "username"
                 # then latest should be removed from kwargs.
                 try:
-                    cls.user_model()._meta.get_field("username")  # noqa: SLF001
+                    model._meta.get_field("username")  # noqa: SLF001
                 except FieldDoesNotExist:
                     kwargs.pop("username")
 
         # If the create fails below due to an IntegrityError, ensure that the transaction
         # stays undamaged by wrapping the create in an atomic.
-        using = router.db_for_write(cls.user_model())
+        using = router.db_for_write(model)
         try:
             with transaction.atomic(using=using):
                 return manager.create_user(*args, **kwargs)
         except IntegrityError as exc:
-            raise AuthAlreadyAssociated(None) from exc
+            raise AuthAlreadyAssociated(None) from exc  # type: ignore[arg-type]
 
     @classmethod
     def filter_users(cls, *args, **kwargs) -> QuerySet:
@@ -124,13 +161,13 @@ class DjangoUserMixin(UserMixin):
         if not isinstance(uid, str):
             uid = str(uid)
         try:
-            return cls.objects.get(provider=provider, uid=uid)
+            return cls._manager().get(provider=provider, uid=uid)
         except cls.DoesNotExist:
             return None
 
     @classmethod
     def get_social_auth_for_user(cls, user, provider=None, id=None):  # noqa: A002
-        qs = cls.objects.filter(user=user)
+        qs = cls._manager().filter(user=user)
 
         if provider:
             qs = qs.filter(provider=provider)
@@ -145,12 +182,15 @@ class DjangoUserMixin(UserMixin):
             uid = str(uid)
         # If the create fails below due to an IntegrityError, ensure that the transaction
         # stays undamaged by wrapping the create in an atomic.
-        using = router.db_for_write(cls)
+        manager = cls._manager()
+        using = router.db_for_write(manager.model)
         with transaction.atomic(using=using):
-            return cls.objects.create(user=user, uid=uid, provider=provider)
+            return manager.create(user=user, uid=uid, provider=provider)
 
 
 class DjangoNonceMixin(NonceMixin):
+    objects: ClassVar[Manager[Model]]
+
     @classmethod
     def use(cls, server_url, timestamp, salt):
         return cls.objects.get_or_create(server_url=server_url, timestamp=timestamp, salt=salt)[1]
@@ -168,18 +208,21 @@ class DjangoNonceMixin(NonceMixin):
 
 
 class DjangoAssociationMixin(AssociationMixin):
+    objects: ClassVar[Manager[_DjangoAssociation]]
+    DoesNotExist: ClassVar[type[ObjectDoesNotExist]]
+
     @classmethod
     def store(cls, server_url, association):
         # Don't use get_or_create because issued cannot be null
         try:
-            assoc = cls.objects.get(server_url=server_url, handle=association.handle)
+            assoc = cls.objects.get(
+                server_url=server_url,
+                handle=association.handle,
+            )
         except cls.DoesNotExist:
-            assoc = cls(server_url=server_url, handle=association.handle)
+            assoc = cls.objects.model(server_url=server_url, handle=association.handle)
 
-        try:
-            assoc.secret = base64.encodebytes(association.secret).decode()
-        except AttributeError:
-            assoc.secret = base64.encodestring(association.secret).decode()
+        assoc.secret = base64.encodebytes(association.secret).decode()
         assoc.issued = association.issued
         assoc.lifetime = association.lifetime
         assoc.assoc_type = association.assoc_type
@@ -195,6 +238,9 @@ class DjangoAssociationMixin(AssociationMixin):
 
 
 class DjangoCodeMixin(CodeMixin):
+    objects: ClassVar[Manager[Model]]
+    DoesNotExist: ClassVar[type[ObjectDoesNotExist]]
+
     @classmethod
     def get_code(cls, code):
         try:
@@ -204,6 +250,9 @@ class DjangoCodeMixin(CodeMixin):
 
 
 class DjangoPartialMixin(PartialMixin):
+    objects: ClassVar[Manager[Model]]
+    DoesNotExist: ClassVar[type[ObjectDoesNotExist]]
+
     @classmethod
     def load(cls, token):
         try:
