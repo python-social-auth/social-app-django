@@ -273,6 +273,18 @@ class TestStrategy(TestCase):
             self.assertEqual(result, user)
             self.assertEqual(result.backend, "social_core.backends.facebook.FacebookOAuth2")
 
+    def test_authenticate_uses_strategy_request(self):
+        backend = load_backend(strategy=self.strategy, name="facebook", redirect_uri="/")
+        user = mock.Mock()
+        with mock.patch("social_core.backends.base.BaseAuth.pipeline", return_value=user) as pipeline:
+            self.strategy.authenticate(
+                backend=backend,
+                response=mock.Mock(),
+                request=QueryDict("partial_token=token"),
+            )
+
+        self.assertIs(pipeline.call_args.kwargs["request"], self.request)
+
     def test_clean_authenticate_args(self):
         args, kwargs = self.strategy.clean_authenticate_args(self.request)
         self.assertEqual(args, ())
