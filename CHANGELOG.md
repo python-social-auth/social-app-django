@@ -138,7 +138,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Use query `.exists()` instead of `.count() > 0`
 - Added testing for Django 3.0
 - Drop support for Python 2
-- Django generic `JSONField` support, details documented [here](https://python-social-auth.readthedocs.io/en/latest/configuration/django.html#json-field-support)
+- Django generic `JSONField` support, see [documentation](https://python-social-auth.readthedocs.io/en/latest/configuration/django.html#json-field-support)
 - Django 3.2+ compatibility
 - Use `_default_manager` instead of `objects`
 
