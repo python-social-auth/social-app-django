@@ -136,6 +136,14 @@ max-complexity = 10
 "social_django/migrations/*.py" = ["RUF012"]
 "tests/settings.py" = ["PTH"]
 
+[tool.rumdl]
+disable = [
+  # We do not enforce heading
+  "first-line-heading",
+  # Avoid length limit checks
+  "line-length"
+]
+
 [tool.setuptools]
 packages = ["social_django"]
 
