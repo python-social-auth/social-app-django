@@ -366,6 +366,11 @@ class TestLaunchViews(TestCase):
         )
         self.assertEqual(response.status_code, 400)
 
+    def test_app_launch_rejects_missing_origin_evidence(self):
+        url = reverse("social:app_launch", kwargs={"backend": "mock-oidc"})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 400)
+
     def test_app_launch_unsupported_backend_returns_400(self):
         url = reverse("social:app_launch", kwargs={"backend": "facebook"})
         response = self.client.get(url, headers={"sec-fetch-site": "same-origin"})

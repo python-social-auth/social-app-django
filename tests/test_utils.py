@@ -147,6 +147,19 @@ class TestUtils(TestCase):
         assert error is not None  # noqa: S101
         self.assertIn("Untrusted Referer origin rejected", error)
 
+        # Missing both Sec-Fetch-Site and Referer rejected
+        request = self.factory.get("/")
+        is_valid, error = validate_app_launch_origin(request)
+        self.assertFalse(is_valid)
+        assert error is not None  # noqa: S101
+        self.assertIn("Missing same-origin indicator", error)
+
+        # Valid referer without Sec-Fetch-Site accepted
+        request = self.factory.get("/", headers={"Referer": "http://testserver/home"})
+        is_valid, error = validate_app_launch_origin(request)
+        self.assertTrue(is_valid)
+        self.assertIsNone(error)
+
     def test_get_backend_issuer(self):
         backend = mock.MagicMock()
         backend.id_token_issuer.return_value = "https://idp.example.com"

@@ -285,7 +285,7 @@ def check_fetch_metadata(request: HttpRequest, view_name: str) -> tuple[bool, li
         A tuple of (auto_submit, warnings_list).
     """
     warnings: list[str] = []
-    auto_submit = True
+    auto_submit: bool = True
 
     sec_fetch_dest = request.headers.get("Sec-Fetch-Dest")
     if sec_fetch_dest and sec_fetch_dest != SEC_FETCH_DEST_DOCUMENT:
@@ -320,16 +320,26 @@ def validate_app_launch_origin(request: HttpRequest) -> tuple[bool, str | None]:
     Returns:
         A tuple of (is_valid, error_message).
     """
-    sec_fetch_site = request.headers.get("Sec-Fetch-Site")
+    # Guard 1: Reject cross-site launches based on Sec-Fetch-Site header
+    sec_fetch_site: str | None = request.headers.get("Sec-Fetch-Site")
     if sec_fetch_site and sec_fetch_site != SEC_FETCH_SITE_SAME_ORIGIN:
         return False, f"app_launch: Cross-site launch rejected (Sec-Fetch-Site: {sec_fetch_site})"
 
-    referer = request.headers.get("Referer")
+    # Guard 2: Reject untrusted Referer origins if provided
+    referer: str | None = request.headers.get("Referer")
     if referer:
         allowed_hosts = {request.get_host()}
         if not is_safe_url(referer, allowed_hosts=allowed_hosts, require_https=request.is_secure()):
             return False, f"app_launch: Untrusted Referer origin rejected: {referer}"
 
+    # Guard 3: Require at least one same-origin indicator (Sec-Fetch-Site or Referer)
+    if not sec_fetch_site and not referer:
+        return (
+            False,
+            "app_launch: Missing same-origin indicator (neither Sec-Fetch-Site nor Referer header provided)",
+        )
+
+    # Validation passed
     return True, None
 
 
