@@ -267,6 +267,18 @@ class TestLaunchViews(TestCase):
         content = response.content.decode()
         self.assertIn('name="next" value="/my/app/home"', content)
 
+        # Allowed external redirect host from settings preserved
+        with override_settings(SOCIAL_AUTH_ALLOWED_REDIRECT_HOSTS=["frontend.example.com"]):
+            response = self.client.get(
+                url,
+                {
+                    "iss": "https://idp.example.com",
+                    "target_link_uri": "https://frontend.example.com/welcome",
+                },
+            )
+            self.assertEqual(response.status_code, 200)
+            self.assertIn('name="next" value="https://frontend.example.com/welcome"', response.content.decode())
+
     def test_idp_launch_fetch_metadata_iframe_fallback(self):
         url = reverse("social:idp_launch", kwargs={"backend": "mock-oidc"})
         response = self.client.get(
@@ -311,6 +323,17 @@ class TestLaunchViews(TestCase):
         self.assertNotIn("/ignored", content)
         self.assertIn("autoLoginForm", content)
         self.assertIn("form.submit()", content)
+
+    @override_settings(SOCIAL_AUTH_ALLOWED_REDIRECT_HOSTS=["frontend.example.com"])
+    def test_app_launch_with_allowed_redirect_host(self):
+        url = reverse("social:app_launch", kwargs={"backend": "mock-oidc"})
+        response = self.client.get(
+            url,
+            {"next": "https://frontend.example.com/portal"},
+            headers={"sec-fetch-site": "same-origin"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('name="next" value="https://frontend.example.com/portal"', response.content.decode())
 
     def test_app_launch_with_explicit_iss(self):
         url = reverse("social:app_launch", kwargs={"backend": "mock-oidc"})

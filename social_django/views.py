@@ -87,6 +87,7 @@ def idp_launch(request, backend):
         raw_target_link_uri,
         RedirectParamName.TARGET_LINK_URI,
         "idp_launch",
+        backend=backend_obj,
     )
 
     # Layer 4: Authenticated session bypass — Skip authentication roundtrip if session is already authenticated
@@ -176,6 +177,7 @@ def app_launch(request, backend):
         raw_next_url,
         RedirectParamName.NEXT,
         "app_launch",
+        backend=backend_obj,
     )
 
     # Layer 5: Authenticated session bypass — Skip authentication roundtrip if session is already authenticated

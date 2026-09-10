@@ -233,20 +233,55 @@ def validate_idp_issuer(
     return iss, None
 
 
+def get_allowed_redirect_hosts(
+    request: HttpRequest,
+    backend: Any = None,
+) -> set[str]:
+    """
+    Returns allowed redirect hosts including request host, global settings, and backend settings.
+    """
+    allowed_hosts: set[str] = {request.get_host()}
+    global_hosts = getattr(settings, "SOCIAL_AUTH_ALLOWED_REDIRECT_HOSTS", None)
+    if global_hosts:
+        if isinstance(global_hosts, str):
+            allowed_hosts.add(global_hosts)
+        elif isinstance(global_hosts, (list, tuple, set)):
+            allowed_hosts.update(global_hosts)
+
+    # Fall back to request.backend attached by @psa() decorator if not passed explicitly
+    if backend is None:
+        backend = getattr(request, "backend", None)
+
+    if backend is not None:
+        backend_hosts = backend.setting("ALLOWED_REDIRECT_HOSTS", [])
+        if backend_hosts:
+            if isinstance(backend_hosts, str):
+                allowed_hosts.add(backend_hosts)
+            elif isinstance(backend_hosts, (list, tuple, set)):
+                allowed_hosts.update(backend_hosts)
+
+    return allowed_hosts
+
+
 def resolve_redirect_uri(
     request: HttpRequest,
     raw_uri: str | None,
     param_name: RedirectParamName | str,
     view_name: str,
+    backend: Any = None,
 ) -> str | None:
     """
     Resolves and validates a redirect URI against allowed hosts to prevent open redirects.
+
+    Allowed hosts include the request host and any hosts configured in
+    `SOCIAL_AUTH_ALLOWED_REDIRECT_HOSTS` or backend-specific settings.
 
     Args:
         request: The incoming HttpRequest.
         raw_uri: Untrusted redirect URI from query string.
         param_name: Parameter name (for logging).
         view_name: View name (for logging).
+        backend: Optional backend instance for backend-specific settings.
 
     Returns:
         Validated redirect URI, or None if invalid or unsafe.
@@ -254,7 +289,7 @@ def resolve_redirect_uri(
     if not raw_uri:
         return None
 
-    allowed_hosts = {request.get_host()}
+    allowed_hosts = get_allowed_redirect_hosts(request, backend=backend)
     if is_safe_url(raw_uri, allowed_hosts=allowed_hosts, require_https=request.is_secure()):
         social_logger.info(
             "%s: Using valid `%s` redirect parameter: %s",

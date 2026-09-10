@@ -1,13 +1,14 @@
 from unittest import mock
 
 from django.http import HttpResponse
-from django.test import RequestFactory, TestCase
+from django.test import RequestFactory, TestCase, override_settings
 
 from social_django.utils import (
     RedirectParamName,
     apply_framing_protection,
     build_url,
     check_fetch_metadata,
+    get_allowed_redirect_hosts,
     get_backend_issuer,
     is_safe_url,
     is_valid_https_url,
@@ -246,6 +247,52 @@ class TestUtils(TestCase):
         assert error is not None  # noqa: S101
         self.assertIn("Invalid `iss` parameter", error)
 
+    def test_get_allowed_redirect_hosts(self):
+        request = self.factory.get("/")
+
+        # Default allowed host is request host
+        hosts = get_allowed_redirect_hosts(request)
+        self.assertEqual(hosts, {request.get_host()})
+
+        # Global setting as list
+        with override_settings(SOCIAL_AUTH_ALLOWED_REDIRECT_HOSTS=["host1.example.com", "host2.example.com"]):
+            hosts = get_allowed_redirect_hosts(request)
+            self.assertEqual(hosts, {request.get_host(), "host1.example.com", "host2.example.com"})
+
+        # Global setting as string
+        with override_settings(SOCIAL_AUTH_ALLOWED_REDIRECT_HOSTS="single.example.com"):
+            hosts = get_allowed_redirect_hosts(request)
+            self.assertEqual(hosts, {request.get_host(), "single.example.com"})
+
+        # Global setting with unsupported type (e.g. integer) is safely ignored (branch 248->252)
+        with override_settings(SOCIAL_AUTH_ALLOWED_REDIRECT_HOSTS=12345):
+            hosts = get_allowed_redirect_hosts(request)
+            self.assertEqual(hosts, {request.get_host()})
+
+        # Fallback to request.backend when backend is not passed explicitly
+        mock_backend = mock.MagicMock()
+        mock_backend.setting.return_value = ["req-backend.example.com"]
+        request.backend = mock_backend
+        hosts = get_allowed_redirect_hosts(request)
+        self.assertEqual(hosts, {request.get_host(), "req-backend.example.com"})
+        del request.backend
+
+        # Backend setting as string
+        backend = mock.MagicMock()
+        backend.setting.return_value = "str-backend.example.com"
+        hosts = get_allowed_redirect_hosts(request, backend=backend)
+        self.assertEqual(hosts, {request.get_host(), "str-backend.example.com"})
+
+        # Backend setting as tuple / set
+        backend.setting.return_value = ("tuple-backend.example.com",)
+        hosts = get_allowed_redirect_hosts(request, backend=backend)
+        self.assertEqual(hosts, {request.get_host(), "tuple-backend.example.com"})
+
+        # Backend setting with unsupported type (e.g. integer) is safely ignored (branch 260->263)
+        backend.setting.return_value = 12345
+        hosts = get_allowed_redirect_hosts(request, backend=backend)
+        self.assertEqual(hosts, {request.get_host()})
+
     def test_resolve_redirect_uri(self):
         request = self.factory.get("/")
         # Safe relative path
@@ -259,6 +306,39 @@ class TestUtils(TestCase):
         # Empty / None
         uri = resolve_redirect_uri(request, None, RedirectParamName.NEXT, "test_view")
         self.assertIsNone(uri)
+
+        # Global SOCIAL_AUTH_ALLOWED_REDIRECT_HOSTS setting honored (list)
+        with override_settings(SOCIAL_AUTH_ALLOWED_REDIRECT_HOSTS=["frontend.example.com"]):
+            uri = resolve_redirect_uri(
+                request,
+                "https://frontend.example.com/welcome",
+                RedirectParamName.NEXT,
+                "test_view",
+            )
+            self.assertEqual(uri, "https://frontend.example.com/welcome")
+
+        # Global SOCIAL_AUTH_ALLOWED_REDIRECT_HOSTS setting honored (single string)
+        with override_settings(SOCIAL_AUTH_ALLOWED_REDIRECT_HOSTS="single.example.com"):
+            uri = resolve_redirect_uri(
+                request,
+                "https://single.example.com/app",
+                RedirectParamName.NEXT,
+                "test_view",
+            )
+            self.assertEqual(uri, "https://single.example.com/app")
+
+        # Backend-specific ALLOWED_REDIRECT_HOSTS honored
+        backend = mock.MagicMock()
+        backend.setting.return_value = ["backend-host.example.com"]
+        uri = resolve_redirect_uri(
+            request,
+            "https://backend-host.example.com/callback",
+            RedirectParamName.NEXT,
+            "test_view",
+            backend=backend,
+        )
+        self.assertEqual(uri, "https://backend-host.example.com/callback")
+        backend.setting.assert_called_with("ALLOWED_REDIRECT_HOSTS", [])
 
     def test_apply_framing_protection(self):
         response = HttpResponse("test")
