@@ -2,7 +2,7 @@ from collections.abc import Container
 from enum import Enum
 from functools import wraps
 from typing import Any, Final
-from urllib.parse import urlencode, urlsplit
+from urllib.parse import urlsplit
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -68,22 +68,6 @@ class RedirectParamName(str, Enum):
 
     NEXT = "next"
     TARGET_LINK_URI = "target_link_uri"
-
-
-def build_url(base_url: str, query_params: dict | None = None) -> str:
-    """
-    Utility function to build a URL with query parameters.
-
-    Args:
-        base_url: The base URL to which query parameters will be appended.
-        query_params: A dictionary of query parameters to include in the URL.
-
-    Returns:
-        The complete URL with encoded query parameters.
-    """
-    if query_params:
-        return f"{base_url}?{urlencode(query_params)}"
-    return base_url
 
 
 def is_safe_url(

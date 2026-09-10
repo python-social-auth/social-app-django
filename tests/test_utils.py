@@ -6,7 +6,6 @@ from django.test import RequestFactory, TestCase, override_settings
 from social_django.utils import (
     RedirectParamName,
     apply_framing_protection,
-    build_url,
     check_fetch_metadata,
     get_allowed_redirect_hosts,
     get_backend_issuer,
@@ -21,22 +20,6 @@ from social_django.utils import (
 class TestUtils(TestCase):
     def setUp(self):
         self.factory = RequestFactory()
-
-    def test_build_url(self):
-        cases = [
-            ("http://example.com/path", {"a": "1", "b": "test"}, "http://example.com/path?a=1&b=test"),
-            (
-                "http://example.com",
-                {"next": "/protected/path/", "q": "hello world"},
-                "http://example.com?next=%2Fprotected%2Fpath%2F&q=hello+world",
-            ),
-            ("http://example.com/path/", {"a": "1"}, "http://example.com/path/?a=1"),
-            ("http://example.com/path", None, "http://example.com/path"),
-            ("http://example.com/path", {}, "http://example.com/path"),
-        ]
-        for base_url, query_params, expected in cases:
-            with self.subTest(base_url=base_url, query_params=query_params):
-                self.assertEqual(build_url(base_url, query_params), expected)
 
     def test_is_safe_url(self):
         cases = [
