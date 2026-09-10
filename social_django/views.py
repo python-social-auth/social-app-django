@@ -74,10 +74,10 @@ def idp_launch(request, backend):
     iss = request.GET.get("iss")
 
     # Layer 3: Parameter whitelisting — Verify the 'iss' query parameter against backend ID token issuer(s)
-    validated_iss, issuer_error = validate_idp_issuer(backend_obj, backend, iss)
-    if issuer_error:
-        social_logger.error(issuer_error)
-        raise BadRequest(issuer_error)
+    validated_iss, iss_error = validate_idp_issuer(backend_obj, backend, iss)
+    if iss_error:
+        social_logger.error("idp_launch: %s", iss_error)
+        raise BadRequest(iss_error)
 
     # Layer 2: Open redirect prevention — Validate target_link_uri against allowed hosts
     # before setting redirect parameter
@@ -92,7 +92,7 @@ def idp_launch(request, backend):
     # Layer 4: Authenticated session bypass — Skip authentication roundtrip if session is already authenticated
     user = getattr(request, "user", None)
     if user and user.is_authenticated:
-        redirect_to = safe_target_link_uri or getattr(settings, "LOGIN_REDIRECT_URL", "/accounts/profile/")
+        redirect_to = safe_target_link_uri or settings.LOGIN_REDIRECT_URL
         social_logger.info(
             "idp_launch: User `%s` already authenticated, redirecting to `%s`",
             user,
@@ -181,7 +181,7 @@ def app_launch(request, backend):
     # Layer 5: Authenticated session bypass — Skip authentication roundtrip if session is already authenticated
     user = getattr(request, "user", None)
     if user and user.is_authenticated:
-        redirect_to = safe_next_url or getattr(settings, "LOGIN_REDIRECT_URL", "/accounts/profile/")
+        redirect_to = safe_next_url or settings.LOGIN_REDIRECT_URL
         social_logger.info(
             "app_launch: User `%s` already authenticated, redirecting to `%s`",
             user,
@@ -193,17 +193,16 @@ def app_launch(request, backend):
     auto_submit, _ = check_fetch_metadata(request, "app_launch")
 
     # Select issuer (defaults to primary configured issuer or validated optional query param)
-    selected_issuer = configured_issuers[0]
+    validated_iss: str | None = configured_issuers[0]
     requested_iss = request.GET.get("iss")
     if requested_iss:
         validated_iss, iss_err = validate_idp_issuer(backend_obj, backend, requested_iss)
         if iss_err:
             social_logger.error("app_launch: %s", iss_err)
             raise BadRequest(iss_err)
-        selected_issuer = validated_iss
 
     # Whitelist parameters passed to social:begin
-    params = {"iss": selected_issuer}
+    params = {"iss": validated_iss}
     if safe_next_url:
         params[REDIRECT_FIELD_NAME] = safe_next_url
 
