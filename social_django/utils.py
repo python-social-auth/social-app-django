@@ -1,5 +1,5 @@
 from collections.abc import Container
-from enum import StrEnum
+from enum import Enum
 from functools import wraps
 from typing import Any, Final
 from urllib.parse import urlencode, urlsplit
@@ -63,7 +63,7 @@ SEC_FETCH_SITE_SAME_ORIGIN: Final[str] = "same-origin"
 BLOCKED_SEC_FETCH_MODES: Final[tuple[str, ...]] = ("iframe", "frame", "embed")
 
 
-class RedirectParamName(StrEnum):
+class RedirectParamName(str, Enum):
     """Query parameter names used for redirect targets across launch views."""
 
     NEXT = "next"
