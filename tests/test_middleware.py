@@ -257,3 +257,96 @@ class TestMiddleware(TestCase):
         self.assertTrue(isinstance(response, HttpResponseRedirect))
         self.assertEqual(response.url, "/login")
         mocked_error.assert_called_once()
+
+    @override_settings(
+        SOCIAL_AUTH_LOGIN_ERROR_URL="/login",
+        SOCIAL_AUTH_ERROR_TRANSPORT=[ErrorTransport.MESSAGES, ErrorTransport.QUERY],
+    )
+    @mock.patch("django.contrib.messages.error", side_effect=MessageFailure)
+    def test_message_failure_when_query_already_in_transports(self, mocked_error, mocked):
+        """Test MessageFailure fallback when QUERY is already enabled in transports."""
+        response = self.client.get(self.complete_url)
+        self.assertTrue(isinstance(response, HttpResponseRedirect))
+        self.assertEqual(
+            response.url,
+            "/login?message=Authentication%20process%20canceled&backend=facebook",
+        )
+
+    @mock.patch("django.apps.apps.is_installed", return_value=False)
+    @mock.patch("social_django.middleware.social_logger.error")
+    def test_dispatch_error_messages_without_messages_installed(self, mock_logger, mock_is_installed, mocked):
+        """Test dispatch_error logs error when messages app is not installed and query is disabled."""
+        rf = RequestFactory()
+        request = rf.get("/")
+        middleware = SocialAuthExceptionMiddleware(mock.Mock())
+        url = middleware.dispatch_error(
+            request,
+            transports=[ErrorTransport.MESSAGES],
+            url="/login",
+            message="Failed auth",
+            backend_name="facebook",
+        )
+        self.assertEqual(url, "/login")
+        mock_logger.assert_called_once_with("Failed auth")
+
+    @mock.patch("django.apps.apps.is_installed", return_value=False)
+    def test_dispatch_error_messages_not_installed_with_query_enabled(self, mock_is_installed, mocked):
+        """Test dispatch_error when messages app is not installed but query transport is enabled."""
+        rf = RequestFactory()
+        request = rf.get("/")
+        middleware = SocialAuthExceptionMiddleware(mock.Mock())
+        url = middleware.dispatch_error(
+            request,
+            transports=[ErrorTransport.MESSAGES, ErrorTransport.QUERY],
+            url="/login",
+            message="Failed auth",
+            backend_name="facebook",
+        )
+        self.assertEqual(
+            url,
+            "/login?message=Failed%20auth&backend=facebook",
+        )
+
+    def test_get_transport_modes_no_strategy(self, mocked):
+        """Test get_transport_modes returns DEFAULT_TRANSPORT when social_strategy is None."""
+        rf = RequestFactory()
+        request = rf.get("/")
+        middleware = SocialAuthExceptionMiddleware(mock.Mock())
+        modes = middleware.get_transport_modes(request)
+        self.assertEqual(modes, list(middleware.DEFAULT_TRANSPORT))
+
+    def test_get_transport_modes_non_iterable_raw_transport(self, mocked):
+        """Test get_transport_modes handles non-iterable, non-string configuration gracefully."""
+        rf = RequestFactory()
+        request = rf.get("/")
+        mock_strategy = mock.Mock()
+        mock_strategy.setting.return_value = 12345
+        request.social_strategy = mock_strategy
+        middleware = SocialAuthExceptionMiddleware(mock.Mock())
+        modes = middleware.get_transport_modes(request)
+        self.assertEqual(modes, list(middleware.DEFAULT_TRANSPORT))
+
+    def test_get_transport_modes_deduplication(self, mocked):
+        """Test get_transport_modes deduplicates candidate transports."""
+        rf = RequestFactory()
+        request = rf.get("/")
+        mock_strategy = mock.Mock()
+        mock_strategy.setting.return_value = ["query", "query", ErrorTransport.MESSAGES, "messages"]
+        request.social_strategy = mock_strategy
+        middleware = SocialAuthExceptionMiddleware(mock.Mock())
+        modes = middleware.get_transport_modes(request)
+        self.assertEqual(modes, [ErrorTransport.QUERY, ErrorTransport.MESSAGES])
+
+    def test_raise_exception_without_strategy(self, mocked):
+        """Test raise_exception returns None when social_strategy is None."""
+        rf = RequestFactory()
+        request = rf.get("/")
+        middleware = SocialAuthExceptionMiddleware(mock.Mock())
+        self.assertIsNone(middleware.raise_exception(request, Exception("error")))
+
+    def test_get_redirect_uri_without_strategy(self, mocked):
+        """Test get_redirect_uri returns None when social_strategy is None."""
+        rf = RequestFactory()
+        request = rf.get("/")
+        middleware = SocialAuthExceptionMiddleware(mock.Mock())
+        self.assertIsNone(middleware.get_redirect_uri(request, Exception("error")))
