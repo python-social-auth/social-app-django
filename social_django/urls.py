@@ -14,6 +14,9 @@ urlpatterns = [
     # authentication / association
     path(f"login/<str:backend>{extra}", views.auth, name="begin"),
     path(f"complete/<str:backend>{extra}", views.complete, name="complete"),
+    # launch endpoints
+    path(f"idp-launch/<str:backend>{extra}", views.idp_launch, name="idp_launch"),
+    path(f"app-launch/<str:backend>{extra}", views.app_launch, name="app_launch"),
     # disconnection
     path(f"disconnect/<str:backend>{extra}", views.disconnect, name="disconnect"),
     path(
