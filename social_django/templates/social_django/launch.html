@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Signing in...</title>
+  </head>
+  <body>
+    <form id="autoLoginForm" method="post" action="{{ action_url }}">
+      {% csrf_token %}
+      {% for key, value in params.items %}
+        <input type="hidden" name="{{ key }}" value="{{ value }}">
+      {% endfor %}
+      {% if auto_submit %}
+        <button type="submit">Sign In</button>
+      {% else %}
+        <p>Click below to continue signing in.</p>
+        <button type="submit">Next</button>
+      {% endif %}
+    </form>
+    {% if auto_submit %}
+      <script>
+        window.addEventListener('load', function () {
+          var form = document.getElementById('autoLoginForm');
+          if (form) {
+            form.submit();
+          }
+        });
+      </script>
+    {% endif %}
+  </body>
+</html>
