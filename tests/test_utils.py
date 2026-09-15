@@ -4,11 +4,13 @@ from django.http import HttpResponse
 from django.test import RequestFactory, TestCase, override_settings
 
 from social_django.utils import (
+    LaunchBridge,
     RedirectParamName,
     apply_framing_protection,
     check_fetch_metadata,
     get_allowed_redirect_hosts,
     get_backend_issuer,
+    is_launch_bridge_enabled,
     is_safe_url,
     is_valid_https_url,
     resolve_redirect_uri,
@@ -20,6 +22,52 @@ from social_django.utils import (
 class TestUtils(TestCase):
     def setUp(self):
         self.factory = RequestFactory()
+
+    def test_is_launch_bridge_enabled(self):
+        # Default setting is None (disabled)
+        self.assertFalse(is_launch_bridge_enabled(LaunchBridge.APP))
+        self.assertFalse(is_launch_bridge_enabled(LaunchBridge.IDP))
+
+        # Empty list/tuple/set is disabled
+        with override_settings(SOCIAL_AUTH_ENABLE_LAUNCH_BRIDGES=[]):
+            self.assertFalse(is_launch_bridge_enabled(LaunchBridge.APP))
+            self.assertFalse(is_launch_bridge_enabled(LaunchBridge.IDP))
+
+        # Both enabled with enums
+        with override_settings(SOCIAL_AUTH_ENABLE_LAUNCH_BRIDGES=[LaunchBridge.APP, LaunchBridge.IDP]):
+            self.assertTrue(is_launch_bridge_enabled(LaunchBridge.APP))
+            self.assertTrue(is_launch_bridge_enabled(LaunchBridge.IDP))
+            self.assertTrue(is_launch_bridge_enabled("app_launch"))
+            self.assertTrue(is_launch_bridge_enabled("idp_launch"))
+
+        # Both enabled with strings
+        with override_settings(SOCIAL_AUTH_ENABLE_LAUNCH_BRIDGES=["app_launch", "idp_launch"]):
+            self.assertTrue(is_launch_bridge_enabled(LaunchBridge.APP))
+            self.assertTrue(is_launch_bridge_enabled(LaunchBridge.IDP))
+
+        # Only App enabled (with enum)
+        with override_settings(SOCIAL_AUTH_ENABLE_LAUNCH_BRIDGES=[LaunchBridge.APP]):
+            self.assertTrue(is_launch_bridge_enabled(LaunchBridge.APP))
+            self.assertFalse(is_launch_bridge_enabled(LaunchBridge.IDP))
+
+        # Only IdP enabled (with string)
+        with override_settings(SOCIAL_AUTH_ENABLE_LAUNCH_BRIDGES=["idp_launch"]):
+            self.assertFalse(is_launch_bridge_enabled(LaunchBridge.APP))
+            self.assertTrue(is_launch_bridge_enabled(LaunchBridge.IDP))
+
+        # Single string / enum (not in list)
+        with override_settings(SOCIAL_AUTH_ENABLE_LAUNCH_BRIDGES="app_launch"):
+            self.assertTrue(is_launch_bridge_enabled(LaunchBridge.APP))
+            self.assertFalse(is_launch_bridge_enabled(LaunchBridge.IDP))
+
+        with override_settings(SOCIAL_AUTH_ENABLE_LAUNCH_BRIDGES=LaunchBridge.IDP):
+            self.assertFalse(is_launch_bridge_enabled(LaunchBridge.APP))
+            self.assertTrue(is_launch_bridge_enabled(LaunchBridge.IDP))
+
+        # Unsupported type (e.g. integer)
+        with override_settings(SOCIAL_AUTH_ENABLE_LAUNCH_BRIDGES=123):
+            self.assertFalse(is_launch_bridge_enabled(LaunchBridge.APP))
+            self.assertFalse(is_launch_bridge_enabled(LaunchBridge.IDP))
 
     def test_is_safe_url(self):
         cases = [

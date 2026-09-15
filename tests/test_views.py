@@ -7,6 +7,7 @@ from django.urls import reverse
 from social_core.backends.open_id_connect import OpenIdConnectAuth
 
 from social_django.models import UserSocialAuth
+from social_django.utils import LaunchBridge
 from social_django.views import get_session_timeout
 
 
@@ -143,6 +144,7 @@ class TestGetSessionTimeout(TestCase):
     SOCIAL_AUTH_MOCK_OIDC_ID_TOKEN_ISSUER="https://idp.example.com",  # noqa: S106
     SOCIAL_AUTH_FACEBOOK_KEY="1",
     SOCIAL_AUTH_FACEBOOK_SECRET="2",  # noqa: S106
+    SOCIAL_AUTH_ENABLE_LAUNCH_BRIDGES=[LaunchBridge.APP, LaunchBridge.IDP],
 )
 class TestLaunchViews(TestCase):
     def test_idp_launch_renders_form(self):
@@ -412,3 +414,45 @@ class TestLaunchViews(TestCase):
         )
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, "/my-dashboard")
+
+    @override_settings(SOCIAL_AUTH_ENABLE_LAUNCH_BRIDGES=None)
+    def test_launch_bridges_disabled_by_default(self):
+        idp_url = reverse("social:idp_launch", kwargs={"backend": "mock-oidc"})
+        app_url = reverse("social:app_launch", kwargs={"backend": "mock-oidc"})
+        self.assertEqual(self.client.get(idp_url, {"iss": "https://idp.example.com"}).status_code, 404)
+        self.assertEqual(self.client.get(app_url, headers={"sec-fetch-site": "same-origin"}).status_code, 404)
+
+    @override_settings(SOCIAL_AUTH_ENABLE_LAUNCH_BRIDGES=[])
+    def test_launch_bridges_disabled_when_empty_list(self):
+        idp_url = reverse("social:idp_launch", kwargs={"backend": "mock-oidc"})
+        app_url = reverse("social:app_launch", kwargs={"backend": "mock-oidc"})
+        self.assertEqual(self.client.get(idp_url, {"iss": "https://idp.example.com"}).status_code, 404)
+        self.assertEqual(self.client.get(app_url, headers={"sec-fetch-site": "same-origin"}).status_code, 404)
+
+    @override_settings(SOCIAL_AUTH_ENABLE_LAUNCH_BRIDGES=[LaunchBridge.APP])
+    def test_only_app_launch_enabled(self):
+        idp_url = reverse("social:idp_launch", kwargs={"backend": "mock-oidc"})
+        app_url = reverse("social:app_launch", kwargs={"backend": "mock-oidc"})
+        self.assertEqual(self.client.get(idp_url, {"iss": "https://idp.example.com"}).status_code, 404)
+        self.assertEqual(self.client.get(app_url, headers={"sec-fetch-site": "same-origin"}).status_code, 200)
+
+    @override_settings(SOCIAL_AUTH_ENABLE_LAUNCH_BRIDGES=[LaunchBridge.IDP])
+    def test_only_idp_launch_enabled(self):
+        idp_url = reverse("social:idp_launch", kwargs={"backend": "mock-oidc"})
+        app_url = reverse("social:app_launch", kwargs={"backend": "mock-oidc"})
+        self.assertEqual(self.client.get(idp_url, {"iss": "https://idp.example.com"}).status_code, 200)
+        self.assertEqual(self.client.get(app_url, headers={"sec-fetch-site": "same-origin"}).status_code, 404)
+
+    @override_settings(SOCIAL_AUTH_ENABLE_LAUNCH_BRIDGES=["app_launch"])
+    def test_only_app_launch_enabled_with_string(self):
+        idp_url = reverse("social:idp_launch", kwargs={"backend": "mock-oidc"})
+        app_url = reverse("social:app_launch", kwargs={"backend": "mock-oidc"})
+        self.assertEqual(self.client.get(idp_url, {"iss": "https://idp.example.com"}).status_code, 404)
+        self.assertEqual(self.client.get(app_url, headers={"sec-fetch-site": "same-origin"}).status_code, 200)
+
+    @override_settings(SOCIAL_AUTH_ENABLE_LAUNCH_BRIDGES=["idp_launch"])
+    def test_only_idp_launch_enabled_with_string(self):
+        idp_url = reverse("social:idp_launch", kwargs={"backend": "mock-oidc"})
+        app_url = reverse("social:app_launch", kwargs={"backend": "mock-oidc"})
+        self.assertEqual(self.client.get(idp_url, {"iss": "https://idp.example.com"}).status_code, 200)
+        self.assertEqual(self.client.get(app_url, headers={"sec-fetch-site": "same-origin"}).status_code, 404)

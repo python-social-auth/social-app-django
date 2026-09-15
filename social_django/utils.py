@@ -70,6 +70,32 @@ class RedirectParamName(str, Enum):
     TARGET_LINK_URI = "target_link_uri"
 
 
+class LaunchBridge(str, Enum):
+    """Launch bridges that can be enabled via SOCIAL_AUTH_ENABLE_LAUNCH_BRIDGES."""
+
+    APP = "app_launch"
+    IDP = "idp_launch"
+
+
+def is_launch_bridge_enabled(bridge: LaunchBridge | str) -> bool:
+    """
+    Checks if a launch bridge is enabled via the SOCIAL_AUTH_ENABLE_LAUNCH_BRIDGES setting.
+    """
+    enabled_bridges = getattr(settings, "SOCIAL_AUTH_ENABLE_LAUNCH_BRIDGES", None)
+    if not enabled_bridges:
+        return False
+
+    bridge_value = bridge.value if isinstance(bridge, LaunchBridge) else bridge
+    if isinstance(enabled_bridges, (str, LaunchBridge)):
+        enabled_list: list[Any] = [enabled_bridges]
+    elif isinstance(enabled_bridges, (list, tuple, set)):
+        enabled_list = list(enabled_bridges)
+    else:
+        return False
+
+    return any((b.value if isinstance(b, LaunchBridge) else b) == bridge_value for b in enabled_list)
+
+
 def is_safe_url(
     url: str | None,
     allowed_hosts: Container[str] | None = None,

@@ -2,6 +2,7 @@ from django.conf import settings
 from django.contrib.auth import REDIRECT_FIELD_NAME, login
 from django.contrib.auth.decorators import login_not_required, login_required
 from django.core.exceptions import BadRequest
+from django.http import Http404
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.views.decorators.cache import never_cache
@@ -12,10 +13,12 @@ from social_core.actions import do_auth, do_complete, do_disconnect
 from social_core.utils import setting_name, social_logger
 
 from .utils import (
+    LaunchBridge,
     RedirectParamName,
     apply_framing_protection,
     check_fetch_metadata,
     get_backend_issuer,
+    is_launch_bridge_enabled,
     psa,
     resolve_redirect_uri,
     validate_app_launch_origin,
@@ -67,9 +70,13 @@ def idp_launch(request, backend):
         redirecting authenticated users.
 
     Raises:
+        Http404: If the IDP launch bridge is not enabled.
         BadRequest: If the ID token issuer URL is invalid.
         BadRequest: If the `iss` parameter doesn't match the configured ID token issuer(s).
     """
+    if not is_launch_bridge_enabled(LaunchBridge.IDP):
+        raise Http404
+
     backend_obj = request.backend
     iss = request.GET.get("iss")
 
@@ -154,9 +161,13 @@ def app_launch(request, backend):
         redirecting authenticated users.
 
     Raises:
+        Http404: If the App launch bridge is not enabled.
         BadRequest: If origin or referer validation fails.
         BadRequest: If the backend does not support ID token issuer validation or the requested issuer is invalid.
     """
+    if not is_launch_bridge_enabled(LaunchBridge.APP):
+        raise Http404
+
     # Layer 1 & 2: Origin and Referer validation — Verify same-origin Sec-Fetch-Site and allowed Referer
     is_valid_origin, origin_error = validate_app_launch_origin(request)
     if not is_valid_origin:
