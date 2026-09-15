@@ -36,7 +36,7 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
 
-    - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+    - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
       with:
         cache-suffix: ${{ matrix.python-version }}
 
@@ -60,7 +60,7 @@ jobs:
         uvx coverage combine
         uvx coverage xml
 
-    - uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+    - uses: codecov/codecov-action@0b35c9ecc4f0529d0eb674914510c22f85b196b4 # v7.1.0
       with:
         flags: unittests
         name: Python ${{ matrix.python-version }}
