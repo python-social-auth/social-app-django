@@ -8,7 +8,7 @@ from django.test import AsyncRequestFactory, RequestFactory, TestCase, override_
 from django.urls import reverse
 from social_core.exceptions import AuthCanceled
 
-from social_django.middleware import SocialAuthExceptionMiddleware
+from social_django.middleware import ErrorTransport, SocialAuthExceptionMiddleware
 
 
 class MockAuthCanceled(AuthCanceled):
@@ -100,3 +100,253 @@ class TestMiddleware(TestCase):
         with self.assertRaises(MockAuthCanceled):
             self.client.get(self.complete_url)
         logging.disable(logging.NOTSET)
+
+    @override_settings(
+        SOCIAL_AUTH_LOGIN_ERROR_URL="/login",
+        SOCIAL_AUTH_ERROR_TRANSPORT=[ErrorTransport.QUERY],
+    )
+    @mock.patch("django.contrib.messages.error")
+    def test_error_transport_query(self, mocked_error, mocked):
+        """Test query parameter transport redirects with query parameters and skips messages."""
+        response = self.client.get(self.complete_url)
+        self.assertTrue(isinstance(response, HttpResponseRedirect))
+        self.assertEqual(
+            response.url,
+            "/login?message=Authentication%20process%20canceled&backend=facebook",
+        )
+        mocked_error.assert_not_called()
+
+    @override_settings(
+        SOCIAL_AUTH_LOGIN_ERROR_URL="/login",
+        SOCIAL_AUTH_ERROR_TRANSPORT="query",
+    )
+    def test_error_transport_query_as_string(self, mocked):
+        """Test query parameter transport configured as a string value."""
+        response = self.client.get(self.complete_url)
+        self.assertTrue(isinstance(response, HttpResponseRedirect))
+        self.assertEqual(
+            response.url,
+            "/login?message=Authentication%20process%20canceled&backend=facebook",
+        )
+
+    @override_settings(
+        SOCIAL_AUTH_LOGIN_ERROR_URL="/login",
+        SOCIAL_AUTH_ERROR_TRANSPORT=[ErrorTransport.MESSAGES],
+        SOCIAL_AUTH_FACEBOOK_ERROR_TRANSPORT=[ErrorTransport.QUERY],
+    )
+    def test_backend_specific_error_transport(self, mocked):
+        """Test backend-specific ERROR_TRANSPORT override."""
+        response = self.client.get(self.complete_url)
+        self.assertTrue(isinstance(response, HttpResponseRedirect))
+        self.assertEqual(
+            response.url,
+            "/login?message=Authentication%20process%20canceled&backend=facebook",
+        )
+
+    @override_settings(
+        SOCIAL_AUTH_LOGIN_ERROR_URL="/login",
+        SOCIAL_AUTH_ERROR_TRANSPORT=[ErrorTransport.MESSAGES, ErrorTransport.QUERY],
+    )
+    @mock.patch("django.contrib.messages.error")
+    def test_error_transport_multiple(self, mocked_error, mocked):
+        """Test configuring multiple transports (both messages and query)."""
+        response = self.client.get(self.complete_url)
+        self.assertTrue(isinstance(response, HttpResponseRedirect))
+        self.assertEqual(
+            response.url,
+            "/login?message=Authentication%20process%20canceled&backend=facebook",
+        )
+        mocked_error.assert_called_once()
+
+    @override_settings(
+        SOCIAL_AUTH_LOGIN_ERROR_URL="/login",
+        SOCIAL_AUTH_ERROR_TRANSPORT=[ErrorTransport.QUERY],
+        SOCIAL_AUTH_ERROR_PARAM_NAME="err",
+        SOCIAL_AUTH_BACKEND_PARAM_NAME="auth_backend",
+    )
+    def test_custom_param_names_via_settings(self, mocked):
+        """Test configuring custom query parameter names via Django settings."""
+        response = self.client.get(self.complete_url)
+        self.assertTrue(isinstance(response, HttpResponseRedirect))
+        self.assertEqual(
+            response.url,
+            "/login?err=Authentication%20process%20canceled&auth_backend=facebook",
+        )
+
+    @override_settings(
+        SOCIAL_AUTH_LOGIN_ERROR_URL="/login",
+        SOCIAL_AUTH_ERROR_TRANSPORT=[ErrorTransport.QUERY],
+        SOCIAL_AUTH_FACEBOOK_ERROR_PARAM_NAME="fb_err",
+        SOCIAL_AUTH_FACEBOOK_BACKEND_PARAM_NAME="fb_backend",
+    )
+    def test_backend_specific_custom_param_names(self, mocked):
+        """Test backend-specific custom query parameter names."""
+        response = self.client.get(self.complete_url)
+        self.assertTrue(isinstance(response, HttpResponseRedirect))
+        self.assertEqual(
+            response.url,
+            "/login?fb_err=Authentication%20process%20canceled&fb_backend=facebook",
+        )
+
+    def test_custom_param_names_via_subclass(self, mocked):
+        """Test custom parameter names configured via subclass attributes."""
+
+        class CustomMiddleware(SocialAuthExceptionMiddleware):
+            ERROR_PARAM_NAME = "custom_err"
+            BACKEND_PARAM_NAME = "custom_be"
+
+        rf = RequestFactory()
+        request = rf.get("/")
+        middleware = CustomMiddleware(mock.Mock())
+        result_url = middleware.append_query_params(request, "/login", "failed", "google")
+        self.assertEqual(result_url, "/login?custom_err=failed&custom_be=google")
+
+    def test_append_query_params_preserves_existing_params_and_overwrites(self, mocked):
+        """Test append_query_params preserves other params and overwrites duplicate error params."""
+        rf = RequestFactory()
+        request = rf.get("/")
+        middleware = SocialAuthExceptionMiddleware(mock.Mock())
+
+        # Preserves existing parameters
+        url = middleware.append_query_params(request, "/login?next=/dashboard&mode=dark", "Error msg", "twitter")
+        self.assertEqual(
+            url,
+            "/login?next=%2Fdashboard&mode=dark&message=Error%20msg&backend=twitter",
+        )
+
+        # Overwrites existing message and backend parameters
+        overwrite_url = middleware.append_query_params(
+            request,
+            "/login?message=old_error&backend=old_backend&keep=1",
+            "New error",
+            "github",
+        )
+        self.assertEqual(
+            overwrite_url,
+            "/login?keep=1&message=New%20error&backend=github",
+        )
+
+    def test_append_query_params_preserves_url_fragment(self, mocked):
+        """Test append_query_params places query parameters before URL fragment."""
+        rf = RequestFactory()
+        request = rf.get("/")
+        middleware = SocialAuthExceptionMiddleware(mock.Mock())
+
+        url = middleware.append_query_params(request, "/login/#/auth-callback", "Canceled", "facebook")
+        self.assertEqual(
+            url,
+            "/login/?message=Canceled&backend=facebook#/auth-callback",
+        )
+
+    def test_append_query_params_empty_url(self, mocked):
+        """Test append_query_params handles empty or None URL gracefully."""
+        rf = RequestFactory()
+        request = rf.get("/")
+        middleware = SocialAuthExceptionMiddleware(mock.Mock())
+        self.assertIsNone(middleware.append_query_params(request, None, "msg", "be"))
+        self.assertEqual(middleware.append_query_params(request, "", "msg", "be"), "")
+
+    @override_settings(
+        SOCIAL_AUTH_LOGIN_ERROR_URL="/login",
+        SOCIAL_AUTH_ERROR_TRANSPORT=["invalid_transport"],
+    )
+    @mock.patch("django.contrib.messages.error")
+    def test_invalid_error_transport_fallback(self, mocked_error, mocked):
+        """Test unrecognized transport falls back to DEFAULT_TRANSPORT (messages)."""
+        response = self.client.get(self.complete_url)
+        self.assertTrue(isinstance(response, HttpResponseRedirect))
+        self.assertEqual(response.url, "/login")
+        mocked_error.assert_called_once()
+
+    @override_settings(
+        SOCIAL_AUTH_LOGIN_ERROR_URL="/login",
+        SOCIAL_AUTH_ERROR_TRANSPORT=[ErrorTransport.MESSAGES, ErrorTransport.QUERY],
+    )
+    @mock.patch("django.contrib.messages.error", side_effect=MessageFailure)
+    def test_message_failure_when_query_already_in_transports(self, mocked_error, mocked):
+        """Test MessageFailure fallback when QUERY is already enabled in transports."""
+        response = self.client.get(self.complete_url)
+        self.assertTrue(isinstance(response, HttpResponseRedirect))
+        self.assertEqual(
+            response.url,
+            "/login?message=Authentication%20process%20canceled&backend=facebook",
+        )
+
+    @mock.patch("django.apps.apps.is_installed", return_value=False)
+    @mock.patch("social_django.middleware.social_logger.error")
+    def test_dispatch_error_messages_without_messages_installed(self, mock_logger, mock_is_installed, mocked):
+        """Test dispatch_error logs error when messages app is not installed and query is disabled."""
+        rf = RequestFactory()
+        request = rf.get("/")
+        middleware = SocialAuthExceptionMiddleware(mock.Mock())
+        url = middleware.dispatch_error(
+            request,
+            transports=[ErrorTransport.MESSAGES],
+            url="/login",
+            message="Failed auth",
+            backend_name="facebook",
+        )
+        self.assertEqual(url, "/login")
+        mock_logger.assert_called_once_with("Failed auth")
+
+    @mock.patch("django.apps.apps.is_installed", return_value=False)
+    def test_dispatch_error_messages_not_installed_with_query_enabled(self, mock_is_installed, mocked):
+        """Test dispatch_error when messages app is not installed but query transport is enabled."""
+        rf = RequestFactory()
+        request = rf.get("/")
+        middleware = SocialAuthExceptionMiddleware(mock.Mock())
+        url = middleware.dispatch_error(
+            request,
+            transports=[ErrorTransport.MESSAGES, ErrorTransport.QUERY],
+            url="/login",
+            message="Failed auth",
+            backend_name="facebook",
+        )
+        self.assertEqual(
+            url,
+            "/login?message=Failed%20auth&backend=facebook",
+        )
+
+    def test_get_transport_modes_no_strategy(self, mocked):
+        """Test get_transport_modes returns DEFAULT_TRANSPORT when social_strategy is None."""
+        rf = RequestFactory()
+        request = rf.get("/")
+        middleware = SocialAuthExceptionMiddleware(mock.Mock())
+        modes = middleware.get_transport_modes(request)
+        self.assertEqual(modes, list(middleware.DEFAULT_TRANSPORT))
+
+    def test_get_transport_modes_non_iterable_raw_transport(self, mocked):
+        """Test get_transport_modes handles non-iterable, non-string configuration gracefully."""
+        rf = RequestFactory()
+        request = rf.get("/")
+        mock_strategy = mock.Mock()
+        mock_strategy.setting.return_value = 12345
+        request.social_strategy = mock_strategy
+        middleware = SocialAuthExceptionMiddleware(mock.Mock())
+        modes = middleware.get_transport_modes(request)
+        self.assertEqual(modes, list(middleware.DEFAULT_TRANSPORT))
+
+    def test_get_transport_modes_deduplication(self, mocked):
+        """Test get_transport_modes deduplicates candidate transports."""
+        rf = RequestFactory()
+        request = rf.get("/")
+        mock_strategy = mock.Mock()
+        mock_strategy.setting.return_value = ["query", "query", ErrorTransport.MESSAGES, "messages"]
+        request.social_strategy = mock_strategy
+        middleware = SocialAuthExceptionMiddleware(mock.Mock())
+        modes = middleware.get_transport_modes(request)
+        self.assertEqual(modes, [ErrorTransport.QUERY, ErrorTransport.MESSAGES])
+
+    def test_raise_exception_without_strategy(self, mocked):
+        """Test raise_exception returns None when social_strategy is None."""
+        rf = RequestFactory()
+        request = rf.get("/")
+        middleware = SocialAuthExceptionMiddleware(mock.Mock())
+        self.assertIsNone(middleware.raise_exception(request, Exception("error")))
+
+    def test_get_redirect_uri_without_strategy(self, mocked):
+        """Test get_redirect_uri returns None when social_strategy is None."""
+        rf = RequestFactory()
+        request = rf.get("/")
+        middleware = SocialAuthExceptionMiddleware(mock.Mock())
+        self.assertIsNone(middleware.get_redirect_uri(request, Exception("error")))
