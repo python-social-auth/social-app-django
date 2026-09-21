@@ -51,7 +51,7 @@ repos:
     additional_dependencies:
     - tomli
 - repo: https://github.com/kjanat/actionlint
-  rev: v1.17
+  rev: github-actions-expressions-of-concern
   hooks:
   - id: actionlint
 - repo: https://github.com/zizmorcore/zizmor-pre-commit
