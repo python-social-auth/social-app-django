@@ -93,9 +93,23 @@ class TestUtils(TestCase):
             # Malformed URL causing ValueError in urlsplit
             ("http://[::1", {"example.com"}, False, False),
             ("http://[::1]:bad_port/", {"example.com"}, False, False),
+            # Multi-slash and malformed authority bypass attempts
+            ("///evil.example", {"example.com"}, False, False),
+            ("////evil.example", {"example.com"}, False, False),
+            ("https:///evil.example", {"example.com"}, False, False),
+            ("http:///evil.example", {"example.com"}, False, False),
+            ("https:////evil.example", {"example.com"}, False, False),
+            ("https:/evil.example", {"example.com"}, False, False),
+            ("http:/evil.example", {"example.com"}, False, False),
+            # Control characters
+            ("\x00/dashboard", {"example.com"}, False, False),
+            # Protocol-relative URLs with require_https
+            ("//example.com/profile", {"example.com"}, True, False),
+            ("//example.com/profile", {"example.com"}, False, True),
             # None or invalid types
             (None, {"example.com"}, False, False),
             ("", {"example.com"}, False, False),
+            ("   ", {"example.com"}, False, False),
         ]
         for url, allowed_hosts, require_https, expected in cases:
             with self.subTest(url=url, allowed_hosts=allowed_hosts, require_https=require_https):

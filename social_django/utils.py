@@ -1,3 +1,4 @@
+import unicodedata
 from collections.abc import Container
 from enum import Enum
 from functools import wraps
@@ -109,6 +110,8 @@ def is_safe_url(
     - Or its host is present in `allowed_hosts`
     - It does not use unsafe schemes (javascript:, data:, etc.)
     - It does not contain backslashes or protocol-relative trickery without allowed hosts.
+    - It does not contain multiple leading slashes (e.g. '///evil.example')
+    - It does not have a scheme without a netloc (e.g. 'https:///evil.example')
 
     Args:
         url: The URL string to validate.
@@ -118,27 +121,46 @@ def is_safe_url(
     Returns:
         True if safe for redirection, False otherwise.
     """
+    # Disallow non-strings, empty inputs, and backslashes (browsers treat '\' as '/'
+    # allowing bypasses like '/\evil.com' or '\evil.com')
     if not url or not isinstance(url, str) or "\\" in url:
         return False
 
     url = url.strip()
+    # Reject empty URLs, URLs starting with control characters (which browsers strip,
+    # potentially converting a path into a protocol-relative URL), and paths starting
+    # with 3+ slashes (which urlsplit treats as path with empty netloc, but browsers
+    # normalize into host redirects like '///evil.example' -> 'evil.example')
+    if not url or unicodedata.category(url[0])[0] == "C" or url.startswith("///"):
+        return False
 
+    # Guard against malformed URLs that cause urlsplit to fail (e.g. invalid IPv6 brackets)
     try:
         parsed = urlsplit(url)
     except ValueError:
         return False
 
-    # Disallow schemes other than http and https
-    if parsed.scheme and (parsed.scheme not in ("http", "https") or (require_https and parsed.scheme != "https")):
+    # Validate scheme and authority consistency:
+    # - Only http/https are allowed (rejects javascript:, data:, etc.)
+    # - Schemes must have a non-empty netloc; forbids URLs like 'https:///evil.example'
+    #   or 'https:/evil.example' where urlsplit leaves netloc empty but browsers resolve
+    #   the path to a hostname
+    # - Protocol-relative URLs (e.g. '//example.com') have no scheme and are rejected
+    #   when HTTPS is required
+    valid_schemes = ("https",) if require_https else ("http", "https")
+    scheme_valid = (
+        (parsed.scheme in valid_schemes and bool(parsed.netloc))
+        if parsed.scheme
+        else not (parsed.netloc and require_https)
+    )
+    if not scheme_valid:
         return False
 
-    # Netloc indicates an absolute or protocol-relative URL
+    # If the URL specifies a host (absolute or protocol-relative), it must match allowed_hosts
     if parsed.netloc:
-        if not allowed_hosts:
-            return False
+        allowed = allowed_hosts or ()
         hostname = parsed.hostname or ""
-        if parsed.netloc not in allowed_hosts and hostname not in allowed_hosts:
-            return False
+        return parsed.netloc in allowed or hostname in allowed
 
     return True
 
