@@ -1,8 +1,7 @@
 import unicodedata
 from collections.abc import Container
-from enum import Enum
 from functools import wraps
-from typing import Any, Final
+from typing import Any
 from urllib.parse import urlsplit
 
 from django.conf import settings
@@ -12,6 +11,14 @@ from django.http import Http404, HttpRequest, HttpResponse
 from django.urls import reverse
 from social_core.exceptions import MissingBackend
 from social_core.utils import get_strategy, module_member, setting_name, social_logger
+
+from .constants import (
+    BLOCKED_SEC_FETCH_MODES,
+    SEC_FETCH_DEST_DOCUMENT,
+    SEC_FETCH_SITE_SAME_ORIGIN,
+    LaunchBridge,
+    RedirectParamName,
+)
 
 STRATEGY = getattr(settings, setting_name("STRATEGY"), "social_django.strategy.DjangoStrategy")
 STORAGE = getattr(settings, setting_name("STORAGE"), "social_django.models.DjangoStorage")
@@ -56,26 +63,6 @@ def psa(redirect_uri=None, load_strategy=load_strategy):
 #
 # Launch & Fetch Metadata Utilities
 #
-#: Expected Sec-Fetch-Dest header for top-level document navigation
-SEC_FETCH_DEST_DOCUMENT: Final[str] = "document"
-#: Expected Sec-Fetch-Site header for app-initiated same-origin requests
-SEC_FETCH_SITE_SAME_ORIGIN: Final[str] = "same-origin"
-#: Blocked Sec-Fetch-Mode headers that indicate framing or embedding
-BLOCKED_SEC_FETCH_MODES: Final[tuple[str, ...]] = ("iframe", "frame", "embed")
-
-
-class RedirectParamName(str, Enum):
-    """Query parameter names used for redirect targets across launch views."""
-
-    NEXT = "next"
-    TARGET_LINK_URI = "target_link_uri"
-
-
-class LaunchBridge(str, Enum):
-    """Launch bridges that can be enabled via SOCIAL_AUTH_ENABLE_LAUNCH_BRIDGES."""
-
-    APP = "app_launch"
-    IDP = "idp_launch"
 
 
 def is_launch_bridge_enabled(bridge: LaunchBridge | str) -> bool:

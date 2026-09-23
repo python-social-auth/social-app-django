@@ -12,9 +12,8 @@ from django.views.decorators.http import require_GET, require_POST
 from social_core.actions import do_auth, do_complete, do_disconnect
 from social_core.utils import setting_name, social_logger
 
+from .constants import LaunchBridge, RedirectParamName
 from .utils import (
-    LaunchBridge,
-    RedirectParamName,
     apply_framing_protection,
     check_fetch_metadata,
     get_backend_issuer,
