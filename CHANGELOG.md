@@ -5,13 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
-## [Unreleased]
+## [6.1.0](https://github.com/python-social-auth/social-app-django/releases/tag/6.1.0) - 2026-09-30
 
 ### Added
 
 - Pass the current Django user to the social-core authentication initiation hook.
 - Added configurable error transport (`ErrorTransport.MESSAGES`, `ErrorTransport.QUERY`) via `SOCIAL_AUTH_ERROR_TRANSPORT` to `SocialAuthExceptionMiddleware`.
 - Add secure GET-to-POST bridge endpoints (`idp-launch/` and `app-launch/`) to re-enable GET initiation flows into CSRF-protected `social:begin`.
+
+### Fixed
+
+- Preserve the Django request during authentication when partial pipeline data contains a request argument.
+- Use an explicit related field in the social authentication admin to avoid a Django 6.0 deprecation warning.
 
 ## [6.0.1](https://github.com/python-social-auth/social-app-django/releases/tag/6.0.1) - 2026-07-24
 
