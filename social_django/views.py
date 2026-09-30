@@ -36,7 +36,7 @@ DEFAULT_SESSION_TIMEOUT = None
 @require_POST
 @psa(f"{NAMESPACE}:complete")
 def auth(request, backend):
-    return do_auth(request.backend, redirect_name=REDIRECT_FIELD_NAME)
+    return do_auth(request.backend, redirect_name=REDIRECT_FIELD_NAME, user=request.user)
 
 
 @never_cache
