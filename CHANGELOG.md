@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 
+- Pass the current Django user to the social-core authentication initiation hook.
 - Added configurable error transport (`ErrorTransport.MESSAGES`, `ErrorTransport.QUERY`) via `SOCIAL_AUTH_ERROR_TRANSPORT` to `SocialAuthExceptionMiddleware`.
 - Add secure GET-to-POST bridge endpoints (`idp-launch/` and `app-launch/`) to re-enable GET initiation flows into CSRF-protected `social:begin`.
 

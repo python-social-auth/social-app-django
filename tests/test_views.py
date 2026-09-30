@@ -1,7 +1,7 @@
 from unittest import mock
 
 from django.contrib.auth import get_user_model
-from django.contrib.auth.models import AbstractBaseUser
+from django.contrib.auth.models import AbstractBaseUser, AnonymousUser
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from social_core.backends.open_id_connect import OpenIdConnectAuth
@@ -32,6 +32,25 @@ class TestViews(TestCase):
         url = reverse("social:begin", kwargs={"backend": "blabla"})
         response = self.client.post(url)
         self.assertEqual(response.status_code, 404)
+
+    def test_begin_view_passes_authenticated_user_to_prepare_auth(self):
+        user = get_user_model()._default_manager.create_user(username="begin_tester")  # noqa: SLF001
+        self.client.force_login(user)
+
+        with mock.patch("social_core.backends.base.BaseAuth.prepare_auth") as prepare_auth:
+            response = self.client.post(reverse("social:begin", kwargs={"backend": "facebook"}))
+
+        self.assertEqual(response.status_code, 302)
+        prepare_auth.assert_called_once()
+        self.assertEqual(prepare_auth.call_args.kwargs["user"].pk, user.pk)
+
+    def test_begin_view_passes_anonymous_user_to_prepare_auth(self):
+        with mock.patch("social_core.backends.base.BaseAuth.prepare_auth") as prepare_auth:
+            response = self.client.post(reverse("social:begin", kwargs={"backend": "facebook"}))
+
+        self.assertEqual(response.status_code, 302)
+        prepare_auth.assert_called_once()
+        self.assertIsInstance(prepare_auth.call_args.kwargs["user"], AnonymousUser)
 
     def test_begin_view_requires_post(self):
         response = self.client.get(reverse("social:begin", kwargs={"backend": "facebook"}))
