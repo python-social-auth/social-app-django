@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import base64
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from django.conf import settings
 from django.core.exceptions import FieldDoesNotExist
 from django.db import router, transaction
+from django.db.models import CharField
+from django.db.models.fields.json import KeyTextTransform
+from django.db.models.functions import Cast
 from django.db.utils import IntegrityError
 from social_core.exceptions import AuthAlreadyAssociated
 from social_core.storage import (
@@ -47,6 +50,15 @@ if TYPE_CHECKING:
         lifetime: int
         assoc_type: str
 
+    class _DjangoSocialAuth(Model):
+        provider: str
+        uid: str
+        id_key: str
+        extra_data: dict
+
+    class _DjangoSocialAuthManager(Manager[_DjangoSocialAuth]):
+        """Manager whose querysets contain social-auth associations."""
+
 
 class DjangoUserMixin(UserMixin):
     """Social Auth association model"""
@@ -60,8 +72,8 @@ class DjangoUserMixin(UserMixin):
         raise NotImplementedError
 
     @classmethod
-    def _manager(cls) -> Manager[Model]:
-        return cls.objects
+    def _manager(cls) -> _DjangoSocialAuthManager:
+        return cast("_DjangoSocialAuthManager", cls.objects)
 
     @classmethod
     def changed(cls, user):
@@ -157,13 +169,38 @@ class DjangoUserMixin(UserMixin):
         return cls.filter_active_users(**{f"{email_field}__iexact": email})
 
     @classmethod
-    def get_social_auth(cls, provider, uid):
+    def get_social_auth(cls, provider, uid, id_key=None):
         if not isinstance(uid, str):
             uid = str(uid)
-        try:
-            return cls._manager().get(provider=provider, uid=uid)
-        except cls.DoesNotExist:
-            return None
+        query = cls._manager().filter(provider=provider, uid=uid)
+        if id_key is not None:
+            query = query.filter(id_key=id_key)
+        for social in query:
+            if social.uid == uid and (id_key is None or social.id_key == id_key):
+                return social
+        return None
+
+    @classmethod
+    def get_social_auth_by_extra_data(cls, provider, key, value, id_key=""):
+        matches = []
+        query = (
+            cls._manager()
+            .filter(provider=provider, id_key=id_key)
+            .annotate(_social_auth_identifier=Cast(KeyTextTransform(key, "extra_data"), CharField()))
+            .filter(_social_auth_identifier=str(value))
+        )
+        for social in query:
+            if (
+                social.provider == provider
+                and social.id_key == id_key
+                and key in social.extra_data
+                and str(social.extra_data[key]) == str(value)
+            ):
+                matches.append(social)
+                if len(matches) > 1:
+                    msg = "Multiple social-auth associations matched extra data"
+                    raise ValueError(msg)
+        return matches[0] if matches else None
 
     @classmethod
     def get_social_auth_for_user(cls, user, provider=None, id=None):  # noqa: A002
@@ -177,7 +214,7 @@ class DjangoUserMixin(UserMixin):
         return qs
 
     @classmethod
-    def create_social_auth(cls, user, uid, provider):
+    def create_social_auth(cls, user, uid, provider, id_key=""):
         if not isinstance(uid, str):
             uid = str(uid)
         # If the create fails below due to an IntegrityError, ensure that the transaction
@@ -185,7 +222,31 @@ class DjangoUserMixin(UserMixin):
         manager = cls._manager()
         using = router.db_for_write(manager.model)
         with transaction.atomic(using=using):
-            return manager.create(user=user, uid=uid, provider=provider)
+            return manager.create(user=user, uid=uid, provider=provider, id_key=id_key)
+
+    @classmethod
+    def migrate_social_auth(cls, social, uid, id_key):
+        manager = cls._manager()
+        uid = str(uid)
+        verified_extra_data = id_key in social.extra_data and str(social.extra_data[id_key]) == uid
+        using = router.db_for_write(manager.model, instance=social)
+        with transaction.atomic(using=using):
+            query = manager.using(using)
+            locked = query.select_for_update().get(pk=social.pk)
+            if locked.uid != social.uid or locked.id_key != social.id_key:
+                msg = "Social-auth association changed during identifier migration"
+                raise IntegrityError(msg)
+            if verified_extra_data and (id_key not in locked.extra_data or str(locked.extra_data[id_key]) != uid):
+                msg = "Social-auth identifier evidence changed during migration"
+                raise IntegrityError(msg)
+            conflict = query.filter(provider=locked.provider, uid=uid).exclude(pk=locked.pk)
+            if conflict.exists():
+                msg = "Social-auth identifier migration conflict"
+                raise IntegrityError(msg)
+            locked.uid = uid
+            locked.id_key = id_key
+            locked.save(update_fields=["uid", "id_key", "modified"])
+        return locked
 
 
 class DjangoNonceMixin(NonceMixin):

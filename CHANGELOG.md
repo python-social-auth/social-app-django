@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
   `strategy.request` for the HTTP request and `strategy.request_data()` for
   effective pipeline parameters, including replayed external-link data.
 
+### Security
+
+- Added identifier-key metadata and atomic identifier migration for social
+  associations, supporting migration away from mutable provider identifiers.
+
 ### Fixed
 
 - Preserve email verification data when resuming a confirmed partial pipeline
