@@ -7,6 +7,7 @@ from django.db import IntegrityError
 from django.test import TestCase, override_settings
 from social_core.exceptions import AuthAlreadyAssociated
 
+from social_django.managers import UserSocialAuthManager
 from social_django.models import (
     AbstractUserSocialAuth,
     Association,
@@ -153,6 +154,15 @@ class TestUserSocialAuth(TestCase):
         )
         self.assertIsNone(UserSocialAuth.objects.get_social_auth(provider="a", uid="1"))
 
+        usa.id_key = "id"
+        usa.save(update_fields=["id_key"])
+        self.assertEqual(
+            UserSocialAuth.get_social_auth(provider=usa.provider, uid=usa.uid, id_key="id"),
+            usa,
+        )
+        self.assertIsNone(UserSocialAuth.get_social_auth(provider=usa.provider, uid=usa.uid, id_key="email"))
+        self.assertIsNone(UserSocialAuth.get_social_auth(provider=usa.provider, uid=usa.uid, id_key="ID"))
+
     def test_get_social_auth_int_uid(self):
         usa = self.usa
         int_uid = int(usa.uid)
@@ -172,14 +182,162 @@ class TestUserSocialAuth(TestCase):
             usa,
         )
 
+    def test_get_social_auth_rejects_case_insensitive_id_key_match(self):
+        self.usa.id_key = "id"
+        filtered = mock.Mock()
+        filtered.filter.return_value = [self.usa]
+        manager = mock.Mock()
+        manager.select_related.return_value.filter.return_value = filtered
+
+        with mock.patch.object(UserSocialAuth, "objects", manager):
+            self.assertIsNone(
+                UserSocialAuth.get_social_auth(
+                    provider=self.usa.provider,
+                    uid=self.usa.uid,
+                    id_key="ID",
+                )
+            )
+
+    def test_manager_rejects_case_insensitive_id_key_match(self):
+        self.usa.id_key = "id"
+        filtered = mock.Mock()
+        filtered.filter.return_value = [self.usa]
+
+        with mock.patch.object(
+            UserSocialAuthManager,
+            "select_related",
+            return_value=mock.Mock(filter=mock.Mock(return_value=filtered)),
+        ):
+            self.assertIsNone(
+                UserSocialAuth.objects.get_social_auth(
+                    provider=self.usa.provider,
+                    uid=self.usa.uid,
+                    id_key="ID",
+                )
+            )
+
     def test_get_social_auth_for_user(self):
         qs = UserSocialAuth.get_social_auth_for_user(user=self.user, provider=self.usa.provider, id=self.usa.id)
         self.assertEqual(qs.count(), 1)
 
     def test_create_social_auth(self):
-        usa = UserSocialAuth.create_social_auth(user=self.user, provider="test", uid=1)
+        usa = UserSocialAuth.create_social_auth(user=self.user, provider="test", uid=1, id_key="id")
         self.assertEqual(usa.uid, "1")
+        self.assertEqual(usa.id_key, "id")
         self.assertEqual(str(usa), str(self.user))
+
+    def test_get_social_auth_by_extra_data(self):
+        self.usa.extra_data = {"stable_id": "stable-user"}
+        self.usa.save(update_fields=["extra_data"])
+
+        self.assertEqual(
+            UserSocialAuth.get_social_auth_by_extra_data(self.usa.provider, "stable_id", "stable-user"),
+            self.usa,
+        )
+
+        UserSocialAuth.objects.create(
+            user=self.user,
+            provider=self.usa.provider,
+            uid="another-legacy-id",
+            extra_data={"stable_id": "stable-user"},
+        )
+        with self.assertRaisesRegex(ValueError, "Multiple social-auth"):
+            UserSocialAuth.get_social_auth_by_extra_data(self.usa.provider, "stable_id", "stable-user")
+
+    def test_get_social_auth_by_numeric_extra_data(self):
+        self.usa.extra_data = {"stable_id": 1234}
+        self.usa.save(update_fields=["extra_data"])
+
+        self.assertEqual(
+            UserSocialAuth.get_social_auth_by_extra_data(self.usa.provider, "stable_id", "1234"),
+            self.usa,
+        )
+
+    def test_get_social_auth_by_extra_data_requires_present_key(self):
+        self.assertIsNone(UserSocialAuth.get_social_auth_by_extra_data(self.usa.provider, "missing", None))
+        self.assertIsNone(UserSocialAuth.get_social_auth_by_extra_data(self.usa.provider, "missing", "None"))
+
+    def test_get_social_auth_by_extra_data_rejects_case_insensitive_id_key_match(self):
+        self.usa.id_key = "id"
+        self.usa.extra_data = {"stable_id": "stable-user"}
+        manager = mock.Mock()
+        manager.filter.return_value.annotate.return_value.filter.return_value = [self.usa]
+
+        with mock.patch.object(UserSocialAuth, "_manager", return_value=manager):
+            self.assertIsNone(
+                UserSocialAuth.get_social_auth_by_extra_data(
+                    self.usa.provider,
+                    "stable_id",
+                    "stable-user",
+                    id_key="ID",
+                )
+            )
+
+    def test_get_social_auth_by_extra_data_rejects_case_insensitive_provider_match(
+        self,
+    ):
+        self.usa.extra_data = {"stable_id": "stable-user"}
+        manager = mock.Mock()
+        manager.filter.return_value.annotate.return_value.filter.return_value = [self.usa]
+
+        with mock.patch.object(UserSocialAuth, "_manager", return_value=manager):
+            self.assertIsNone(
+                UserSocialAuth.get_social_auth_by_extra_data(
+                    self.usa.provider.upper(),
+                    "stable_id",
+                    "stable-user",
+                )
+            )
+
+    def test_migrate_social_auth(self):
+        migrated = UserSocialAuth.migrate_social_auth(self.usa, "stable-user", "stable_id")
+
+        self.assertEqual(migrated.uid, "stable-user")
+        self.assertEqual(migrated.id_key, "stable_id")
+
+    def test_migrate_social_auth_rejects_concurrent_change(self):
+        UserSocialAuth.objects.filter(pk=self.usa.pk).update(uid="changed")
+
+        with self.assertRaisesRegex(IntegrityError, "changed during"):
+            UserSocialAuth.migrate_social_auth(self.usa, "stable-user", "stable_id")
+
+    def test_migrate_social_auth_revalidates_identifier_evidence(self):
+        self.usa.extra_data = {"stable_id": "stable-user"}
+        self.usa.save(update_fields=["extra_data"])
+        UserSocialAuth.objects.filter(pk=self.usa.pk).update(extra_data={"stable_id": "changed-user"})
+
+        with self.assertRaisesRegex(IntegrityError, "identifier evidence changed"):
+            UserSocialAuth.migrate_social_auth(self.usa, "stable-user", "stable_id")
+
+    def test_migrate_social_auth_rejects_identifier_conflict(self):
+        UserSocialAuth.objects.create(
+            user=self.user,
+            provider=self.usa.provider,
+            uid="stable-user",
+        )
+
+        with self.assertRaisesRegex(IntegrityError, "migration conflict"):
+            UserSocialAuth.migrate_social_auth(self.usa, "stable-user", "stable_id")
+
+    @mock.patch("social_django.storage.transaction.atomic")
+    @mock.patch("social_django.storage.router.db_for_write", return_value="primary")
+    def test_migrate_social_auth_uses_write_database(self, db_for_write, atomic):
+        manager = mock.Mock()
+        manager.model = UserSocialAuth
+        query = manager.using.return_value
+        locked = query.select_for_update.return_value.get.return_value
+        locked.uid = self.usa.uid
+        locked.id_key = self.usa.id_key
+        locked.provider = self.usa.provider
+        locked.pk = self.usa.pk
+        query.filter.return_value.exclude.return_value.exists.return_value = False
+
+        with mock.patch.object(UserSocialAuth, "_manager", return_value=manager):
+            UserSocialAuth.migrate_social_auth(self.usa, "stable-user", "stable_id")
+
+        db_for_write.assert_called_once_with(UserSocialAuth, instance=self.usa)
+        manager.using.assert_called_once_with("primary")
+        atomic.assert_called_once_with(using="primary")
 
     def test_username_max_length(self):
         self.assertEqual(UserSocialAuth.username_max_length(), 150)

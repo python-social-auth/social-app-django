@@ -39,6 +39,7 @@ class AbstractUserSocialAuth(models.Model, DjangoUserMixin):
 
     user = models.ForeignKey(USER_MODEL, related_name="social_auth", on_delete=models.CASCADE)
     provider = models.CharField(max_length=32)
+    id_key = models.CharField(max_length=255, default="", blank=True)
     uid = models.CharField(max_length=UID_LENGTH, db_index=True)
     extra_data = models.JSONField(default=dict, blank=True)
     created = models.DateTimeField(auto_now_add=True)
@@ -53,13 +54,16 @@ class AbstractUserSocialAuth(models.Model, DjangoUserMixin):
         return str(self.user)
 
     @classmethod
-    def get_social_auth(cls, provider: str, uid: str | int):
+    def get_social_auth(cls, provider: str, uid: str | int, id_key: str | None = None):
         if not isinstance(uid, str):
             uid = str(uid)
-        for social in cls.objects.select_related("user").filter(provider=provider, uid=uid):
+        query = cls.objects.select_related("user").filter(provider=provider, uid=uid)
+        if id_key is not None:
+            query = query.filter(id_key=id_key)
+        for social in query:
             # We need to compare to filter out case-insensitive lookups in
             # some databases (MySQL/MariaDB)
-            if social.uid == uid:
+            if social.uid == uid and (id_key is None or social.id_key == id_key):
                 return social
         return None
 
