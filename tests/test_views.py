@@ -6,7 +6,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from social_core.backends.open_id_connect import OpenIdConnectAuth
 
-from social_django.models import UserSocialAuth
+from social_django.models import Code, Partial, UserSocialAuth
 from social_django.utils import LaunchBridge
 from social_django.views import get_session_timeout
 
@@ -16,6 +16,77 @@ class MockOIDCBackend(OpenIdConnectAuth):
     AUTHORIZATION_URL = "https://idp.example.com/auth"
     ACCESS_TOKEN_URL = "https://idp.example.com/token"  # noqa: S105
     ID_TOKEN_ISSUER = "https://idp.example.com"  # noqa: S105
+
+
+def send_validation(strategy, backend, code, partial_token):
+    """Validation sender replaced by a mock in email confirmation tests."""
+
+
+@override_settings(
+    AUTHENTICATION_BACKENDS=("social_core.backends.email.EmailAuth",),
+    SOCIAL_AUTH_PIPELINE=(
+        "social_core.pipeline.social_auth.social_details",
+        "social_core.pipeline.social_auth.social_uid",
+        "social_core.pipeline.user.get_username",
+        "social_core.pipeline.mail.mail_validation",
+        "social_core.pipeline.user.create_user",
+        "social_core.pipeline.social_auth.associate_user",
+    ),
+    SOCIAL_AUTH_PASSWORDLESS=True,
+    SOCIAL_AUTH_EMAIL_VALIDATION_FUNCTION="tests.test_views.send_validation",
+    SOCIAL_AUTH_EMAIL_VALIDATION_URL="/email-sent/",
+    LOGIN_REDIRECT_URL="/done/",
+    SOCIAL_AUTH_LOGIN_ERROR_URL="/error/",
+)
+class TestEmailConfirmation(TestCase):
+    def test_confirmation_replays_code_without_resending_email(self):
+        url = reverse("social:complete", kwargs={"backend": "email"})
+        with mock.patch("tests.test_views.send_validation") as send_email:
+            self.assertRedirects(
+                self.client.post(url, {"email": "confirm@example.com"}),
+                "/email-sent/",
+                fetch_redirect_response=False,
+            )
+            code = send_email.call_args.args[2]
+            token = send_email.call_args.args[3]
+            response = self.client.get(url, {"verification_code": code.code, "partial_token": token})
+            self.assertTemplateUsed(response, "social_django/partial_pipeline_external_resume.html")
+            self.assertFalse(get_user_model().objects.filter(email=code.email).exists())
+            self.assertFalse(Code.objects.get(pk=code.pk).verified)
+            context = response.context
+            response = self.client.post(
+                context["action_url"],
+                {
+                    context["confirmation_parameter"]: context["confirmation_value"],
+                    context["confirmation_nonce_parameter"]: context["confirmation_nonce"],
+                },
+            )
+            self.assertRedirects(response, "/done/", fetch_redirect_response=False)
+            self.assertTrue(Code.objects.get(pk=code.pk).verified)
+            self.assertTrue(get_user_model().objects.filter(email=code.email).exists())
+            self.assertFalse(Partial.objects.filter(token=token).exists())
+            send_email.assert_called_once()
+
+    def test_invalid_confirmation_nonce_does_not_verify_code(self):
+        url = reverse("social:complete", kwargs={"backend": "email"})
+        with mock.patch("tests.test_views.send_validation") as send_email:
+            self.client.post(url, {"email": "confirm@example.com"})
+            code = send_email.call_args.args[2]
+            token = send_email.call_args.args[3]
+            response = self.client.get(url, {"verification_code": code.code, "partial_token": token})
+            context = response.context
+            response = self.client.post(
+                context["action_url"],
+                {
+                    context["confirmation_parameter"]: context["confirmation_value"],
+                    context["confirmation_nonce_parameter"]: "invalid",
+                },
+            )
+            self.assertRedirects(response, "/error/", fetch_redirect_response=False)
+            self.assertFalse(Code.objects.get(pk=code.pk).verified)
+            self.assertTrue(Partial.objects.filter(token=token).exists())
+            self.assertFalse(get_user_model().objects.filter(email=code.email).exists())
+            send_email.assert_called_once()
 
 
 @override_settings(SOCIAL_AUTH_FACEBOOK_KEY="1", SOCIAL_AUTH_FACEBOOK_SECRET="2")  # noqa: S106

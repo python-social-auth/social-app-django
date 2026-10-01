@@ -1,11 +1,13 @@
 from unittest import mock
 
+from django.contrib.auth import authenticate as django_authenticate
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.sessions.middleware import SessionMiddleware
 from django.http import HttpResponse, QueryDict
 from django.test import RequestFactory, TestCase
 from django.utils.translation import gettext_lazy
+from social_core.pipeline.utils import partial_prepare
 from social_core.utils import PARTIAL_TOKEN_PENDING_CONFIRMATION_SESSION_NAME
 
 from social_django.strategy import PARTIAL_PIPELINE_CONFIRMATION_NONCE_PARAMETER
@@ -104,6 +106,18 @@ class TestStrategy(TestCase):
             val,
             {"partial_token": "external-token", "verification_code": "code"},
         )
+
+    def test_partial_snapshot_flattens_request_data(self):
+        request = self.request_factory.get(
+            "/complete/facebook/",
+            data={"verification_code": ["first", "last"]},
+        )
+        SessionMiddleware(lambda: None).process_request(request)
+        strategy = load_strategy(request=request)
+        backend = load_backend(strategy=strategy, name="facebook", redirect_uri="/")
+        partial = partial_prepare(strategy, backend, 0)
+        self.assertEqual(partial.data["request_data"], {"verification_code": "last"})
+        self.assertNotIn("request", partial.kwargs)
 
     def test_get_language(self):
         self.assertEqual(self.strategy.get_language(), "en-us")
@@ -273,28 +287,32 @@ class TestStrategy(TestCase):
             self.assertEqual(result, user)
             self.assertEqual(result.backend, "social_core.backends.facebook.FacebookOAuth2")
 
-    def test_authenticate_uses_strategy_request(self):
+    def test_authenticate_uses_strategy_request_without_forwarding_it(self):
         backend = load_backend(strategy=self.strategy, name="facebook", redirect_uri="/")
         user = mock.Mock()
-        with mock.patch("social_core.backends.base.BaseAuth.pipeline", return_value=user) as pipeline:
+        with (
+            mock.patch("social_django.strategy.authenticate", wraps=django_authenticate) as authenticate,
+            mock.patch("social_core.backends.base.BaseAuth.pipeline", return_value=user) as pipeline,
+        ):
             self.strategy.authenticate(
                 backend=backend,
                 response=mock.Mock(),
                 request=QueryDict("partial_token=token"),
             )
 
-        self.assertIs(pipeline.call_args.kwargs["request"], self.request)
+        self.assertIs(authenticate.call_args.args[0], self.request)
+        self.assertNotIn("request", pipeline.call_args.kwargs)
 
     def test_clean_authenticate_args(self):
         args, kwargs = self.strategy.clean_authenticate_args(self.request)
         self.assertEqual(args, ())
-        self.assertEqual(kwargs, {"request": self.request})
+        self.assertEqual(kwargs, {})
 
     def test_clean_authenticate_args_none(self):
         # When called from continue_pipeline(), request is None. Issue #222
         args, kwargs = self.strategy.clean_authenticate_args(None)
         self.assertEqual(args, ())
-        self.assertEqual(kwargs, {"request": None})
+        self.assertEqual(kwargs, {})
 
     def test_session_creation_without_request(self):
         strategy = load_strategy()
