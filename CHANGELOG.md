@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## Unreleased
+
+### Breaking
+
+- Require social-auth-core 6.x and migrate custom strategy overrides from
+  `request_data()` to `get_request_data()`.
+- Pipeline steps no longer receive a Django request argument. Use
+  `strategy.request` for the HTTP request and `strategy.request_data()` for
+  effective pipeline parameters, including replayed external-link data.
+
+### Fixed
+
+- Preserve email verification data when resuming a confirmed partial pipeline
+  while keeping the native HTTP request available to Django authentication.
+- Preserve concrete social-auth model types in inherited manager operations.
+
 ## [6.1.0](https://github.com/python-social-auth/social-app-django/releases/tag/6.1.0) - 2026-09-30
 
 ### Added

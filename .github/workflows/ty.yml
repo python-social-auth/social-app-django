@@ -27,4 +27,4 @@ jobs:
         cache-suffix: ${{ steps.setup_python.outputs.python-version }}
 
     - name: Type check with mypy
-      run: uv run --all-extras mypy social_django
+      run: uv run --all-extras mypy social_django tests/typecheck.py

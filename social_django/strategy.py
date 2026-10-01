@@ -87,7 +87,7 @@ class DjangoStrategy(BaseStrategy):
             value = resolve_url(value)
         return value
 
-    def request_data(self, merge=True):
+    def get_request_data(self, merge=True):
         if not self.request:
             return {}
         if merge:
@@ -199,7 +199,7 @@ class DjangoStrategy(BaseStrategy):
 
     def clean_authenticate_args(self, request, *args, **kwargs):
         # pipelines don't want a positional request argument
-        kwargs["request"] = request
+        kwargs.pop("request", None)
         return args, kwargs
 
     def session_get(self, name, default=None):
