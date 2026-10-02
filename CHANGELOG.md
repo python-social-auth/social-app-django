@@ -30,6 +30,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 
+- Explicitly package runtime modules, templates, and typing metadata in wheels;
+  retain tests only in source distributions for downstream testing.
 - Preserve email verification data when resuming a confirmed partial pipeline
   while keeping the native HTTP request available to Django authentication.
 - Preserve concrete social-auth model types in inherited manager operations.
