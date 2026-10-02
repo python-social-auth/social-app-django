@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import base64
+from datetime import timedelta
+from datetime import timezone as datetime_timezone
 from typing import TYPE_CHECKING, cast
 
 from django.conf import settings
@@ -12,6 +14,7 @@ from django.db.models import CharField
 from django.db.models.fields.json import KeyTextTransform
 from django.db.models.functions import Cast
 from django.db.utils import IntegrityError
+from django.utils import timezone
 from social_core.exceptions import AuthAlreadyAssociated
 from social_core.storage import (
     AssociationMixin,
@@ -301,6 +304,19 @@ class DjangoAssociationMixin(AssociationMixin):
 class DjangoCodeMixin(CodeMixin):
     objects: ClassVar[Manager[Model]]
     DoesNotExist: ClassVar[type[ObjectDoesNotExist]]
+
+    def is_expired(self, seconds: int) -> bool:
+        """Check expiry using Django's timezone for naive database timestamps."""
+        if self.timestamp is None:
+            return True
+        timestamp = self.timestamp
+        now = timezone.now()
+        if timezone.is_naive(timestamp):
+            timestamp = timezone.make_aware(timestamp, timezone.get_default_timezone())
+        if timezone.is_naive(now):
+            now = timezone.make_aware(now, timezone.get_default_timezone())
+        timestamp = timestamp.astimezone(datetime_timezone.utc)
+        return now.astimezone(datetime_timezone.utc) >= timestamp + timedelta(seconds=seconds)
 
     @classmethod
     def get_code(cls, code):

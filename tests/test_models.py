@@ -1,5 +1,6 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 from unittest import mock
+from zoneinfo import ZoneInfo
 
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
@@ -17,6 +18,65 @@ from social_django.models import (
     Partial,
     UserSocialAuth,
 )
+from social_django.strategy import DjangoStrategy
+
+
+class TestCodeExpiry(TestCase):
+    @override_settings(TIME_ZONE="Europe/Prague")
+    def test_lifetime_across_daylight_saving_time(self):
+        timestamp = datetime(2026, 10, 24, 12, tzinfo=ZoneInfo("Europe/Prague"))
+        for use_tz in (True, False):
+            with self.subTest(use_tz=use_tz), override_settings(USE_TZ=use_tz):
+                code = Code.make_code("expiry@example.com")
+                code.timestamp = timestamp if use_tz else timestamp.replace(tzinfo=None)
+                code.save()
+                now = datetime(2026, 10, 25, 11, tzinfo=ZoneInfo("Europe/Prague"))
+                with mock.patch("social_django.storage.timezone.now", return_value=now):
+                    self.assertTrue(code.is_expired(24 * 60 * 60))
+
+    @override_settings(TIME_ZONE="Europe/Prague")
+    def test_persisted_code_expiry(self):
+        for use_tz in (True, False):
+            with self.subTest(use_tz=use_tz), override_settings(USE_TZ=use_tz):
+                code = Code.make_code("expiry@example.com")
+                code.refresh_from_db()
+                self.assertIsNotNone(code.timestamp)
+                strategy = DjangoStrategy(DjangoStorage)
+                self.assertTrue(strategy.validate_email(code.email, code.code))
+                self.assertFalse(strategy.validate_email(code.email, code.code))
+
+                code = Code.make_code("expiry@example.com")
+                now = code.timestamp
+                Code.objects.filter(pk=code.pk).update(timestamp=now - timedelta(days=7))
+                with mock.patch("social_django.storage.timezone.now", return_value=now):
+                    self.assertFalse(strategy.validate_email(code.email, code.code))
+                code.refresh_from_db()
+                self.assertFalse(code.verified)
+
+                Code.objects.filter(pk=code.pk).update(timestamp=now - timedelta(days=7) + timedelta(microseconds=1))
+                with mock.patch("social_django.storage.timezone.now", return_value=now):
+                    self.assertTrue(strategy.validate_email(code.email, code.code))
+
+    @override_settings(SOCIAL_AUTH_EMAIL_VALIDATION_EXPIRED_THRESHOLD=60)
+    def test_configured_expiry(self):
+        code = Code.make_code("expiry@example.com")
+        Code.objects.filter(pk=code.pk).update(timestamp=code.timestamp - timedelta(seconds=61))
+        strategy = DjangoStrategy(DjangoStorage)
+        self.assertFalse(strategy.validate_email(code.email, code.code))
+        code.refresh_from_db()
+        self.assertFalse(code.verified)
+
+    def test_disabled_expiry(self):
+        for threshold in (None, 0):
+            with (
+                self.subTest(threshold=threshold),
+                override_settings(SOCIAL_AUTH_EMAIL_VALIDATION_EXPIRED_THRESHOLD=threshold),
+            ):
+                code = Code.make_code("expiry@example.com")
+                Code.objects.filter(pk=code.pk).update(timestamp=code.timestamp - timedelta(days=30))
+                strategy = DjangoStrategy(DjangoStorage)
+                self.assertTrue(strategy.validate_email(code.email, code.code))
+                self.assertFalse(strategy.validate_email(code.email, code.code))
 
 
 class TestSocialAuthUser(TestCase):
