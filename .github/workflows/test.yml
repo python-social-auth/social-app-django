@@ -50,11 +50,6 @@ jobs:
         uvx tox -e "py${PYTHON_VERSION/\./}-djangomain"
       if: ${{ env.PYTHON_VERSION == '3.12' || env.PYTHON_VERSION == '3.13' || env.PYTHON_VERSION == '3.14' }}
 
-    - name: social-core master Test
-      run: |
-        uvx tox -e "py${PYTHON_VERSION/\./}-socialmaster"
-      if: ${{ env.PYTHON_VERSION == '3.10' || env.PYTHON_VERSION == '3.11' || env.PYTHON_VERSION == '3.13' || env.PYTHON_VERSION == '3.14' }}
-
     - name: Coverage
       run: |
         uvx coverage combine
@@ -64,4 +59,50 @@ jobs:
       with:
         flags: unittests
         name: Python ${{ matrix.python-version }}
+        token: ${{secrets.CODECOV_TOKEN}} # zizmor: ignore[secrets-outside-env]
+
+  social-core-master:
+    name: social-core master (${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+        - '3.10'
+        - '3.11'
+        - '3.12'
+        - '3.13'
+        - '3.14'
+
+    env:
+      PYTHON_VERSION: ${{ matrix.python-version }}
+      PYTHONUNBUFFERED: 1
+
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      with:
+        cache-suffix: social-core-master-${{ matrix.python-version }}
+
+    - name: Test against social-core master
+      run: |
+        uvx tox -e "py${PYTHON_VERSION/\./}-socialmaster"
+
+    - name: Coverage
+      run: |
+        uvx coverage combine
+        uvx coverage xml
+
+    - uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+      with:
+        flags: socialmaster
+        name: Python ${{ matrix.python-version }} (social-core master)
         token: ${{secrets.CODECOV_TOKEN}} # zizmor: ignore[secrets-outside-env]

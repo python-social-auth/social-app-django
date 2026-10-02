@@ -1,0 +1,2 @@
+# Test master even when its declared version is outside our release requirements.
+social-auth-core @ https://github.com/python-social-auth/social-core/archive/master.tar.gz
