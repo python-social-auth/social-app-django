@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Added
+
+- Backend display metadata in the `backends.metadata` template context and
+  `social_django.finders.SocialAuthIconFinder` for social-core's bundled SVGs.
+  Register the finder after Django's standard finders to collect the icons.
+
 ### Breaking
 
 - Require social-auth-core 6.x and migrate custom strategy overrides from
