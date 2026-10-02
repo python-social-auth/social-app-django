@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Security
 
+- Support upstream email-validation code expiry using the existing creation
+  timestamp, including deployments with `USE_TZ=False`. No migration is needed.
 - Added identifier-key metadata and atomic identifier migration for social
   associations, supporting migration away from mutable provider identifiers.
 
