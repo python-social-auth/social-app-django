@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import base64
+import re
+import sqlite3
 from datetime import timedelta
 from datetime import timezone as datetime_timezone
 from typing import TYPE_CHECKING, cast
@@ -10,12 +12,13 @@ from typing import TYPE_CHECKING, cast
 from django.conf import settings
 from django.core.exceptions import FieldDoesNotExist
 from django.db import router, transaction
-from django.db.models import CharField
+from django.db.backends.utils import names_digest
+from django.db.models import CharField, Field, UniqueConstraint
 from django.db.models.fields.json import KeyTextTransform
 from django.db.models.functions import Cast
 from django.db.utils import IntegrityError
 from django.utils import timezone
-from social_core.exceptions import AuthAlreadyAssociated
+from social_core.exceptions import AuthAssociationError
 from social_core.storage import (
     AssociationMixin,
     BaseStorage,
@@ -25,6 +28,11 @@ from social_core.storage import (
     UserMixin,
 )
 from social_core.utils import setting_name
+
+# sqlite3 exposes extended result constants and exception codes on Python 3.11+.
+SQLITE_UNIQUE_ERROR_CODE = getattr(sqlite3, "SQLITE_CONSTRAINT_UNIQUE", 2067)
+SQLITE_PRIMARY_KEY_ERROR_CODE = getattr(sqlite3, "SQLITE_CONSTRAINT_PRIMARYKEY", 1555)
+MYSQL_DUPLICATE_KEY_ERROR_CODE = 1062
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -142,7 +150,70 @@ class DjangoUserMixin(UserMixin):
             with transaction.atomic(using=using):
                 return manager.create_user(*args, **kwargs)
         except IntegrityError as exc:
-            raise AuthAlreadyAssociated(None) from exc  # type: ignore[arg-type]
+            code = cls._user_creation_conflict(exc)
+            if code is not None:
+                raise AuthAssociationError(code=code, stage="pipeline") from exc
+            raise
+
+    @staticmethod
+    def _unique_constraint_name(error: IntegrityError) -> tuple[str, str] | None:
+        """Recognize common PostgreSQL and MySQL duplicate-key diagnostics."""
+        cause = error.__cause__
+        if getattr(cause, "sqlstate", None) == "23505" or getattr(cause, "pgcode", None) == "23505":
+            name = getattr(getattr(cause, "diag", None), "constraint_name", None)
+            return ("postgresql", name) if name else None
+        args: tuple[object, ...] = getattr(cause, "args", ())
+        if len(args) > 1 and args[0] == MYSQL_DUPLICATE_KEY_ERROR_CODE and isinstance(args[1], str):
+            match = re.search(r" for key ['`]([^'`]+)['`]$", args[1])
+            if match:
+                return "mysql", match[1].rsplit(".", 1)[-1]
+        return None
+
+    @staticmethod
+    def _identifier_constraint_names(field: Field, vendor: str) -> set[str]:
+        """Known single-column names, without database introspection or SQL parsing."""
+        meta = field.model._meta  # noqa: SLF001
+        names = {
+            constraint.name
+            for constraint in meta.constraints
+            if isinstance(constraint, UniqueConstraint) and constraint.fields == (field.name,)
+        }
+        generated = set()
+        if field.unique and field.column is not None:
+            generated.add(field.column if vendor == "mysql" else f"{meta.db_table}_{field.column}_key")
+        if field.column is not None and (field.unique or (field.name,) in meta.unique_together):
+            # Recognize the common, untruncated migration name using Django's digest.
+            digest = names_digest(meta.db_table, field.column, length=8)
+            generated.add(f"{meta.db_table}_{field.column}_{digest}_uniq")
+        if field.primary_key:
+            generated.add("PRIMARY" if vendor == "mysql" else f"{meta.db_table}_pkey")
+        # Explicit constraints with these names take precedence over defaults.
+        return names | (generated - {constraint.name for constraint in meta.constraints})
+
+    @classmethod
+    def _user_creation_conflict(cls, error: IntegrityError) -> str | None:
+        """Translate only identifier conflicts recognizable from cheap diagnostics."""
+        model = cls.user_model()
+        cause = error.__cause__
+        constraint = cls._unique_constraint_name(error)
+        sqlite_unique = isinstance(cause, sqlite3.IntegrityError) and getattr(
+            cause, "sqlite_errorcode", SQLITE_UNIQUE_ERROR_CODE
+        ) in (SQLITE_UNIQUE_ERROR_CODE, SQLITE_PRIMARY_KEY_ERROR_CODE)
+        email_field = getattr(model, "EMAIL_FIELD", "email")
+        for name, code in ((cls.username_field(), "username_in_use"), (email_field, "email_in_use")):
+            try:
+                field = model._meta.get_field(name)  # noqa: SLF001
+            except FieldDoesNotExist:
+                continue
+            if not isinstance(field, Field) or field.column is None:
+                continue
+            table = field.model._meta.db_table  # noqa: SLF001
+            # Exact single-column SQLite diagnostics also work on Python 3.10.
+            if sqlite_unique and str(cause) == f"UNIQUE constraint failed: {table}.{field.column}":
+                return code
+            if constraint and constraint[1] in cls._identifier_constraint_names(field, constraint[0]):
+                return code
+        return None
 
     @classmethod
     def filter_users(cls, *args, **kwargs) -> QuerySet:
