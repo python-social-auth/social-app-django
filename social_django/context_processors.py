@@ -4,7 +4,7 @@ from django.conf import settings
 from django.contrib.auth import REDIRECT_FIELD_NAME
 from django.http.multipartparser import MultiPartParserError
 from django.utils.functional import SimpleLazyObject, empty
-from social_core.backends.utils import user_backends_data
+from social_core.backends.utils import load_backends, user_backends_data
 
 from .utils import Storage
 
@@ -26,9 +26,21 @@ class LazyDict(SimpleLazyObject):
 def backends(request):
     """
     Load Social Auth current user data to context under the key 'backends'.
-    Will return the output of social_core.backends.utils.user_backends_data.
+    Return user_backends_data plus display titles and icon paths in metadata.
     """
-    return {"backends": LazyDict(lambda: user_backends_data(request.user, settings.AUTHENTICATION_BACKENDS, Storage))}
+
+    def get_data():
+        data = user_backends_data(request.user, settings.AUTHENTICATION_BACKENDS, Storage)
+        data["metadata"] = {
+            name: {
+                "title": backend.title or name,
+                "icon": f"social_auth/icons/{backend.icon}" if backend.icon else None,
+            }
+            for name, backend in load_backends(settings.AUTHENTICATION_BACKENDS).items()
+        }
+        return data
+
+    return {"backends": LazyDict(get_data)}
 
 
 def login_redirect(request):
