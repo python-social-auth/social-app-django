@@ -6,3 +6,5 @@ include *.txt CHANGELOG.md LICENSE README.md
 recursive-exclude social_django *.pyc
 recursive-include tests *.html
 exclude .tox .git
+
+include scripts/check_distribution.py

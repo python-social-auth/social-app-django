@@ -145,7 +145,14 @@ disable = [
 ]
 
 [tool.setuptools]
-packages = ["social_django"]
+include-package-data = false
+
+[tool.setuptools.package-data]
+social_django = ["py.typed", "templates/social_django/*.html"]
+
+[tool.setuptools.packages.find]
+include = ["social_django", "social_django.*"]
+namespaces = false
 
 [tool.tomlsort]
 ignore_case = true

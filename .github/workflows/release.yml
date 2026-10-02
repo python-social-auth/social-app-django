@@ -62,6 +62,12 @@ jobs:
         path: dist
         merge-multiple: true
 
+    - name: Rebuild wheel from source distribution
+      run: uv build dist/*.tar.gz --wheel --out-dir "$RUNNER_TEMP/from-sdist"
+
+    - name: Verify distribution file policy
+      run: python scripts/check_distribution.py dist "$RUNNER_TEMP/from-sdist"
+
     - name: Verify wheel install
       run: |
         uv venv .venv-install-whl
