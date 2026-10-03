@@ -1,12 +1,13 @@
 import logging
 from unittest import mock
+from urllib.parse import parse_qs, urlsplit
 
 from asgiref.sync import iscoroutinefunction
 from django.contrib.messages import MessageFailure
 from django.http import HttpResponse, HttpResponseRedirect
 from django.test import AsyncRequestFactory, RequestFactory, TestCase, override_settings
 from django.urls import reverse
-from social_core.exceptions import AuthCanceled
+from social_core.exceptions import AuthCanceled, AuthProviderError, AuthResponseError
 
 from social_django.middleware import ErrorTransport, SocialAuthExceptionMiddleware
 
@@ -350,3 +351,88 @@ class TestMiddleware(TestCase):
         request = rf.get("/")
         middleware = SocialAuthExceptionMiddleware(mock.Mock())
         self.assertIsNone(middleware.get_redirect_uri(request, Exception("error")))
+
+
+class MetadataTransportTest(TestCase):
+    def make_request(self, include_metadata, **settings):
+        request = RequestFactory().get("/")
+        request.backend = mock.Mock(name="backend")
+        request.backend.name = "test"
+        request.social_strategy = mock.Mock()
+        values = {
+            "RAISE_EXCEPTIONS": False,
+            "LOGIN_ERROR_URL": "/login?other=1#form",
+            "ERROR_TRANSPORT": "query",
+            "ERROR_INCLUDE_METADATA": include_metadata,
+        }
+        values.update(settings)
+        request.social_strategy.setting.side_effect = lambda name, default=None, **_kwargs: values.get(name, default)
+        return request
+
+    def test_metadata_is_opt_in_and_diagnostics_are_private(self):
+        middleware = SocialAuthExceptionMiddleware(mock.Mock())
+        error = AuthResponseError(
+            None, "secret-token", code="nonce_mismatch", stage="token_validation", context={"uid": "private-user"}
+        )
+        for include_metadata in (False, True):
+            with self.subTest(include_metadata=include_metadata):
+                response = middleware.process_exception(self.make_request(include_metadata), error)
+                query = parse_qs(urlsplit(response.url).query)
+                self.assertEqual(query["other"], ["1"])
+                self.assertEqual(urlsplit(response.url).fragment, "form")
+                self.assertEqual("error_code" in query, include_metadata)
+                if include_metadata:
+                    self.assertEqual(query["error_code"], ["nonce_mismatch"])
+                    self.assertEqual(query["error_recovery"], ["restart_login"])
+                self.assertNotIn("secret-token", response.url)
+                self.assertNotIn("private-user", response.url)
+
+    def test_metadata_fallback_and_stale_values(self):
+        request = self.make_request(True)
+        request.social_strategy.setting.side_effect = lambda name, default=None, **_kwargs: {
+            "RAISE_EXCEPTIONS": False,
+            "LOGIN_ERROR_URL": "/login?error_code=old",
+            "ERROR_TRANSPORT": "messages",
+            "ERROR_INCLUDE_METADATA": True,
+        }.get(name, default)
+        middleware = SocialAuthExceptionMiddleware(mock.Mock())
+        with mock.patch("social_django.middleware.messages.error", side_effect=MessageFailure):
+            response = middleware.process_exception(request, AuthProviderError(code="timeout", stage="user_info"))
+        self.assertEqual(parse_qs(urlsplit(response.url).query)["error_code"], ["timeout"])
+
+    def test_metadata_collisions_preserve_configured_parameters(self):
+        middleware = SocialAuthExceptionMiddleware(mock.Mock())
+        error = AuthProviderError(code="timeout", stage="user_info")
+        for name, value in (("ERROR_PARAM_NAME", str(error)), ("BACKEND_PARAM_NAME", "test")):
+            for key in error.public_metadata():
+                with self.subTest(name=name, key=key):
+                    request = self.make_request(
+                        True, **{name: key, "LOGIN_ERROR_URL": f"/login?{key}=old&other=1#form"}
+                    )
+                    response = middleware.process_exception(request, error)
+                    query = parse_qs(urlsplit(response.url).query)
+                    self.assertEqual(query[key], [value])
+                    self.assertEqual(query["other"], ["1"])
+                    self.assertEqual(urlsplit(response.url).fragment, "form")
+                    for metadata_key, metadata_value in error.public_metadata().items():
+                        if metadata_key != key:
+                            self.assertEqual(query[metadata_key], [metadata_value])
+
+    def test_absent_metadata_keys_remove_stale_redirect_values(self):
+        middleware = SocialAuthExceptionMiddleware(mock.Mock())
+        error = AuthProviderError(code="timeout", stage="user_info")
+        url = "/login?error_code=old&error_source=old&error_stage=old&error_recovery=old&other=1#form"
+        for enabled in (False, True):
+            for metadata in ({}, {"error_code": "timeout"}):
+                with self.subTest(enabled=enabled, metadata=metadata):
+                    request = self.make_request(enabled, LOGIN_ERROR_URL=url)
+                    with mock.patch.object(error, "public_metadata", return_value=metadata):
+                        response = middleware.process_exception(request, error)
+                    query = parse_qs(urlsplit(response.url).query)
+                    for key in ("error_code", "error_source", "error_stage", "error_recovery"):
+                        if enabled:
+                            self.assertEqual(query.get(key), [metadata[key]] if key in metadata else None)
+                        else:
+                            self.assertEqual(query[key], ["old"])
+                    self.assertEqual(query["other"], ["1"])
+                    self.assertEqual(urlsplit(response.url).fragment, "form")
