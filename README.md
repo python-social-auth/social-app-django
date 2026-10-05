@@ -44,9 +44,16 @@ This project follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.
 
 This project follows the BSD license. See the [LICENSE](LICENSE) for details.
 
-## Donations
+## Supporters
 
-This project welcomes donations to make the development sustainable, you can fund Python Social Auth on following platforms:
+Development and maintenance of Python Social Auth are supported by organizations that rely on the project or invest in the sustainability and security of open source.
+
+Current supporters include:
+
+- [Weblate](https://weblate.org/) — funding ongoing development and maintenance
+- [GitHub Secure Open Source Fund](https://github.com/open-source/github-secure-open-source-fund) — funding and security education for maintainers
+
+If your organization depends on Python Social Auth, consider joining this effort and helping sustain its development:
 
 - [GitHub Sponsors](https://github.com/sponsors/python-social-auth/)
 - [Open Collective](https://opencollective.com/python-social-auth)
