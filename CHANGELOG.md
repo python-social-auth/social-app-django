@@ -9,12 +9,20 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 
+- Opt-in `SOCIAL_AUTH_ERROR_INCLUDE_METADATA` for safe reason/source/stage/recovery
+  fields in error redirects, including message-storage fallback.
+
 - Backend display metadata in the `backends.metadata` template context and
   `social_django.finders.SocialAuthIconFinder` for social-core's bundled SVGs.
   Register the finder after Django's standard finders to collect the icons.
 
 ### Breaking
 
+- Use the structured exception contract from social-auth-core 6. Removed
+  specialized exception classes must be migrated. Only recognized identifier
+  uniqueness failures become account conflicts; other integrity failures propagate.
+  Detection uses cheap driver diagnostics and model metadata without database
+  introspection.
 - Require social-auth-core 6.x and migrate custom strategy overrides from
   `request_data()` to `get_request_data()`.
 - Pipeline steps no longer receive a Django request argument. Use

@@ -93,19 +93,24 @@ class SocialAuthExceptionMiddleware:
         url = self.get_redirect_uri(request, exception)
         transports = self.get_transport_modes(request)
 
-        url = self.dispatch_error(request, transports, url, message, backend_name)
+        metadata = None
+        if strategy.setting("ERROR_INCLUDE_METADATA", False, backend=backend):
+            metadata = exception.public_metadata()
+        url = self.dispatch_error(request, transports, url, message, backend_name, metadata=metadata)
 
         if url:
             return redirect(url)
         return None
 
-    def dispatch_error(
+    def dispatch_error(  # noqa: PLR0913
         self,
         request: HttpRequest,
         transports: list[ErrorTransport],
         url: str | None,
         message: str,
         backend_name: str,
+        *,
+        metadata: dict[str, str] | None = None,
     ) -> str | None:
         """Dispatch the error across the configured error transport mechanisms.
 
@@ -121,7 +126,7 @@ class SocialAuthExceptionMiddleware:
                 except MessageFailure:
                     # Fallback to query parameter if message backend storage fails
                     if ErrorTransport.QUERY not in transports:
-                        url = self.append_query_params(request, url, message, backend_name)
+                        url = self.append_query_params(request, url, message, backend_name, metadata=metadata)
             elif ErrorTransport.QUERY not in transports:
                 social_logger.error(message)
 
@@ -129,7 +134,7 @@ class SocialAuthExceptionMiddleware:
         if ErrorTransport.QUERY in transports:
             if ErrorTransport.MESSAGES not in transports or not apps.is_installed("django.contrib.messages"):
                 social_logger.info(message)
-            url = self.append_query_params(request, url, message, backend_name)
+            url = self.append_query_params(request, url, message, backend_name, metadata=metadata)
 
         return url
 
@@ -189,6 +194,8 @@ class SocialAuthExceptionMiddleware:
         url: str | None,
         message: str,
         backend_name: str,
+        *,
+        metadata: dict[str, str] | None = None,
     ) -> str | None:
         """Append or update error message and backend query parameters in the redirect URL.
 
@@ -206,9 +213,15 @@ class SocialAuthExceptionMiddleware:
 
         # Overwrite existing parameters so the latest failure details from the
         # current request are passed to the redirect target rather than stale values.
-        updated_params = [(k, v) for k, v in query_params if k not in (error_param, backend_param)]
-        updated_params.append((error_param, message))
-        updated_params.append((backend_param, backend_name))
+        values = {error_param: message, backend_param: backend_name}
+        for key, value in (metadata or {}).items():
+            # Configured message/backend names retain their established meaning.
+            values.setdefault(key, value)
+        replaced_keys = set(values)
+        if metadata is not None:
+            replaced_keys.update(("error_code", "error_source", "error_stage", "error_recovery"))
+        updated_params = [(k, v) for k, v in query_params if k not in replaced_keys]
+        updated_params.extend(values.items())
 
         new_query = urlencode(updated_params, quote_via=quote)
         return urlunsplit((scheme, netloc, path, new_query, fragment))
