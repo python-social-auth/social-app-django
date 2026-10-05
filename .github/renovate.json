@@ -21,6 +21,16 @@
         "pypi"
       ],
       "rangeStrategy": "widen"
+    },
+    {
+      "matchDatasources": [
+        "pypi"
+      ],
+      "matchPackageNames": [
+        "django-stubs",
+        "django-stubs-ext"
+      ],
+      "groupName": "django-stubs"
     }
   ],
   "customManagers": [
