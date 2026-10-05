@@ -1,0 +1,34 @@
+{% load i18n %}
+{% get_current_language as language_code %}
+<!doctype html>
+<html lang="{{ language_code }}">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% translate "Authentication failed" %}</title>
+  </head>
+  <body>
+    <main>
+      <h1>{% translate "Authentication failed" %}</h1>
+      <p>{{ message }}</p>
+      {% if error_recovery == "restart_login" %}
+        <p>{% translate "Return to the sign-in page and start login again." %}</p>
+      {% elif error_recovery == "reauthenticate" %}
+        <p>{% translate "Return to the sign-in page and authenticate with your provider again." %}</p>
+      {% elif error_recovery == "correct_input" %}
+        <p>{% translate "Check the information you entered and try again." %}</p>
+      {% elif error_recovery == "retry_later" %}
+        <p>{% translate "Please try again later." %}</p>
+      {% elif error_recovery == "check_provider_profile" %}
+        <p>{% translate "Check your profile with the authentication provider and try again." %}</p>
+      {% elif error_recovery == "use_existing_account" %}
+        <p>{% translate "Sign in using the account you already have." %}</p>
+      {% elif error_recovery == "contact_administrator" %}
+        <p>{% translate "Please contact the site administrator for help." %}</p>
+      {% endif %}
+      {% if error_code == "session_context_missing" %}
+        <p>{% blocktranslate %}Your session may have expired, or cookies may be unavailable. Check that cookies are enabled for this site and restart login in the same browser and container.{% endblocktranslate %}</p>
+      {% endif %}
+    </main>
+  </body>
+</html>
