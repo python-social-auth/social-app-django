@@ -3,6 +3,16 @@
 Python Social Auth is an easy to setup social authentication/registration
 mechanism with support for several frameworks and auth providers.
 
+<p>
+  <a href="https://weblate.org/">
+    <img alt="Weblate"
+         src="https://s.weblate.org/cdn/Logo-Darktext-borders.png"
+         height="55">
+  </a>
+</p>
+
+Maintained by [Weblate](https://weblate.org/) — a privacy-respecting localization platform built on open-source foundations.
+
 ## Description
 
 This is the [Django](https://www.djangoproject.com/) component of the

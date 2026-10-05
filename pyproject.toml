@@ -144,6 +144,10 @@ disable = [
   "line-length"
 ]
 
+[tool.rumdl.per-file-ignores]
+# Allow HTML in README.md
+"README.md" = ["MD033"]
+
 [tool.setuptools]
 include-package-data = false
 
