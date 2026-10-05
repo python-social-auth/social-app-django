@@ -9,7 +9,7 @@ from django.core.exceptions import ValidationError
 from django.core.validators import URLValidator
 from django.http import Http404, HttpRequest, HttpResponse
 from django.urls import reverse
-from social_core.exceptions import MissingBackend
+from social_core.exceptions import AuthConfigurationError
 from social_core.utils import get_strategy, module_member, setting_name, social_logger
 
 from .constants import (
@@ -50,7 +50,9 @@ def psa(redirect_uri=None, load_strategy=load_strategy):
 
             try:
                 request.backend = load_backend(request.social_strategy, backend, redirect_uri=uri)
-            except MissingBackend as error:
+            except AuthConfigurationError as error:
+                if error.code != "backend_missing":
+                    raise
                 msg = "Backend not found"
                 raise Http404(msg) from error
             return func(request, backend, *args, **kwargs)
