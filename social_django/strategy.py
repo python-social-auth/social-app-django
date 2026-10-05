@@ -81,7 +81,7 @@ class DjangoStrategy(BaseStrategy):
     def get_setting(self, name):
         value = getattr(settings, name)
         # Force text on URL named settings that are instance of Promise
-        if name.endswith("_URL"):
+        if name.endswith("_URL") and value:
             if isinstance(value, Promise):
                 value = force_str(value)
             value = resolve_url(value)

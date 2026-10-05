@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 
+- Render an overridable authentication error page with an appropriate HTTP status
+  when exception middleware is installed without `SOCIAL_AUTH_LOGIN_ERROR_URL`.
+
 - Opt-in `SOCIAL_AUTH_ERROR_INCLUDE_METADATA` for safe reason/source/stage/recovery
   fields in error redirects, including message-storage fallback.
 

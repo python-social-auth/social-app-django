@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import logging
 from collections.abc import Iterable
 from enum import Enum
+from http import HTTPStatus
 from typing import TYPE_CHECKING
 from urllib.parse import parse_qsl, quote, urlencode, urlsplit, urlunsplit
 
@@ -10,16 +12,27 @@ from django.apps import apps
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.messages.api import MessageFailure
-from django.shortcuts import redirect
+from django.shortcuts import redirect, render
+from django.utils.cache import add_never_cache_headers
 from django.utils.decorators import sync_and_async_middleware
-from social_core.exceptions import SocialAuthBaseException
+from social_core.exceptions import (
+    AuthAssociationError,
+    AuthCanceled,
+    AuthCredentialError,
+    AuthInputError,
+    AuthPolicyError,
+    AuthProviderError,
+    AuthResponseError,
+    AuthSessionError,
+    SocialAuthBaseException,
+)
 from social_core.utils import social_logger
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
     from typing import ClassVar
 
-    from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
+    from django.http import HttpRequest, HttpResponse
 
 
 class ErrorTransport(str, Enum):
@@ -37,15 +50,16 @@ class SocialAuthExceptionMiddleware:
 
     By default, the exception message itself is sent to the user and they are
     redirected to the location specified in the SOCIAL_AUTH_LOGIN_ERROR_URL
-    setting.
+    setting. Without an error URL, a page is rendered using the overridable
+    social_django/error.html template and a status appropriate to the failure.
 
     Error transport can be configured via the SOCIAL_AUTH_ERROR_TRANSPORT setting
     as a list of ErrorTransport enum values or strings:
     - ErrorTransport.MESSAGES ('messages', default): Uses django.contrib.messages framework.
     - ErrorTransport.QUERY ('query'): Encodes error message and backend into the redirect URL query parameters.
 
-    This middleware can be extended by overriding the get_message or
-    get_redirect_uri methods, which each accept request and exception.
+    This middleware can be extended by overriding get_message, get_redirect_uri,
+    get_error_status, or render_error, which each accept request and exception.
     """
 
     DEFAULT_TRANSPORT: ClassVar[list[ErrorTransport]] = [ErrorTransport.MESSAGES]
@@ -71,11 +85,11 @@ class SocialAuthExceptionMiddleware:
         """Process the incoming request and return the response."""
         return self.get_response(request)
 
-    def process_exception(self, request: HttpRequest, exception: Exception) -> HttpResponseRedirect | None:
+    def process_exception(self, request: HttpRequest, exception: Exception) -> HttpResponse | None:
         """Process caught SocialAuthBaseException instances.
 
         Dispatches error messages across configured transports (messages, query parameters)
-        and redirects to the error URL.
+        and redirects to the error URL, or renders an error page when no URL is set.
         """
         strategy = getattr(request, "social_strategy", None)
         # Guard 1: Skip if no strategy is available or if the exception should be re-raised
@@ -89,8 +103,11 @@ class SocialAuthExceptionMiddleware:
         backend = getattr(request, "backend", None)
         backend_name = getattr(backend, "name", "unknown-backend")
 
-        message = self.get_message(request, exception)
         url = self.get_redirect_uri(request, exception)
+        if not url:
+            return self.render_error(request, exception)
+
+        message = self.get_message(request, exception)
         transports = self.get_transport_modes(request)
 
         metadata = None
@@ -101,6 +118,57 @@ class SocialAuthExceptionMiddleware:
         if url:
             return redirect(url)
         return None
+
+    def get_error_status(self, request: HttpRequest, exception: SocialAuthBaseException) -> int:
+        """Map local authentication failures to HTTP statuses, independently of provider statuses."""
+        code_statuses = {
+            "invalid_expiry": HTTPStatus.INTERNAL_SERVER_ERROR,
+            "response_expired": HTTPStatus.FORBIDDEN,
+            "nonce_mismatch": HTTPStatus.FORBIDDEN,
+        }
+        if exception.code in code_statuses:
+            return code_statuses[exception.code]
+
+        if isinstance(exception, AuthProviderError):
+            return {
+                "timeout": HTTPStatus.GATEWAY_TIMEOUT,
+                "tls_error": HTTPStatus.BAD_GATEWAY,
+                "http_error": HTTPStatus.BAD_GATEWAY,
+            }.get(exception.code, HTTPStatus.SERVICE_UNAVAILABLE)
+
+        family_statuses = (
+            (AuthInputError, HTTPStatus.BAD_REQUEST),
+            (AuthSessionError, HTTPStatus.FORBIDDEN),
+            (AuthCredentialError, HTTPStatus.FORBIDDEN),
+            (AuthPolicyError, HTTPStatus.FORBIDDEN),
+            (AuthCanceled, HTTPStatus.FORBIDDEN),
+            (AuthAssociationError, HTTPStatus.CONFLICT),
+            (AuthResponseError, HTTPStatus.BAD_GATEWAY),
+        )
+        for family, status in family_statuses:
+            if isinstance(exception, family):
+                return status
+        return HTTPStatus.INTERNAL_SERVER_ERROR
+
+    def render_error(self, request: HttpRequest, exception: SocialAuthBaseException) -> HttpResponse:
+        """Render and log a failure without exposing diagnostics or using session storage."""
+        status = self.get_error_status(request, exception)
+        social_logger.log(
+            logging.ERROR if status >= HTTPStatus.INTERNAL_SERVER_ERROR else logging.WARNING,
+            "Social authentication failure: code=%s source=%s stage=%s status=%s",
+            exception.code,
+            exception.source,
+            exception.stage,
+            status,
+        )
+        response = render(
+            request,
+            "social_django/error.html",
+            {"message": self.get_message(request, exception), **exception.public_metadata()},
+            status=status,
+        )
+        add_never_cache_headers(response)
+        return response
 
     def dispatch_error(  # noqa: PLR0913
         self,

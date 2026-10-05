@@ -40,6 +40,9 @@ class TestStrategy(TestCase):
             self.assertEqual(self.strategy.get_setting("LOGIN_ERROR_URL"), "/")
         with self.settings(LOGIN_ERROR_URL=gettext_lazy("/")):
             self.assertEqual(self.strategy.get_setting("LOGIN_ERROR_URL"), "/")
+        for value in (None, ""):
+            with self.subTest(value=value), self.settings(LOGIN_ERROR_URL=value):
+                self.assertEqual(self.strategy.get_setting("LOGIN_ERROR_URL"), value)
 
     def test_session_methods(self):
         self.strategy.session_set("k", "v")
