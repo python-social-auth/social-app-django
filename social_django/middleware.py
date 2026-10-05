@@ -151,7 +151,7 @@ class SocialAuthExceptionMiddleware:
         return HTTPStatus.INTERNAL_SERVER_ERROR
 
     def render_error(self, request: HttpRequest, exception: SocialAuthBaseException) -> HttpResponse:
-        """Render and log a failure without exposing diagnostics or using session storage."""
+        """Render a safe failure page and retain server error tracebacks in logs."""
         status = self.get_error_status(request, exception)
         social_logger.log(
             logging.ERROR if status >= HTTPStatus.INTERNAL_SERVER_ERROR else logging.WARNING,
@@ -160,6 +160,9 @@ class SocialAuthExceptionMiddleware:
             exception.source,
             exception.stage,
             status,
+            exc_info=(type(exception), exception, exception.__traceback__)
+            if status >= HTTPStatus.INTERNAL_SERVER_ERROR
+            else None,
         )
         response = render(
             request,

@@ -499,9 +499,47 @@ class ErrorFallbackTest(SimpleTestCase):
                     log.call_args.args[0],
                     logging.ERROR if expected_status >= HTTPStatus.INTERNAL_SERVER_ERROR else logging.WARNING,
                 )
+                if expected_status >= HTTPStatus.INTERNAL_SERVER_ERROR:
+                    self.assertIs(log.call_args.kwargs["exc_info"][1], error)
+                else:
+                    self.assertIsNone(log.call_args.kwargs["exc_info"])
                 self.assertIn("no-store", response.headers["Cache-Control"])
                 self.assertIn("no-cache", response.headers["Cache-Control"])
                 self.assertIn("Expires", response.headers)
+
+    def test_server_error_logs_preserve_original_tracebacks(self):
+        for error in (AuthConfigurationError(), AuthUnknownError(), AuthProviderError(code="timeout")):
+            with self.subTest(error=type(error).__name__):
+                try:
+                    raise error
+                except SocialAuthBaseException:
+                    pass
+
+                # Render outside the except block to verify the logger receives
+                # this exception's traceback rather than the active exception.
+                with self.assertLogs("social", level="ERROR") as captured:
+                    response = self.middleware.process_exception(self.request, error)
+
+                record = captured.records[0]
+                self.assertIs(record.exc_info[1], error)
+                self.assertIs(record.exc_info[2], error.__traceback__)
+                self.assertIsNotNone(record.exc_info[2])
+                self.assertIn("Traceback (most recent call last)", captured.output[0])
+                self.assertContains(response, str(error), status_code=response.status_code)
+                self.assertNotContains(response, "Traceback", status_code=response.status_code)
+
+    def test_client_error_logs_omit_tracebacks(self):
+        error = AuthSessionError()
+        try:
+            raise error
+        except AuthSessionError:
+            pass
+
+        with self.assertLogs("social", level="WARNING") as captured:
+            self.middleware.process_exception(self.request, error)
+        self.assertEqual(captured.records[0].levelno, logging.WARNING)
+        self.assertIsNone(captured.records[0].exc_info)
+        self.assertNotIn("Traceback", captured.output[0])
 
     @mock.patch("social_django.middleware.social_logger.log")
     def test_provider_status_is_not_forwarded(self, log):
