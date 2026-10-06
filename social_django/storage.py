@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import re
 import sqlite3
+import time
 from datetime import timedelta
 from datetime import timezone as datetime_timezone
 from typing import TYPE_CHECKING, cast
@@ -13,7 +14,7 @@ from django.conf import settings
 from django.core.exceptions import FieldDoesNotExist
 from django.db import router, transaction
 from django.db.backends.utils import names_digest
-from django.db.models import CharField, Field, UniqueConstraint
+from django.db.models import BigIntegerField, CharField, F, Field, Q, UniqueConstraint
 from django.db.models.fields.json import KeyTextTransform
 from django.db.models.functions import Cast
 from django.db.utils import IntegrityError
@@ -343,6 +344,17 @@ class DjangoNonceMixin(NonceMixin):
 
 
 class DjangoAssociationMixin(AssociationMixin):
+    @classmethod
+    def cleanup_expired(cls, now: int | None = None) -> int:
+        """Delete expired OpenID associations and OIDC nonces."""
+        if now is None:
+            now = int(time.time())
+        expired = cls.objects.alias(expires=Cast("issued", BigIntegerField()) + F("lifetime")).filter(
+            Q(lifetime__lte=0) | Q(expires__lte=now)
+        )
+        count, _ = expired.delete()
+        return count
+
     objects: ClassVar[Manager[_DjangoAssociation]]
     DoesNotExist: ClassVar[type[ObjectDoesNotExist]]
 

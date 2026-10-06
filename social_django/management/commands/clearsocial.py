@@ -3,11 +3,11 @@ from datetime import timedelta
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
-from social_django.models import Code, Partial
+from social_django.models import Association, Code, Partial
 
 
 class Command(BaseCommand):
-    help = "removes old not used verification codes and partials"
+    help = "removes unused verification codes, old partials, and expired associations"
 
     def add_arguments(self, parser):
         super().add_arguments(parser)
@@ -28,3 +28,5 @@ class Command(BaseCommand):
 
         # Delete old partial data
         Partial.objects.filter(timestamp__lt=age).delete()
+
+        Association.cleanup_expired()
