@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 
+- Strategy-based, opt-in synchronization of external memberships to existing
+  Django groups using backend-scoped `GROUPS_MAP` configuration.
+
 - Render an overridable authentication error page with an appropriate HTTP status
   when exception middleware is installed without `SOCIAL_AUTH_LOGIN_ERROR_URL`.
 
