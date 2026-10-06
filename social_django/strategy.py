@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from importlib import import_module
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from django.conf import settings
 from django.contrib.auth import authenticate, get_user
+from django.contrib.auth.models import Group
 from django.contrib.contenttypes.models import ContentType
+from django.db import router, transaction
 from django.db.models import Model
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render, resolve_url
@@ -15,6 +17,8 @@ from django.utils.datastructures import MultiValueDict
 from django.utils.encoding import force_str
 from django.utils.functional import Promise
 from django.utils.translation import get_language
+from social_core.exceptions import AuthConfigurationError
+from social_core.groups import group_sync_targets
 from social_core.strategy import BaseStrategy, BaseTemplateStrategy
 from social_core.utils import PARTIAL_TOKEN_PENDING_CONFIRMATION_SESSION_NAME
 
@@ -65,6 +69,40 @@ class DjangoStrategy(BaseStrategy):
             msg = "This strategy operation requires an HTTP request"
             raise RuntimeError(msg)
         return self.request
+
+    def sync_user_groups(self, user, groups, *, backend, response, **kwargs) -> None:
+        """Synchronize existing standard Django groups selected by name."""
+        desired, managed = group_sync_targets(backend, groups, response)
+        if not managed:
+            return
+        if any(not isinstance(target, str) for target in managed) or (
+            not hasattr(user, "groups") or user.groups.model is not Group or not user.groups.through._meta.auto_created  # noqa: SLF001
+        ):
+            raise AuthConfigurationError(
+                backend,
+                code="invalid_setting",
+                parameter="GROUPS_MAP",
+                stage="pipeline",
+            )
+        using = router.db_for_write(user.groups.through, instance=user)
+        desired_names = cast("set[str]", desired)
+        managed_names = cast("set[str]", managed)
+        with transaction.atomic(using=using):
+            targets = dict(Group.objects.using(using).filter(name__in=managed_names).values_list("name", "pk"))
+            if set(targets) != managed_names:
+                raise AuthConfigurationError(
+                    backend,
+                    "A mapped Django group does not exist",
+                    code="invalid_setting",
+                    parameter="GROUPS_MAP",
+                    stage="pipeline",
+                )
+            current = set(user.groups.using(using).values_list("name", flat=True))
+            user.groups.remove(*(targets[name] for name in (current & managed_names) - desired_names))
+            user.groups.add(*(targets[name] for name in desired_names - current))
+        for cache in ("_perm_cache", "_group_perm_cache", "_user_perm_cache"):
+            if hasattr(user, cache):
+                delattr(user, cache)
 
     @property
     def session(self) -> SessionBase:
