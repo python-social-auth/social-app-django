@@ -14,7 +14,8 @@ class SocialAuthIconFinder(FileSystemFinder):
         prefix = "social_auth/icons"
         self.locations = [(prefix, location)]
         storage = FileSystemStorage(location=location)
-        storage.prefix = prefix
+        # FileSystemFinder adds this attribute dynamically for collectstatic.
+        storage.prefix = prefix  # type: ignore[attr-defined]
         self.storages = {location: storage}
 
     def find_location(self, root, path, prefix=None):
