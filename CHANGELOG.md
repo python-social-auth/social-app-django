@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## [7.0.0](https://github.com/python-social-auth/social-app-django/releases/tag/7.0.0) - 2026-10-06
 
 ### Added
 
@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Render an overridable authentication error page with an appropriate HTTP status
   when exception middleware is installed without `SOCIAL_AUTH_LOGIN_ERROR_URL`.
 
-- Opt-in `SOCIAL_AUTH_ERROR_INCLUDE_METADATA` for safe reason/source/stage/recovery
+- Opt-in `SOCIAL_AUTH_ERROR_INCLUDE_METADATA` for safe code/source/stage/recovery
   fields in error redirects, including message-storage fallback.
 
 - Backend display metadata in the `backends.metadata` template context and
@@ -39,6 +39,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Pipeline steps no longer receive a Django request argument. Use
   `strategy.request` for the HTTP request and `strategy.request_data()` for
   effective pipeline parameters, including replayed external-link data.
+- Custom exception middleware overrides of `dispatch_error()` and
+  `append_query_params()` must accept the keyword-only `metadata` argument.
 
 ### Security
 
@@ -54,6 +56,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Preserve email verification data when resuming a confirmed partial pipeline
   while keeping the native HTTP request available to Django authentication.
 - Preserve concrete social-auth model types in inherited manager operations.
+- Preserve hyphenated UUID usernames for user models with a `UUIDField` username,
+  including Cognito users.
+- Preserve tracebacks in logs for server errors rendered by the exception
+  middleware.
 
 ## [6.1.0](https://github.com/python-social-auth/social-app-django/releases/tag/6.1.0) - 2026-09-30
 
