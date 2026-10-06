@@ -475,6 +475,47 @@ class TestNonce(TestCase):
 
 
 class TestAssociation(TestCase):
+    def test_cleanup_expired(self):
+        for handle, secret, issued, lifetime in (
+            ("active-nonce", "", 1000, 1800),
+            ("expired-nonce", "", 999, 1800),
+            ("active-openid", "c2VjcmV0", 1000, 1801),
+            ("expired-openid", "c2VjcmV0", 900, 1900),
+            ("zero-lifetime", "", 3000, 0),
+            ("negative-lifetime", "", 3000, -1),
+            ("large-expiry", "c2VjcmV0", 2147483640, 3600),
+        ):
+            Association.objects.create(
+                server_url="https://example.com",
+                handle=handle,
+                secret=secret,
+                issued=issued,
+                lifetime=lifetime,
+                assoc_type="state",
+            )
+        with mock.patch("social_django.storage.time.time", return_value=2799):
+            self.assertEqual(Association.cleanup_expired(), 3)
+        self.assertEqual(Association.cleanup_expired(now=2800), 2)
+        self.assertEqual(Association.cleanup_expired(now=2800), 0)
+        self.assertEqual(
+            set(Association.objects.values_list("handle", flat=True)),
+            {"active-openid", "large-expiry"},
+        )
+
+    def test_clearsocial_uses_association_lifetime(self):
+        for handle, lifetime in (("expired", 60), ("active", 1800)):
+            Association.objects.create(
+                server_url="https://example.com",
+                handle=handle,
+                secret="",
+                issued=1000,
+                lifetime=lifetime,
+                assoc_type="state",
+            )
+        with mock.patch("social_django.storage.time.time", return_value=1060):
+            call_command("clearsocial", age=30)
+        self.assertEqual(list(Association.objects.values_list("handle", flat=True)), ["active"])
+
     def test_store_get_remove(self):
         Association.store(
             server_url="/",

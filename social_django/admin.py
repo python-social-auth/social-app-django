@@ -55,6 +55,6 @@ class NonceOption(admin.ModelAdmin):
 class AssociationOption(admin.ModelAdmin):
     """Association options"""
 
-    list_display = ("id", "server_url", "assoc_type")
-    list_filter = ("assoc_type",)
+    list_display = ("id", "server_url", "assoc_type", "issued", "lifetime")
+    list_filter = ("server_url",)
     search_fields = ("server_url",)

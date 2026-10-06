@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 
+- `Association.cleanup_expired()` removes expired OpenID associations and OIDC
+  nonces. The `clearsocial` command now includes this cleanup independently of
+  its `--age` option. Existing undated OIDC nonces receive a 30-minute grace
+  period during migration.
+
 - Strategy-based, opt-in synchronization of external memberships to existing
   Django groups using backend-scoped `GROUPS_MAP` configuration.
 
