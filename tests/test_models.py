@@ -3,6 +3,7 @@ import sqlite3
 from datetime import datetime, timedelta
 from types import SimpleNamespace
 from unittest import mock
+from uuid import UUID
 from zoneinfo import ZoneInfo
 
 from django.contrib.auth import get_user_model
@@ -10,7 +11,9 @@ from django.core.management import call_command
 from django.db import IntegrityError, connection, models
 from django.test import TestCase, override_settings
 from django.test.utils import isolate_apps
+from social_core.backends.cognito import CognitoOAuth2
 from social_core.exceptions import AuthAssociationError
+from social_core.pipeline.user import get_username
 
 from social_django import storage
 from social_django.managers import UserSocialAuthManager
@@ -407,6 +410,60 @@ class TestUserSocialAuth(TestCase):
 
     def test_username_max_length(self):
         self.assertEqual(UserSocialAuth.username_max_length(), 150)
+
+    @isolate_apps()
+    def test_uuid_username_max_length(self):
+        class CustomUUIDField(models.UUIDField):
+            pass
+
+        class UUIDUser(models.Model):
+            USERNAME_FIELD = "identifier"
+            identifier = models.UUIDField(unique=True)
+            custom_identifier = CustomUUIDField(unique=True)
+
+            class Meta:
+                app_label = "tests"
+
+        with mock.patch.object(UserSocialAuth, "user_model", return_value=UUIDUser):
+            for name in ("identifier", "custom_identifier"):
+                with self.subTest(field=name), mock.patch.object(UUIDUser, "USERNAME_FIELD", name):
+                    self.assertEqual(UserSocialAuth.username_max_length(), 36)
+
+    @isolate_apps()
+    def test_custom_char_username_max_length(self):
+        class CustomUser(models.Model):
+            USERNAME_FIELD = "identifier"
+            identifier = models.CharField(max_length=42, unique=True)
+
+            class Meta:
+                app_label = "tests"
+
+        with mock.patch.object(UserSocialAuth, "user_model", return_value=CustomUser):
+            self.assertEqual(UserSocialAuth.username_max_length(), 42)
+
+    @isolate_apps()
+    def test_cognito_uuid_username(self):
+        class UUIDUser(models.Model):
+            USERNAME_FIELD = "identifier"
+            identifier = models.UUIDField(unique=True)
+
+            class Meta:
+                app_label = "tests"
+
+        identifier = UUID("01e5206c-5e37-4548-bf59-cffd34d0d296")
+        strategy = DjangoStrategy(DjangoStorage)
+        backend = CognitoOAuth2(strategy)
+        field = UUIDUser._meta.get_field("identifier")  # noqa: SLF001
+        with (
+            mock.patch.object(UserSocialAuth, "user_model", return_value=UUIDUser),
+            mock.patch.object(UserSocialAuth, "user_exists", return_value=False),
+        ):
+            for username in (str(identifier), identifier.hex):
+                with self.subTest(username=username):
+                    details = backend.get_user_details({"username": username})
+                    result = get_username(strategy, details, backend)
+                    self.assertEqual(result["username"], username)
+                    self.assertEqual(field.to_python(result["username"]), identifier)
 
 
 class TestNonce(TestCase):
