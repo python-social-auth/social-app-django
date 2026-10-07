@@ -117,7 +117,6 @@ ignore = [
   "boolean-default-value-positional-argument",  # TODO: Boolean default positional argument in function definition
   "boolean-positional-value-in-call",  # TODO: Boolean positional value in function call
   "D",  # TODO: Missing documentation
-  "django-model-without-dunder-str",  # TODO: Model does not define `__str__` method
   "docstring-missing-exception",  # TODO
   "docstring-missing-returns",  # TODO
   "incorrect-blank-line-before-class",  # CONFIG: incompatible with D211
@@ -143,6 +142,7 @@ max-complexity = 10
 [tool.ruff.lint.per-file-ignores]
 "scripts/check_distribution.py" = ["implicit-namespace-package", "print"]
 "social_django/migrations/*.py" = ["mutable-class-default"]
+"tests/**.py" = ["django-model-without-dunder-str"]
 "tests/settings.py" = ["PTH"]
 
 [tool.rumdl]

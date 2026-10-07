@@ -56,17 +56,23 @@ if TYPE_CHECKING:
         is_active: bool | Callable[[], bool]
         is_authenticated: bool | Callable[[], bool]
 
+        def __str__(self) -> str: ...
+
     class _DjangoAssociation(Model):
         secret: str
         issued: int
         lifetime: int
         assoc_type: str
 
+        def __str__(self) -> str: ...
+
     class _DjangoSocialAuth(Model):
         provider: str
         uid: str
         id_key: str
         extra_data: dict
+
+        def __str__(self) -> str: ...
 
     class _DjangoSocialAuthManager(Manager[_DjangoSocialAuth]):
         """Manager whose querysets contain social-auth associations."""

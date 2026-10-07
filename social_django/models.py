@@ -108,6 +108,9 @@ class Nonce(models.Model, DjangoNonceMixin):
         unique_together = ("server_url", "timestamp", "salt")
         db_table = "social_auth_nonce"
 
+    def __str__(self) -> str:
+        return f"{self.server_url} ({self.timestamp})"
+
 
 class Association(models.Model, DjangoAssociationMixin):
     """OpenId account association"""
@@ -127,6 +130,9 @@ class Association(models.Model, DjangoAssociationMixin):
             "handle",
         )
 
+    def __str__(self) -> str:
+        return f"{self.server_url} ({self.handle})"
+
 
 class Code(models.Model, DjangoCodeMixin):
     email = models.EmailField(max_length=EMAIL_LENGTH)
@@ -139,6 +145,9 @@ class Code(models.Model, DjangoCodeMixin):
         db_table = "social_auth_code"
         unique_together = ("email", "code")
 
+    def __str__(self) -> str:
+        return self.email
+
 
 class Partial(models.Model, DjangoPartialMixin):
     token = models.CharField(max_length=32, db_index=True)
@@ -150,6 +159,9 @@ class Partial(models.Model, DjangoPartialMixin):
     class Meta:
         app_label = "social_django"
         db_table = "social_auth_partial"
+
+    def __str__(self) -> str:
+        return f"{self.backend} ({self.pk})"
 
 
 class DjangoStorage(BaseDjangoStorage):
