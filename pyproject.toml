@@ -109,23 +109,32 @@ exclude = [
   "site"
 ]
 line-length = 120
+preview = true
 
 [tool.ruff.lint]
 ignore = [
   "ANN",  # TODO: Missing type annotations
-  "ARG001",  # TODO: Unused function argument (mostly for API compatibility)
-  "ARG002",  # TODO: Unused method argument (mostly for API compatibility)
-  "B026",  # TODO: Star-arg unpacking after a keyword argument is strongly discouraged
-  "COM812",  # CONFIG: incompatible with formatter
-  "CPY001",  # TODO: Copyright not documented
+  "boolean-default-value-positional-argument",  # TODO: Boolean default positional argument in function definition
+  "boolean-positional-value-in-call",  # TODO: Boolean positional value in function call
   "D",  # TODO: Missing documentation
-  "D203",  # CONFIG: incompatible with D211
-  "D212",  # CONFIG: incompatible with D213
-  "DJ008",  # TODO: Model does not define `__str__` method
-  "FBT002",  # TODO: Boolean default positional argument in function definition
-  "FBT003",  # TODO: Boolean positional value in function call
+  "django-model-without-dunder-str",  # TODO: Model does not define `__str__` method
+  "docstring-missing-exception",  # TODO
+  "docstring-missing-returns",  # TODO
+  "incorrect-blank-line-before-class",  # CONFIG: incompatible with D211
+  "literal-membership",  # TODO!
+  "missing-copyright-notice",  # TODO: Copyright not documented
+  "missing-trailing-comma",  # CONFIG: incompatible with formatter
+  "multi-line-summary-first-line",  # CONFIG: incompatible with D213
+  "mutable-class-default",  # TODO: ClassVar type annotations
+  "no-self-use",  # TODO
+  "private-member-access",  # TODO!
   "PT",  # CONFIG: Not using pytest
-  "RUF012"  # TODO: ClassVar type annotations
+  "star-arg-unpacking-after-keyword-arg",  # TODO: Star-arg unpacking after a keyword argument is strongly discouraged
+  "too-many-locals",  # TODO
+  "too-many-public-methods",  # TODO
+  "unused-function-argument",  # TODO: Unused function argument (mostly for API compatibility)
+  "unused-method-argument",  # TODO: Unused method argument (mostly for API compatibility)
+  "used-dummy-variable"  # TODO
 ]
 select = ["ALL"]
 
@@ -133,7 +142,8 @@ select = ["ALL"]
 max-complexity = 10
 
 [tool.ruff.lint.per-file-ignores]
-"social_django/migrations/*.py" = ["RUF012"]
+"scripts/check_distribution.py" = ["implicit-namespace-package", "print"]
+"social_django/migrations/*.py" = ["mutable-class-default"]
 "tests/settings.py" = ["PTH"]
 
 [tool.rumdl]

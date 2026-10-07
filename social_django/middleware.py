@@ -173,7 +173,7 @@ class SocialAuthExceptionMiddleware:
         add_never_cache_headers(response)
         return response
 
-    def dispatch_error(  # noqa: PLR0913
+    def dispatch_error(  # ruff: ignore[too-many-arguments]
         self,
         request: HttpRequest,
         transports: list[ErrorTransport],

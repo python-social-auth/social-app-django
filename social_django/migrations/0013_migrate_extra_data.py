@@ -45,7 +45,7 @@ def migrate_json_field_backwards(apps, schema_editor):
     to_be_updated = []
 
     is_text_field = isinstance(
-        UserSocialAuth._meta.get_field("extra_data"),  # noqa: SLF001
+        UserSocialAuth._meta.get_field("extra_data"),
         models.TextField,
     )
     for auth in UserSocialAuth.objects.using(db_alias).iterator():
@@ -64,7 +64,7 @@ def migrate_json_field_backwards(apps, schema_editor):
         to_be_updated.clear()
 
     is_text_field = issubclass(
-        type(Partial._meta.get_field("data")),  # noqa: SLF001
+        type(Partial._meta.get_field("data")),
         models.TextField,
     )
     for auth in Partial.objects.using(db_alias).all():

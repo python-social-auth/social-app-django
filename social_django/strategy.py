@@ -76,7 +76,7 @@ class DjangoStrategy(BaseStrategy):
         if not managed:
             return
         if any(not isinstance(target, str) for target in managed) or (
-            not hasattr(user, "groups") or user.groups.model is not Group or not user.groups.through._meta.auto_created  # noqa: SLF001
+            not hasattr(user, "groups") or user.groups.model is not Group or not user.groups.through._meta.auto_created
         ):
             raise AuthConfigurationError(
                 backend,
@@ -281,7 +281,7 @@ class DjangoStrategy(BaseStrategy):
             if model_class is None:
                 msg = f"Content type {ctype.pk} does not reference a model"
                 raise TypeError(msg)
-            val = model_class._default_manager.get(pk=val["pk"])  # noqa: SLF001
+            val = model_class._default_manager.get(pk=val["pk"])
 
         return val
 

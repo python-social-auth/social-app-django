@@ -14,8 +14,8 @@ from social_django.views import get_session_timeout
 class MockOIDCBackend(OpenIdConnectAuth):
     name = "mock-oidc"
     AUTHORIZATION_URL = "https://idp.example.com/auth"
-    ACCESS_TOKEN_URL = "https://idp.example.com/token"  # noqa: S105
-    ID_TOKEN_ISSUER = "https://idp.example.com"  # noqa: S105
+    ACCESS_TOKEN_URL = "https://idp.example.com/token"  # ruff: ignore[hardcoded-password-string]
+    ID_TOKEN_ISSUER = "https://idp.example.com"  # ruff: ignore[hardcoded-password-string]
 
 
 def send_validation(strategy, backend, code, partial_token):
@@ -89,7 +89,7 @@ class TestEmailConfirmation(TestCase):
             send_email.assert_called_once()
 
 
-@override_settings(SOCIAL_AUTH_FACEBOOK_KEY="1", SOCIAL_AUTH_FACEBOOK_SECRET="2")  # noqa: S106
+@override_settings(SOCIAL_AUTH_FACEBOOK_KEY="1", SOCIAL_AUTH_FACEBOOK_SECRET="2")  # ruff: ignore[hardcoded-password-func-arg]
 class TestViews(TestCase):
     def setUp(self):
         session = self.client.session
@@ -105,7 +105,7 @@ class TestViews(TestCase):
         self.assertEqual(response.status_code, 404)
 
     def test_begin_view_passes_authenticated_user_to_prepare_auth(self):
-        user = get_user_model()._default_manager.create_user(username="begin_tester")  # noqa: SLF001
+        user = get_user_model()._default_manager.create_user(username="begin_tester")
         self.client.force_login(user)
 
         with mock.patch("social_core.backends.base.BaseAuth.prepare_auth") as prepare_auth:
@@ -143,12 +143,12 @@ class TestViews(TestCase):
     @mock.patch("social_core.backends.base.BaseAuth.request")
     def test_disconnect(self, _mock_request):
         user_model = get_user_model()
-        user = user_model._default_manager.create_user(  # noqa: SLF001
+        user = user_model._default_manager.create_user(
             username="test",
-            password="pwd",  # noqa: S106
+            password="pwd",  # ruff: ignore[hardcoded-password-func-arg]
         )
         UserSocialAuth.objects.create(user=user, provider="facebook", uid="some-mock-facebook-uid")
-        self.client.login(username="test", password="pwd")  # noqa: S106
+        self.client.login(username="test", password="pwd")  # ruff: ignore[hardcoded-password-func-arg]
 
         url = reverse("social:disconnect", kwargs={"backend": "facebook"})
         response = self.client.post(url)
@@ -230,10 +230,10 @@ class TestGetSessionTimeout(TestCase):
         "django.contrib.auth.backends.ModelBackend",
     ),
     SOCIAL_AUTH_MOCK_OIDC_KEY="1",
-    SOCIAL_AUTH_MOCK_OIDC_SECRET="2",  # noqa: S106
-    SOCIAL_AUTH_MOCK_OIDC_ID_TOKEN_ISSUER="https://idp.example.com",  # noqa: S106
+    SOCIAL_AUTH_MOCK_OIDC_SECRET="2",  # ruff: ignore[hardcoded-password-func-arg]
+    SOCIAL_AUTH_MOCK_OIDC_ID_TOKEN_ISSUER="https://idp.example.com",  # ruff: ignore[hardcoded-password-func-arg]
     SOCIAL_AUTH_FACEBOOK_KEY="1",
-    SOCIAL_AUTH_FACEBOOK_SECRET="2",  # noqa: S106
+    SOCIAL_AUTH_FACEBOOK_SECRET="2",  # ruff: ignore[hardcoded-password-func-arg]
     SOCIAL_AUTH_ENABLE_LAUNCH_BRIDGES=[LaunchBridge.APP, LaunchBridge.IDP],
 )
 class TestLaunchViews(TestCase):
@@ -386,8 +386,8 @@ class TestLaunchViews(TestCase):
 
     def test_idp_launch_authenticated_user_redirects(self):
         user_model = get_user_model()
-        user_model._default_manager.create_user(username="launch_tester", password="pwd")  # noqa: S106, SLF001
-        self.client.login(username="launch_tester", password="pwd")  # noqa: S106
+        user_model._default_manager.create_user(username="launch_tester", password="pwd")  # ruff: ignore[hardcoded-password-func-arg]
+        self.client.login(username="launch_tester", password="pwd")  # ruff: ignore[hardcoded-password-func-arg]
 
         url = reverse("social:idp_launch", kwargs={"backend": "mock-oidc"})
 
@@ -493,8 +493,8 @@ class TestLaunchViews(TestCase):
 
     def test_app_launch_authenticated_user_redirects(self):
         user_model = get_user_model()
-        user_model._default_manager.create_user(username="app_tester", password="pwd")  # noqa: S106, SLF001
-        self.client.login(username="app_tester", password="pwd")  # noqa: S106
+        user_model._default_manager.create_user(username="app_tester", password="pwd")  # ruff: ignore[hardcoded-password-func-arg]
+        self.client.login(username="app_tester", password="pwd")  # ruff: ignore[hardcoded-password-func-arg]
 
         url = reverse("social:app_launch", kwargs={"backend": "mock-oidc"})
         response = self.client.get(

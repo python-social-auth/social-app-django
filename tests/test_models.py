@@ -91,22 +91,22 @@ class TestCodeExpiry(TestCase):
 class TestSocialAuthUser(TestCase):
     def test_user_relationship_none(self):
         """Accessing User.social_user outside of the pipeline doesn't work"""
-        User = get_user_model()  # noqa: N806
-        user = User._default_manager.create_user(username="randomtester")  # noqa: SLF001
+        User = get_user_model()  # ruff: ignore[non-lowercase-variable-in-function]
+        user = User._default_manager.create_user(username="randomtester")
         with self.assertRaises(AttributeError):
-            user.social_user  # noqa: B018
+            user.social_user  # ruff: ignore[useless-expression]
 
     def test_user_existing_relationship(self):
         """Accessing User.social_user outside of the pipeline doesn't work"""
-        User = get_user_model()  # noqa: N806
-        user = User._default_manager.create_user(username="randomtester")  # noqa: SLF001
+        User = get_user_model()  # ruff: ignore[non-lowercase-variable-in-function]
+        user = User._default_manager.create_user(username="randomtester")
         UserSocialAuth.objects.create(user=user, provider="my-provider", uid="1234")
         with self.assertRaises(AttributeError):
-            user.social_user  # noqa: B018
+            user.social_user  # ruff: ignore[useless-expression]
 
     def test_get_social_auth(self):
-        User = get_user_model()  # noqa: N806
-        user = User._default_manager.create_user(username="randomtester")  # noqa: SLF001
+        User = get_user_model()  # ruff: ignore[non-lowercase-variable-in-function]
+        user = User._default_manager.create_user(username="randomtester")
         user_social = UserSocialAuth.objects.create(user=user, provider="my-provider", uid="1234")
         other = UserSocialAuth.get_social_auth("my-provider", "1234")
         self.assertEqual(other, user_social)
@@ -136,13 +136,13 @@ class TestSocialAuthUser(TestCase):
 class TestUserSocialAuth(TestCase):
     def setUp(self):
         self.user_model = get_user_model()
-        self.user = self.user_model._default_manager.create_user(username="randomtester", email="user@example.com")  # noqa: SLF001
+        self.user = self.user_model._default_manager.create_user(username="randomtester", email="user@example.com")
         self.usa = UserSocialAuth.objects.create(user=self.user, provider="my-provider", uid="1234")
 
     def test_changed(self):
         self.user.email = eml = "test@example.com"
         UserSocialAuth.changed(user=self.user)
-        db_eml = self.user_model._default_manager.get(username=self.user.username).email  # noqa: SLF001
+        db_eml = self.user_model._default_manager.get(username=self.user.username).email
         self.assertEqual(db_eml, eml)
 
     def test_set_extra_data(self):
@@ -453,7 +453,7 @@ class TestUserSocialAuth(TestCase):
         identifier = UUID("01e5206c-5e37-4548-bf59-cffd34d0d296")
         strategy = DjangoStrategy(DjangoStorage)
         backend = CognitoOAuth2(strategy)
-        field = UUIDUser._meta.get_field("identifier")  # noqa: SLF001
+        field = UUIDUser._meta.get_field("identifier")
         with (
             mock.patch.object(UserSocialAuth, "user_model", return_value=UUIDUser),
             mock.patch.object(UserSocialAuth, "user_exists", return_value=False),
@@ -540,10 +540,10 @@ class TestCode(TestCase):
 
 class TestPartial(TestCase):
     def test_load_destroy(self):
-        token_value = "x"  # noqa: S105
+        token_value = "x"  # ruff: ignore[hardcoded-password-string]
         p = Partial.objects.create(token=token_value, backend="y", data={})
         self.assertEqual(Partial.load(token=token_value), p)
-        self.assertIsNone(Partial.load(token="y"))  # noqa: S106
+        self.assertIsNone(Partial.load(token="y"))  # ruff: ignore[hardcoded-password-func-arg]
 
         Partial.destroy(token=token_value)
         self.assertEqual(Partial.objects.count(), 0)
@@ -794,8 +794,8 @@ class UserCreationIntegrityTest(TestCase):
                 self.assertEqual(caught.exception.code, code)
 
     def test_migration_generated_constraint_names_need_no_database_queries(self):
-        field = get_user_model()._meta.get_field("username")  # noqa: SLF001
-        statement = connection.schema_editor()._create_unique_sql(field.model, [field])  # noqa: SLF001
+        field = get_user_model()._meta.get_field("username")
+        statement = connection.schema_editor()._create_unique_sql(field.model, [field])
         name = str(statement.parts["name"]).strip('"`')
         self.assertTrue(name.endswith("_uniq"))
         for vendor in ("postgresql", "mysql"):
@@ -808,7 +808,7 @@ class UserCreationIntegrityTest(TestCase):
             error = IntegrityError("Identifier conflict")
             error.__cause__ = cause
             with self.subTest(vendor=vendor), self.assertNumQueries(0):
-                self.assertEqual(UserSocialAuth._user_creation_conflict(error), "username_in_use")  # noqa: SLF001
+                self.assertEqual(UserSocialAuth._user_creation_conflict(error), "username_in_use")
 
     @isolate_apps()
     def test_single_identifier_unique_together_needs_no_database_queries(self):
@@ -827,8 +827,8 @@ class UserCreationIntegrityTest(TestCase):
             (("email",), "email_in_use"),
             (("username", "other"), None),
         ):
-            columns = [TogetherUser._meta.get_field(field) for field in fields]  # noqa: SLF001
-            statement = connection.schema_editor()._create_unique_sql(TogetherUser, columns)  # noqa: SLF001
+            columns = [TogetherUser._meta.get_field(field) for field in fields]
+            statement = connection.schema_editor()._create_unique_sql(TogetherUser, columns)
             name = str(statement.parts["name"]).strip('"`')
             for vendor in ("postgresql", "mysql"):
                 if vendor == "postgresql":
@@ -844,13 +844,13 @@ class UserCreationIntegrityTest(TestCase):
                     mock.patch.object(UserSocialAuth, "user_model", return_value=TogetherUser),
                     self.assertNumQueries(0),
                 ):
-                    self.assertEqual(UserSocialAuth._user_creation_conflict(error), code)  # noqa: SLF001
+                    self.assertEqual(UserSocialAuth._user_creation_conflict(error), code)
         # unique_together does not create inline field constraints.
-        field = TogetherUser._meta.get_field("username")  # noqa: SLF001
-        self.assertNotIn("username", UserSocialAuth._identifier_constraint_names(field, "mysql"))  # noqa: SLF001
+        field = TogetherUser._meta.get_field("username")
+        self.assertNotIn("username", UserSocialAuth._identifier_constraint_names(field, "mysql"))
         self.assertNotIn(
-            f"{TogetherUser._meta.db_table}_username_key",  # noqa: SLF001
-            UserSocialAuth._identifier_constraint_names(field, "postgresql"),  # noqa: SLF001
+            f"{TogetherUser._meta.db_table}_username_key",
+            UserSocialAuth._identifier_constraint_names(field, "postgresql"),
         )
 
     @isolate_apps()

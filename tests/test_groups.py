@@ -40,7 +40,7 @@ class GroupSyncTest(TestCase):
     def test_replica_loaded_user_updates_memberships_on_write_database(self):
         self.user.groups.add(self.b, self.unrelated)
         with (
-            patch.object(self.user._state, "db", "replica"),  # noqa: SLF001
+            patch.object(self.user._state, "db", "replica"),
             patch("social_django.strategy.router.db_for_read", return_value="replica"),
             patch("social_django.strategy.router.db_for_write", return_value="default"),
         ):
@@ -85,7 +85,7 @@ class GroupSyncTest(TestCase):
                 app_label = "tests"
 
         self.user.groups.add(self.a, self.unrelated)
-        relation = self.user._meta.get_field("groups").remote_field  # noqa: SLF001
+        relation = self.user._meta.get_field("groups").remote_field
         with (
             patch.object(relation, "through", Membership),
             self.assertNumQueries(0),
@@ -119,7 +119,7 @@ class GroupSyncTest(TestCase):
     @override_settings(
         AUTHENTICATION_BACKENDS=("social_core.backends.mediawiki.MediaWiki",),
         SOCIAL_AUTH_MEDIAWIKI_KEY="key",
-        SOCIAL_AUTH_MEDIAWIKI_SECRET="secret",  # noqa: S106
+        SOCIAL_AUTH_MEDIAWIKI_SECRET="secret",  # ruff: ignore[hardcoded-password-func-arg]
         SOCIAL_AUTH_MEDIAWIKI_URL="https://example.com/wiki",
     )
     def test_mediawiki_default_login_does_not_assign_many_to_many_details(self):
