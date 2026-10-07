@@ -125,7 +125,6 @@ ignore = [
   "missing-copyright-notice",  # TODO: Copyright not documented
   "missing-trailing-comma",  # CONFIG: incompatible with formatter
   "multi-line-summary-first-line",  # CONFIG: incompatible with D213
-  "mutable-class-default",  # TODO: ClassVar type annotations
   "no-self-use",  # TODO
   "private-member-access",  # TODO!
   "PT",  # CONFIG: Not using pytest

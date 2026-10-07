@@ -2,6 +2,7 @@ import runpy
 import sqlite3
 from datetime import datetime, timedelta
 from types import SimpleNamespace
+from typing import ClassVar
 from unittest import mock
 from uuid import UUID
 from zoneinfo import ZoneInfo
@@ -702,7 +703,7 @@ class UserCreationIntegrityTest(TestCase):
 
             class Meta:
                 app_label = "tests"
-                constraints = [
+                constraints: ClassVar[list[models.BaseConstraint]] = [
                     models.UniqueConstraint(fields=["username"], name="unique_username"),
                     models.UniqueConstraint(fields=["email"], name="unique_email"),
                     models.UniqueConstraint(fields=["other"], name="unrelated"),
@@ -900,7 +901,7 @@ class UserCreationIntegrityTest(TestCase):
 
             class Meta:
                 app_label = "tests"
-                constraints = [
+                constraints: ClassVar[list[models.BaseConstraint]] = [
                     models.UniqueConstraint(fields=["other"], name="username"),
                     models.UniqueConstraint(fields=["other"], name="email"),
                 ]
