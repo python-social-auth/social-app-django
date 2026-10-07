@@ -47,7 +47,9 @@ class AbstractUserSocialAuth(models.Model, DjangoUserMixin):
     objects: ClassVar[UserSocialAuthManager[Self]] = UserSocialAuthManager()
 
     class Meta:
-        constraints = [models.CheckConstraint(condition=~models.Q(uid=""), name="user_social_auth_uid_required")]
+        constraints: ClassVar[list[models.BaseConstraint]] = [
+            models.CheckConstraint(condition=~models.Q(uid=""), name="user_social_auth_uid_required")
+        ]
         abstract = True
 
     def __str__(self):
