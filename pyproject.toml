@@ -129,7 +129,6 @@ ignore = [
   "no-self-use",  # TODO
   "private-member-access",  # TODO!
   "PT",  # CONFIG: Not using pytest
-  "star-arg-unpacking-after-keyword-arg",  # TODO: Star-arg unpacking after a keyword argument is strongly discouraged
   "too-many-locals",  # TODO
   "too-many-public-methods",  # TODO
   "unused-function-argument",  # TODO: Unused function argument (mostly for API compatibility)
