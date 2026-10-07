@@ -132,7 +132,7 @@ class DjangoUserMixin(UserMixin):
     def create_user(cls, *args, **kwargs):
         username_field = cls.username_field()
         model = cls.user_model()
-        manager = model._default_manager  # noqa: SLF001
+        manager = model._default_manager
         if "username" in kwargs:
             if username_field not in kwargs:
                 kwargs[username_field] = kwargs.pop("username")
@@ -140,7 +140,7 @@ class DjangoUserMixin(UserMixin):
                 # If username_field is 'email' and there is no field named "username"
                 # then latest should be removed from kwargs.
                 try:
-                    model._meta.get_field("username")  # noqa: SLF001
+                    model._meta.get_field("username")
                 except FieldDoesNotExist:
                     kwargs.pop("username")
 
@@ -173,7 +173,7 @@ class DjangoUserMixin(UserMixin):
     @staticmethod
     def _identifier_constraint_names(field: Field, vendor: str) -> set[str]:
         """Known single-column names, without database introspection or SQL parsing."""
-        meta = field.model._meta  # noqa: SLF001
+        meta = field.model._meta
         names = {
             constraint.name
             for constraint in meta.constraints
@@ -203,12 +203,12 @@ class DjangoUserMixin(UserMixin):
         email_field = getattr(model, "EMAIL_FIELD", "email")
         for name, code in ((cls.username_field(), "username_in_use"), (email_field, "email_in_use")):
             try:
-                field = model._meta.get_field(name)  # noqa: SLF001
+                field = model._meta.get_field(name)
             except FieldDoesNotExist:
                 continue
             if not isinstance(field, Field) or field.column is None:
                 continue
-            table = field.model._meta.db_table  # noqa: SLF001
+            table = field.model._meta.db_table
             # Exact single-column SQLite diagnostics also work on Python 3.10.
             if sqlite_unique and str(cause) == f"UNIQUE constraint failed: {table}.{field.column}":
                 return code
@@ -219,7 +219,7 @@ class DjangoUserMixin(UserMixin):
     @classmethod
     def filter_users(cls, *args, **kwargs) -> QuerySet:
         model = cls.user_model()
-        manager = model._default_manager  # noqa: SLF001
+        manager = model._default_manager
         return manager.filter(*args, **kwargs)
 
     @classmethod
@@ -259,7 +259,8 @@ class DjangoUserMixin(UserMixin):
     def get_social_auth_by_extra_data(cls, provider, key, value, id_key=""):
         matches = []
         query = (
-            cls._manager()
+            cls
+            ._manager()
             .filter(provider=provider, id_key=id_key)
             .annotate(_social_auth_identifier=Cast(KeyTextTransform(key, "extra_data"), CharField()))
             .filter(_social_auth_identifier=str(value))
@@ -278,7 +279,7 @@ class DjangoUserMixin(UserMixin):
         return matches[0] if matches else None
 
     @classmethod
-    def get_social_auth_for_user(cls, user, provider=None, id=None):  # noqa: A002
+    def get_social_auth_for_user(cls, user, provider=None, id=None):  # ruff: ignore[builtin-argument-shadowing]
         qs = cls._manager().filter(user=user)
 
         if provider:

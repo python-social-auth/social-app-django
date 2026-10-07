@@ -13,7 +13,7 @@ class PythonSocialAuthConfig(AppConfig):
     verbose_name = "Python Social Auth"
 
     def ready(self) -> None:
-        from .utils import load_strategy  # noqa: PLC0415
+        from .utils import load_strategy  # ruff: ignore[import-outside-top-level]
 
         super().ready()
 

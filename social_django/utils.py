@@ -89,7 +89,7 @@ def is_launch_bridge_enabled(bridge: LaunchBridge | str) -> bool:
 def is_safe_url(
     url: str | None,
     allowed_hosts: Container[str] | None = None,
-    require_https: bool = False,  # noqa: FBT001
+    require_https: bool = False,  # ruff: ignore[boolean-type-hint-positional-argument]
 ) -> bool:
     """
     Check if a URL is safe for redirection.

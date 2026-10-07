@@ -70,7 +70,7 @@ class AbstractUserSocialAuth(models.Model, DjangoUserMixin):
     @classmethod
     def username_max_length(cls):
         username_field = cls.username_field()
-        field = cls.user_model()._meta.get_field(username_field)  # noqa: SLF001
+        field = cls.user_model()._meta.get_field(username_field)
         if isinstance(field, models.UUIDField):
             # UUIDField's storage length is 32, but hyphenated UUID strings need 36.
             return 36

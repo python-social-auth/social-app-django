@@ -1,4 +1,4 @@
-import subprocess
+import subprocess  # ruff: ignore[suspicious-subprocess-import]
 import sys
 
 from django.test import TestCase
@@ -58,7 +58,7 @@ class TestConstants(TestCase):
             "from social_django.constants import LaunchBridge\n"
             "assert LaunchBridge.APP == 'app_launch'\n"
         )
-        result = subprocess.run(  # noqa: S603
+        result = subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true]
             [sys.executable, "-c", code],
             capture_output=True,
             text=True,

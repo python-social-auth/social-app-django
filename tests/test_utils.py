@@ -180,7 +180,7 @@ class TestUtils(TestCase):
         request = self.factory.get("/", headers={"Sec-Fetch-Site": "cross-site"})
         is_valid, error = validate_app_launch_origin(request)
         self.assertFalse(is_valid)
-        assert error is not None  # noqa: S101
+        assert error is not None  # ruff: ignore[assert]
         self.assertIn("Cross-site launch rejected", error)
 
         # Untrusted referer rejected
@@ -190,14 +190,14 @@ class TestUtils(TestCase):
         )
         is_valid, error = validate_app_launch_origin(request)
         self.assertFalse(is_valid)
-        assert error is not None  # noqa: S101
+        assert error is not None  # ruff: ignore[assert]
         self.assertIn("Untrusted Referer origin rejected", error)
 
         # Missing both Sec-Fetch-Site and Referer rejected
         request = self.factory.get("/")
         is_valid, error = validate_app_launch_origin(request)
         self.assertFalse(is_valid)
-        assert error is not None  # noqa: S101
+        assert error is not None  # ruff: ignore[assert]
         self.assertIn("Missing same-origin indicator", error)
 
         # Valid referer without Sec-Fetch-Site accepted
@@ -229,14 +229,14 @@ class TestUtils(TestCase):
         backend.id_token_issuer.return_value = 123
         issuers, error = get_backend_issuer(backend, "mock-backend")
         self.assertIsNone(issuers)
-        assert error is not None  # noqa: S101
+        assert error is not None  # ruff: ignore[assert]
         self.assertIn("must be a string or list of strings", error)
 
         # Backend missing id_token_issuer support
         backend = mock.MagicMock(spec=[])
         issuers, error = get_backend_issuer(backend, "unsupported")
         self.assertIsNone(issuers)
-        assert error is not None  # noqa: S101
+        assert error is not None  # ruff: ignore[assert]
         self.assertIn("does not support ID token issuer validation", error)
 
         # Insecure / non-https issuer
@@ -244,14 +244,14 @@ class TestUtils(TestCase):
         backend.id_token_issuer.return_value = "http://insecure.example.com"
         issuers, error = get_backend_issuer(backend, "mock-backend")
         self.assertIsNone(issuers)
-        assert error is not None  # noqa: S101
+        assert error is not None  # ruff: ignore[assert]
         self.assertIn("is not a valid RFC-compliant HTTPS URL", error)
 
         # Insecure URL in list
         backend.id_token_issuer.return_value = ["https://idp1.example.com", "http://insecure.example.com"]
         issuers, error = get_backend_issuer(backend, "mock-backend")
         self.assertIsNone(issuers)
-        assert error is not None  # noqa: S101
+        assert error is not None  # ruff: ignore[assert]
         self.assertIn("is not a valid RFC-compliant HTTPS URL", error)
 
     def test_validate_idp_issuer(self):
@@ -277,19 +277,19 @@ class TestUtils(TestCase):
         # Missing iss parameter
         iss, error = validate_idp_issuer(backend, "mock-backend", None)
         self.assertIsNone(iss)
-        assert error is not None  # noqa: S101
+        assert error is not None  # ruff: ignore[assert]
         self.assertIn("Missing required `iss` query parameter", error)
 
         # Non-HTTPS iss parameter
         iss, error = validate_idp_issuer(backend, "mock-backend", "http://insecure.example.com")
         self.assertIsNone(iss)
-        assert error is not None  # noqa: S101
+        assert error is not None  # ruff: ignore[assert]
         self.assertIn("is not a valid RFC-compliant HTTPS URL", error)
 
         # Mismatched iss parameter
         iss, error = validate_idp_issuer(backend, "mock-backend", "https://other.example.com")
         self.assertIsNone(iss)
-        assert error is not None  # noqa: S101
+        assert error is not None  # ruff: ignore[assert]
         self.assertIn("Invalid `iss` parameter", error)
 
     def test_get_allowed_redirect_hosts(self):
