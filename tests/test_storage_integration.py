@@ -26,11 +26,142 @@ These integration tests ensure that:
 import time
 from unittest import mock
 
-from django.test import TestCase
+from django.contrib.auth import get_user_model
+from django.db import connection
+from django.test import TestCase, override_settings
+from django.test.utils import CaptureQueriesContext
+from social_core.backends.base import BaseAuth
+from social_core.backends.fence import Fence
+from social_core.exceptions import AuthAssociationError
+from social_core.pipeline.social_auth import load_extra_data, social_uid, social_user
 from social_core.store import OpenIdStore
 from social_core.strategy import BaseStrategy
 
-from social_django.models import Association, DjangoStorage, Nonce
+from social_django.models import Association, DjangoStorage, Nonce, UserSocialAuth
+from social_django.strategy import DjangoStrategy
+
+
+class MigratingBackend(BaseAuth):
+    name = "migration-test"
+    ID_KEY = "sub"
+    LEGACY_ID_KEYS = ("email",)
+
+
+class IdentifierMigrationIntegrationTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(username="migration")
+        self.strategy = DjangoStrategy(DjangoStorage)
+        self.backend = MigratingBackend(self.strategy)
+
+    def authenticate(self):
+        identifiers = social_uid(self.backend, {}, {"sub": "stable", "email": "old@example.com"})
+        return social_user(self.backend, **identifiers)
+
+    def test_verified_migration_uses_indexed_candidates(self):
+        for old_key in ("email", ""):
+            with self.subTest(old_key=old_key):
+                UserSocialAuth.objects.all().delete()
+                legacy = UserSocialAuth.objects.create(
+                    user=self.user,
+                    provider=self.backend.name,
+                    uid="old@example.com",
+                    id_key=old_key,
+                    extra_data={"sub": "stable"},
+                )
+                with (
+                    mock.patch.object(UserSocialAuth, "get_social_auth_by_extra_data", side_effect=AssertionError),
+                    CaptureQueriesContext(connection) as queries,
+                ):
+                    result = self.authenticate()
+                self.assertEqual(result["social"].pk, legacy.pk)
+                legacy.refresh_from_db()
+                self.assertEqual((legacy.uid, legacy.id_key), ("stable", "sub"))
+                self.assertFalse(any("JSON_EXTRACT" in query["sql"] or "->>" in query["sql"] for query in queries))
+                with self.assertNumQueries(1):
+                    self.assertEqual(self.authenticate()["social"].pk, legacy.pk)
+
+    def test_new_user_does_not_search_json(self):
+        with mock.patch.object(UserSocialAuth, "get_social_auth_by_extra_data", side_effect=AssertionError):
+            self.assertTrue(self.authenticate()["is_new"])
+
+    def test_missing_proof_does_not_create_an_account(self):
+        legacy = UserSocialAuth.objects.create(
+            user=self.user, provider=self.backend.name, uid="old@example.com", id_key="email"
+        )
+        with self.assertRaises(AuthAssociationError) as caught:
+            self.authenticate()
+        self.assertEqual(caught.exception.code, "identifier_migration_conflict")
+        legacy.refresh_from_db()
+        self.assertEqual(legacy.uid, "old@example.com")
+        self.assertEqual(get_user_model().objects.count(), 1)
+
+    def test_aliased_evidence_migrates_atomically(self):
+        backend = Fence(self.strategy)
+        legacy = UserSocialAuth.objects.create(
+            user=self.user, provider=backend.name, uid="old", id_key="username", extra_data={"id": "stable"}
+        )
+        result = social_user(backend, "stable", id_key="sub", legacy_identifiers=[("username", "old")])
+        self.assertEqual(result["social"].pk, legacy.pk)
+        legacy.refresh_from_db()
+        self.assertEqual((legacy.uid, legacy.id_key), ("stable", "sub"))
+
+    def test_successive_configured_key_changes_preserve_the_account(self):
+        response = {"email": "old@example.com", "account_id": 123, "subject": "permanent"}
+        social = UserSocialAuth.objects.create(
+            user=self.user, provider=self.backend.name, uid=response["email"], id_key="email"
+        )
+        with override_settings(
+            SOCIAL_AUTH_MIGRATION_TEST_ID_KEY="email",
+            SOCIAL_AUTH_MIGRATION_TEST_EXTRA_DATA=[("account_id", "account_id")],
+        ):
+            identifiers = social_uid(self.backend, {}, response)
+            self.assertEqual(social_user(self.backend, **identifiers)["social"].pk, social.pk)
+            load_extra_data(self.backend, {}, response, identifiers["uid"], user=self.user, social=social)
+        social.refresh_from_db()
+        self.assertEqual(social.extra_data["account_id"], 123)
+
+        with override_settings(
+            SOCIAL_AUTH_MIGRATION_TEST_ID_KEY="account_id",
+            SOCIAL_AUTH_MIGRATION_TEST_LEGACY_ID_KEYS=["email"],
+            SOCIAL_AUTH_MIGRATION_TEST_EXTRA_DATA=[("subject", "subject")],
+            SOCIAL_AUTH_MIGRATION_TEST_ALLOW_UNVERIFIED_LEGACY_UID_MIGRATION=False,
+        ):
+            identifiers = social_uid(self.backend, {}, response)
+            migrated = social_user(self.backend, **identifiers)["social"]
+            self.assertEqual(migrated.pk, social.pk)
+            self.assertEqual(migrated.user, self.user)
+            self.assertEqual((migrated.uid, migrated.id_key), ("123", "account_id"))
+            load_extra_data(self.backend, {}, response, identifiers["uid"], user=self.user, social=migrated)
+
+        with override_settings(
+            SOCIAL_AUTH_MIGRATION_TEST_ID_KEY="subject",
+            SOCIAL_AUTH_MIGRATION_TEST_LEGACY_ID_KEYS=["email", "account_id"],
+            SOCIAL_AUTH_MIGRATION_TEST_ALLOW_UNVERIFIED_LEGACY_UID_MIGRATION=False,
+        ):
+            identifiers = social_uid(self.backend, {}, response)
+            migrated = social_user(self.backend, **identifiers)["social"]
+            self.assertEqual(migrated.pk, social.pk)
+            self.assertEqual(migrated.user, self.user)
+            self.assertEqual((migrated.uid, migrated.id_key), ("permanent", "subject"))
+            with self.assertNumQueries(1):
+                self.assertEqual(social_user(self.backend, **identifiers)["social"].pk, social.pk)
+        self.assertEqual(UserSocialAuth.objects.count(), 1)
+        self.assertEqual(get_user_model().objects.count(), 1)
+
+    def test_configured_change_without_evidence_stops_authentication(self):
+        social = UserSocialAuth.objects.create(
+            user=self.user, provider=self.backend.name, uid="old@example.com", id_key="email"
+        )
+        with override_settings(
+            SOCIAL_AUTH_MIGRATION_TEST_ID_KEY="account_id",
+            SOCIAL_AUTH_MIGRATION_TEST_LEGACY_ID_KEYS=["email"],
+        ):
+            identifiers = social_uid(self.backend, {}, {"email": "old@example.com", "account_id": 123})
+            with self.assertRaises(AuthAssociationError) as caught:
+                social_user(self.backend, **identifiers)
+        self.assertEqual(caught.exception.code, "identifier_migration_conflict")
+        social.refresh_from_db()
+        self.assertEqual((social.uid, social.id_key), ("old@example.com", "email"))
 
 
 class TestStorageIntegration(TestCase):
