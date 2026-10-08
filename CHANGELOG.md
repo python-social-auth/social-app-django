@@ -5,15 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## [7.1.0](https://github.com/python-social-auth/social-app-django/releases/tag/7.1.0) - 2026-10-08
+
+### Changed
+
+- Require social-auth-core 6.1 for indexed identifier migration without
+  authentication-time JSON searches.
+- Add readable string representations for nonce, association, code, and partial
+  pipeline models.
+
+### Deprecated
+
+- Importing `social_django.config` now emits a deprecation warning. Use
+  `social_django.apps` instead.
 
 ### Fixed
 
 - Backfill historical association identifier keys using set-based database
   updates, with `SOCIAL_AUTH_OLD_ID_KEYS` overrides for previous custom setups.
-  Require social-auth-core 6.1 for indexed identifier migration without
-  authentication-time JSON searches. Revalidate identifier evidence under the
+  Revalidate identifier evidence under the
   association lock, including historical aliases and concurrent changes.
+- Enforce exact provider matching when looking up social associations on
+  databases with case-insensitive comparisons.
 
 ## [7.0.0](https://github.com/python-social-auth/social-app-django/releases/tag/7.0.0) - 2026-10-06
 
