@@ -65,7 +65,7 @@ class AbstractUserSocialAuth(models.Model, DjangoUserMixin):
         for social in query:
             # We need to compare to filter out case-insensitive lookups in
             # some databases (MySQL/MariaDB)
-            if social.uid == uid and (id_key is None or social.id_key == id_key):
+            if social.provider == provider and social.uid == uid and (id_key is None or social.id_key == id_key):
                 return social
         return None
 

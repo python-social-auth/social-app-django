@@ -20,6 +20,7 @@ from django.db.models.functions import Cast
 from django.db.utils import IntegrityError
 from django.utils import timezone
 from social_core.exceptions import AuthAssociationError
+from social_core.identifiers import identifier_matches
 from social_core.storage import (
     AssociationMixin,
     BaseStorage,
@@ -257,7 +258,7 @@ class DjangoUserMixin(UserMixin):
         if id_key is not None:
             query = query.filter(id_key=id_key)
         for social in query:
-            if social.uid == uid and (id_key is None or social.id_key == id_key):
+            if social.provider == provider and social.uid == uid and (id_key is None or social.id_key == id_key):
                 return social
         return None
 
@@ -307,10 +308,15 @@ class DjangoUserMixin(UserMixin):
             return manager.create(user=user, uid=uid, provider=provider, id_key=id_key)
 
     @classmethod
-    def migrate_social_auth(cls, social, uid, id_key):
+    def migrate_social_auth(cls, social, uid, id_key, *, evidence_key=None):
         manager = cls._manager()
         uid = str(uid)
-        verified_extra_data = id_key in social.extra_data and str(social.extra_data[id_key]) == uid
+        # Preserve evidence checks for callers using the original interface.
+        if evidence_key is None and identifier_matches(social.extra_data.get(id_key), uid):
+            evidence_key = id_key
+        if evidence_key is not None and not identifier_matches(social.extra_data.get(evidence_key), uid):
+            msg = "Social-auth identifier evidence changed during migration"
+            raise IntegrityError(msg)
         using = router.db_for_write(manager.model, instance=social)
         with transaction.atomic(using=using):
             query = manager.using(using)
@@ -318,7 +324,10 @@ class DjangoUserMixin(UserMixin):
             if locked.uid != social.uid or locked.id_key != social.id_key:
                 msg = "Social-auth association changed during identifier migration"
                 raise IntegrityError(msg)
-            if verified_extra_data and (id_key not in locked.extra_data or str(locked.extra_data[id_key]) != uid):
+            if locked.extra_data != social.extra_data:
+                msg = "Social-auth identifier evidence changed during migration"
+                raise IntegrityError(msg)
+            if evidence_key is not None and not identifier_matches(locked.extra_data.get(evidence_key), uid):
                 msg = "Social-auth identifier evidence changed during migration"
                 raise IntegrityError(msg)
             conflict = query.filter(provider=locked.provider, uid=uid).exclude(pk=locked.pk)

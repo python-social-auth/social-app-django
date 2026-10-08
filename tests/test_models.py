@@ -286,6 +286,20 @@ class TestUserSocialAuth(TestCase):
                 )
             )
 
+    def test_indexed_lookups_reject_case_insensitive_provider_matches(self):
+        manager = mock.Mock()
+        manager.select_related.return_value.filter.return_value = [self.usa]
+        manager.filter.return_value = [self.usa]
+        wrong_provider = self.usa.provider.upper()
+        with mock.patch.object(UserSocialAuth, "objects", manager):
+            self.assertIsNone(UserSocialAuth.get_social_auth(wrong_provider, self.usa.uid))
+            # Exercise the storage mixin directly, bypassing the model override.
+            self.assertIsNone(
+                storage.DjangoUserMixin.get_social_auth.__func__(UserSocialAuth, wrong_provider, self.usa.uid)
+            )
+        with mock.patch.object(UserSocialAuthManager, "select_related", return_value=manager):
+            self.assertIsNone(UserSocialAuth.objects.get_social_auth(wrong_provider, self.usa.uid))
+
     def test_get_social_auth_for_user(self):
         qs = UserSocialAuth.get_social_auth_for_user(user=self.user, provider=self.usa.provider, id=self.usa.id)
         self.assertEqual(qs.count(), 1)
@@ -379,6 +393,24 @@ class TestUserSocialAuth(TestCase):
         with self.assertRaisesRegex(IntegrityError, "identifier evidence changed"):
             UserSocialAuth.migrate_social_auth(self.usa, "stable-user", "stable_id")
 
+    def test_migrate_social_auth_revalidates_aliased_evidence(self):
+        self.usa.extra_data = {"id": "stable-user"}
+        self.usa.save(update_fields=["extra_data"])
+        migrated = UserSocialAuth.migrate_social_auth(self.usa, "stable-user", "sub", evidence_key="id")
+        self.assertEqual((migrated.uid, migrated.id_key), ("stable-user", "sub"))
+
+    def test_migrate_social_auth_requires_requested_evidence(self):
+        for value in (None, True, "another-user"):
+            with self.subTest(value=value):
+                self.usa.extra_data = {"id": value}
+                with self.assertRaisesRegex(IntegrityError, "identifier evidence changed"):
+                    UserSocialAuth.migrate_social_auth(self.usa, "stable-user", "sub", evidence_key="id")
+
+    def test_unverified_migration_rejects_concurrently_added_evidence(self):
+        UserSocialAuth.objects.filter(pk=self.usa.pk).update(extra_data={"sub": "someone-else"})
+        with self.assertRaisesRegex(IntegrityError, "identifier evidence changed"):
+            UserSocialAuth.migrate_social_auth(self.usa, "stable-user", "sub")
+
     def test_migrate_social_auth_rejects_identifier_conflict(self):
         UserSocialAuth.objects.create(
             user=self.user,
@@ -398,6 +430,7 @@ class TestUserSocialAuth(TestCase):
         locked = query.select_for_update.return_value.get.return_value
         locked.uid = self.usa.uid
         locked.id_key = self.usa.id_key
+        locked.extra_data = self.usa.extra_data
         locked.provider = self.usa.provider
         locked.pk = self.usa.pk
         query.filter.return_value.exclude.return_value.exists.return_value = False

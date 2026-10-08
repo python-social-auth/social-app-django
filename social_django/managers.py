@@ -14,6 +14,10 @@ class UserSocialAuthManager(models.Manager):
         if id_key is not None:
             query = query.filter(id_key=id_key)
         for social in query:
-            if getattr(social, "uid", None) == uid and (id_key is None or getattr(social, "id_key", None) == id_key):
+            if (
+                getattr(social, "provider", None) == provider
+                and getattr(social, "uid", None) == uid
+                and (id_key is None or getattr(social, "id_key", None) == id_key)
+            ):
                 return social
         return None
