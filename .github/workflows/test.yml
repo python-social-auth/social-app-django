@@ -21,6 +21,7 @@ jobs:
         - '3.12'
         - '3.13'
         - '3.14'
+        - '3.15'
 
     env:
       PYTHON_VERSION: ${{ matrix.python-version }}
@@ -44,6 +45,16 @@ jobs:
       run: |
         uvx tox -e "py${PYTHON_VERSION/\./}-django52"
       if: ${{ env.PYTHON_VERSION == '3.10' || env.PYTHON_VERSION == '3.11' || env.PYTHON_VERSION == '3.12' || env.PYTHON_VERSION == '3.13' || env.PYTHON_VERSION == '3.14'}}
+
+    - name: Django 6.0.x Test
+      run: |
+        uvx tox -e "py${PYTHON_VERSION/\./}-django60"
+      if: ${{ env.PYTHON_VERSION == '3.12' || env.PYTHON_VERSION == '3.13' || env.PYTHON_VERSION == '3.14'}}
+
+    - name: Django 6.1.x Test
+      run: |
+        uvx tox -e "py${PYTHON_VERSION/\./}-django61"
+      if: ${{ env.PYTHON_VERSION == '3.12' || env.PYTHON_VERSION == '3.13' || env.PYTHON_VERSION == '3.14' || env.PYTHON_VERSION == '3.15'}}
 
     - name: Django main Test
       run: |
@@ -73,6 +84,7 @@ jobs:
         - '3.12'
         - '3.13'
         - '3.14'
+        - '3.15'
 
     env:
       PYTHON_VERSION: ${{ matrix.python-version }}
