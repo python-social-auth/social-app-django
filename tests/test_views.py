@@ -131,7 +131,10 @@ class TestViews(TestCase):
     def test_complete(self, mock_request):
         url = reverse("social:complete", kwargs={"backend": "facebook"})
         url += "?code=2&state=1"
-        mock_request.return_value.json.return_value = {"access_token": "123"}
+        mock_request.return_value.json.side_effect = [
+            {"access_token": "123"},
+            {"id": "facebook-user-123"},
+        ]
         with mock.patch(
             "django.contrib.sessions.backends.base.SessionBase.set_expiry",
             side_effect=[OverflowError, None],
