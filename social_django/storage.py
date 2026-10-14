@@ -19,6 +19,7 @@ from django.db.models.fields.json import KeyTextTransform
 from django.db.models.functions import Cast
 from django.db.utils import IntegrityError
 from django.utils import timezone
+from social_core.backends.utils import load_backends
 from social_core.exceptions import AuthAssociationError
 from social_core.identifiers import identifier_matches
 from social_core.storage import (
@@ -111,7 +112,11 @@ class DjangoUserMixin(UserMixin):
         qs = qs.filter(user=user)
 
         valid_password = user.has_usable_password() if hasattr(user, "has_usable_password") else True
-        return valid_password or qs.exists()
+        if valid_password:
+            return True
+        configured_backends = load_backends(settings.AUTHENTICATION_BACKENDS)
+        providers = qs.values_list("provider", flat=True)
+        return any(provider in configured_backends for provider in providers)
 
     @classmethod
     def disconnect(cls, entry):
