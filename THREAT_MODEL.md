@@ -17,7 +17,7 @@
 - **Provenance:** `(documented)` cites published project documentation;
   `(maintainer)` records a position ratified by the maintainers; `(inferred)`
   would require a matching question in §14.
-- **Confidence:** Approximately 34 documented / 79 maintainer / 0 inferred
+- **Confidence:** Approximately 34 documented / 77 maintainer / 0 inferred
   claims.
 
 `social-auth-app-django` is an in-process Django integration for the
@@ -220,7 +220,7 @@ load-bearing trust anchor. (maintainer, 2026-10-14)
 | With redirect sanitization enabled, as it is by default in supported `social-auth-core` releases, and trusted redirect allowlists, request-derived authentication and disconnection redirects use the current or explicitly allowed hosts and allowed schemes. | A request-derived redirect reaches an attacker-controlled destination despite the supported configuration. | Security-critical | (documented; [Settings](https://python-social-auth.readthedocs.io/en/latest/configuration/settings.html)) |
 | Enabled launch bridges accept only supported HTTPS issuers, constrain redirects to approved hosts, protect against framing, and convert GET initiation into a CSRF-protected POST. | An unapproved issuer or redirect is accepted, or a cross-site/framed launch silently initiates authentication contrary to the documented checks. | Security-critical | (documented; [Launch Bridge Endpoints](https://python-social-auth.readthedocs.io/en/latest/configuration/django.html#launch-bridge-endpoints)) |
 | Restored server-side sessions are rotated before continued use, assuming the shared session and same-browser requirements in §5. | An attacker reuses the pre-restore session key to obtain the restored authenticated flow. | Security-critical | (documented; [SAML](https://python-social-auth.readthedocs.io/en/latest/backends/saml.html)) |
-| Built-in structured authentication exceptions expose a safe default message and explicitly public metadata. When the bundled fallback page renders a 5xx failure, the middleware logs the original traceback rather than placing it in response metadata. | Provider credentials, tokens, raw responses, or private exception details are disclosed by the built-in error response, or a rendered 5xx failure omits the promised traceback log. | Security-critical for disclosure; correctness-only for missing server-side diagnostics | (documented; [Django Framework](https://python-social-auth.readthedocs.io/en/latest/configuration/django.html#django-exception-middleware)) |
+| Built-in structured authentication exceptions expose a safe default message and explicitly public metadata. Every 5xx failure handled by the middleware, whether rendered or redirected, emits an error log with the original traceback rather than placing it in response metadata. | Provider credentials, tokens, raw responses, or private exception details are disclosed by the built-in error response, or a handled 5xx failure omits the promised traceback log. | Security-critical for disclosure; correctness-only for missing server-side diagnostics | (documented; [Django Framework](https://python-social-auth.readthedocs.io/en/latest/configuration/django.html#django-exception-middleware)) |
 | Invalid or expired package records and ordinary authentication errors fail with documented errors/statuses instead of authenticating a user. | A malformed request authenticates a user; an incorrect but non-authenticating status or message is otherwise an ordinary correctness defect. | Security-critical for unintended authentication; correctness-only otherwise | (documented; [Django Framework](https://python-social-auth.readthedocs.io/en/latest/configuration/django.html)) |
 
 No availability or quantitative resource property is claimed beyond ordinary
@@ -238,9 +238,6 @@ termination for normal, bounded Django requests. (maintainer, 2026-10-14)
   names a configured backend or that its provider account and credentials are
   still usable. An additional association row alone therefore does not
   guarantee future login access. (maintainer, 2026-10-14)
-- Redirect-based exception handling does not guarantee an original-traceback
-  log. The configured transports dispatch the safe public message; applications
-  must arrange any additional server-side reporting. (maintainer, 2026-10-14)
 - If an integrator explicitly disables redirect sanitization, general
   authentication and disconnection redirects are not guaranteed to use an
   approved host and scheme. That non-default override removes the corresponding
@@ -312,9 +309,6 @@ The embedding application and operator must:
 - Provide a stricter disconnection policy when association rows can outlive
   configured backends or when the application requires proof that another
   login path remains operational. (maintainer, 2026-10-14)
-- Configure explicit server-side reporting for redirected authentication
-  failures when retaining original tracebacks is required. (maintainer,
-  2026-10-14)
 - Escape and validate provider profile data at each application sink, and never
   place secrets in URLs, templates, client-visible messages, or unsafe logs.
   (maintainer, 2026-10-14)

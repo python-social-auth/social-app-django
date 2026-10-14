@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Security
 
+- Retain original exception tracebacks in server logs when authentication 5xx
+  failures are handled through an error redirect.
 - Document the integration's security boundaries, assumptions, downstream
   responsibilities, and triage dispositions in the
   [threat model](https://github.com/python-social-auth/social-app-django/blob/master/THREAT_MODEL.md).

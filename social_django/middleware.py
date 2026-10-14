@@ -107,6 +107,10 @@ class SocialAuthExceptionMiddleware:
         if not url:
             return self.render_error(request, exception)
 
+        status = self.get_error_status(request, exception)
+        if status >= HTTPStatus.INTERNAL_SERVER_ERROR:
+            self._log_error(exception, status)
+
         message = self.get_message(request, exception)
         transports = self.get_transport_modes(request)
 
@@ -150,9 +154,8 @@ class SocialAuthExceptionMiddleware:
                 return status
         return HTTPStatus.INTERNAL_SERVER_ERROR
 
-    def render_error(self, request: HttpRequest, exception: SocialAuthBaseException) -> HttpResponse:
-        """Render a safe failure page and retain server error tracebacks in logs."""
-        status = self.get_error_status(request, exception)
+    @staticmethod
+    def _log_error(exception: SocialAuthBaseException, status: int) -> None:
         social_logger.log(
             logging.ERROR if status >= HTTPStatus.INTERNAL_SERVER_ERROR else logging.WARNING,
             "Social authentication failure: code=%s source=%s stage=%s status=%s",
@@ -164,6 +167,11 @@ class SocialAuthExceptionMiddleware:
             if status >= HTTPStatus.INTERNAL_SERVER_ERROR
             else None,
         )
+
+    def render_error(self, request: HttpRequest, exception: SocialAuthBaseException) -> HttpResponse:
+        """Render a safe failure page and retain server error tracebacks in logs."""
+        status = self.get_error_status(request, exception)
+        self._log_error(exception, status)
         response = render(
             request,
             "social_django/error.html",
