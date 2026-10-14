@@ -1,0 +1,27 @@
+name: OSS Scanner container
+
+on:
+  push:
+  pull_request:
+  schedule:
+  - cron: 0 0 * * 0
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  container:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 20
+
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+
+    - name: Build scanner container
+      run: docker build --progress=plain -f .oss-scanner/Dockerfile -t oss-scanner-test .
+
+    - name: Run tests without network access
+      run: docker run --rm --network none oss-scanner-test uv run --offline --no-sync coverage run manage.py test

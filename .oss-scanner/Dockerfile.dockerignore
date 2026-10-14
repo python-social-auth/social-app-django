@@ -1,0 +1,17 @@
+# Keep local environments, artifacts, and the untracked lockfile out of /src.
+.git
+.venv*
+.tox
+**/__pycache__
+**/*.py[cod]
+**/*.egg-info
+build
+dist
+prof
+.coverage*
+coverage.xml
+htmlcov
+.pytest_cache
+.mypy_cache
+.ruff_cache
+uv.lock
