@@ -2,7 +2,7 @@ recursive-include social_django *.py
 recursive-include social_django/templates *.html
 recursive-include tests *.py
 include manage.py
-include *.txt CHANGELOG.md LICENSE README.md
+include *.txt CHANGELOG.md LICENSE README.md THREAT_MODEL.md
 recursive-exclude social_django *.pyc
 recursive-include tests *.html
 exclude .tox .git

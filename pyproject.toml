@@ -75,6 +75,7 @@ ignore = [
   ".oss-scanner/Dockerfile.dockerignore",
   ".pre-commit-config.yaml",
   ".well-known/funding-manifest-urls",
+  "AGENTS.md",
   "tox.ini"
 ]
 

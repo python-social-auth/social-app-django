@@ -40,6 +40,13 @@ See the [CONTRIBUTING.md](https://github.com/python-social-auth/.github/blob/mai
 
 This project follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
 
+## Security
+
+The [threat model](https://github.com/python-social-auth/social-app-django/blob/master/THREAT_MODEL.md)
+documents the security properties and assumptions of this Django integration.
+To report a vulnerability privately, follow the
+[Python Social Auth security policy](https://github.com/python-social-auth/.github/security/policy).
+
 ## License
 
 This project follows the BSD license. See the [LICENSE](LICENSE) for details.

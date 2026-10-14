@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## Unreleased
+
+### Security
+
+- Document the integration's security boundaries, assumptions, downstream
+  responsibilities, and triage dispositions in the
+  [threat model](https://github.com/python-social-auth/social-app-django/blob/master/THREAT_MODEL.md).
+
 ## [7.1.0](https://github.com/python-social-auth/social-app-django/releases/tag/7.1.0) - 2026-10-08
 
 ### Changed
