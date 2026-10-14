@@ -178,7 +178,7 @@ and [Identifier migration](https://python-social-auth.readthedocs.io/en/latest/c
 | `GET social:idp_launch` | `backend`, `iss`, `target_link_uri` | Yes | Bridge enabled; HTTPS issuer allowlist and redirect host checks pass | (maintainer, 2026-10-14) |
 | `GET social:app_launch` | `backend`, optional `iss`, `next` | Yes | Bridge enabled; supported issuer, origin indicators when present, and redirect host checks pass | (maintainer, 2026-10-14) |
 | Launch bridges | `Host`, `Referer`, and `Sec-Fetch-*` headers | Yes or absent | §5 host/proxy controls; Fetch Metadata is defense-in-depth, not authentication | (maintainer, 2026-10-14) |
-| `POST social:disconnect` | `backend`, optional association ID | Yes, by an authenticated user | Django authentication and CSRF; disconnection remains scoped to the current user, and the default guard requires a usable password or another association row without checking whether that row's backend remains configured or usable | (maintainer, 2026-10-14) |
+| `POST social:disconnect` | `backend`, optional association ID | Yes, by an authenticated user | Django authentication and CSRF; disconnection remains scoped to the current user, and the default guard requires a usable password or another association whose backend is configured | (maintainer, 2026-10-14) |
 | Partial pipeline resume | Token, verification data, confirmation POST and nonce | Yes | Token validity plus session ownership or explicit session-bound external confirmation | (maintainer, 2026-10-14) |
 | Exception middleware | Structured exception and configured error transport | Normally package/backend generated; custom code is trusted | Upstream exceptions provide safe public messages/metadata; custom exceptions and overrides preserve that contract | (maintainer, 2026-10-14) |
 | Storage and strategy APIs | Provider, UID, identifier key, user, model values, session values | Trusted caller, though values can originate in validated provider flows | Pipeline/backend validates identity; integrator does not call trusted APIs with arbitrary unauthenticated choices | (maintainer, 2026-10-14) |
@@ -215,7 +215,7 @@ load-bearing trust anchor. (maintainer, 2026-10-14)
 | Property and conditions | Violation symptom | Tier | Provenance |
 | --- | --- | --- | --- |
 | Association lookup requires exact provider, UID, and requested identifier-key matches, including on databases with case-insensitive comparisons. Identifier migration rejects conflicts and revalidates evidence under the association lock. | A provider identity resolves or migrates to a different local user's association. | Security-critical | (documented; [Identifier migration](https://python-social-auth.readthedocs.io/en/latest/configuration/identifier-migration.html)) |
-| Standard authenticated linking and disconnection act on the current Django user. For built-in users, the default disconnection guard requires a usable password or another association row; it does not establish that the remaining association is usable. | One user links to or disconnects another user's association, or the default guard permits disconnection despite having neither a usable password nor another association row. | Security-critical for cross-user effects; correctness-only for guard-policy failures without an account/control-boundary impact | (maintainer, 2026-10-14) |
+| Standard authenticated linking and disconnection act on the current Django user. For built-in users, the default disconnection guard requires a usable password or another association whose backend is configured; it does not establish that the provider account or credentials remain usable. | One user links to or disconnects another user's association, or the default guard permits disconnection despite having neither a usable password nor another association for a configured backend. | Security-critical for cross-user effects; correctness-only for guard-policy failures without an account/control-boundary impact | (maintainer, 2026-10-14) |
 | Local initiation and disconnection are POST-only and CSRF-protected. External partial resumes require explicit, session-bound confirmation. Completion callbacks rely on the selected backend's protocol correlation rather than a browser CSRF token. | A cross-site request starts, resumes, links, or disconnects a protected flow without the required user intent or protocol proof. | Security-critical | (documented; [Django Framework](https://python-social-auth.readthedocs.io/en/latest/configuration/django.html)) |
 | With redirect sanitization enabled, as it is by default in supported `social-auth-core` releases, and trusted redirect allowlists, request-derived authentication and disconnection redirects use the current or explicitly allowed hosts and allowed schemes. | A request-derived redirect reaches an attacker-controlled destination despite the supported configuration. | Security-critical | (documented; [Settings](https://python-social-auth.readthedocs.io/en/latest/configuration/settings.html)) |
 | Enabled launch bridges accept only supported HTTPS issuers, constrain redirects to approved hosts, protect against framing, and convert GET initiation into a CSRF-protected POST. | An unapproved issuer or redirect is accepted, or a cross-site/framed launch silently initiates authentication contrary to the documented checks. | Security-critical | (documented; [Launch Bridge Endpoints](https://python-social-auth.readthedocs.io/en/latest/configuration/django.html#launch-bridge-endpoints)) |
@@ -234,10 +234,10 @@ termination for normal, bounded Django requests. (maintainer, 2026-10-14)
 - A configured provider is trusted to assert identities honestly. The package
   does not defend against a compromised IdP or signing key. (maintainer,
   2026-10-14)
-- The default disconnection guard does not verify that a remaining association
-  names a configured backend or that its provider account and credentials are
-  still usable. An additional association row alone therefore does not
-  guarantee future login access. (maintainer, 2026-10-14)
+- The default disconnection guard does not contact a remaining association's
+  provider or verify that its account and credentials are still usable. An
+  association for a configured backend therefore does not guarantee future
+  login access. (maintainer, 2026-10-14)
 - If an integrator explicitly disables redirect sanitization, general
   authentication and disconnection redirects are not guaranteed to use an
   approved host and scheme. That non-default override removes the corresponding
@@ -306,9 +306,8 @@ The embedding application and operator must:
   trusted destinations. If it is deliberately disabled, apply equivalent
   validation before accepting an untrusted redirect value. (maintainer,
   2026-10-14)
-- Provide a stricter disconnection policy when association rows can outlive
-  configured backends or when the application requires proof that another
-  login path remains operational. (maintainer, 2026-10-14)
+- Provide a stricter disconnection policy when the application requires proof
+  that another login path remains operational. (maintainer, 2026-10-14)
 - Escape and validate provider profile data at each application sink, and never
   place secrets in URLs, templates, client-visible messages, or unsafe logs.
   (maintainer, 2026-10-14)

@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 - Retain original exception tracebacks in server logs when authentication 5xx
   failures are handled through an error redirect.
+- Prevent passwordless users from disconnecting their last association backed
+  by a configured authentication backend when only stale provider rows remain.
 - Document the integration's security boundaries, assumptions, downstream
   responsibilities, and triage dispositions in the
   [threat model](https://github.com/python-social-auth/social-app-django/blob/master/THREAT_MODEL.md).

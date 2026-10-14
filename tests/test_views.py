@@ -169,6 +169,17 @@ class TestViews(TestCase):
         self.assertEqual(response.url, "http://testserver/accounts/profile/")
         AbstractBaseUser.has_usable_password = hup
 
+    def test_disconnect_rejects_unconfigured_remaining_association(self):
+        user = get_user_model()._default_manager.create_user(username="passwordless")
+        working = UserSocialAuth.objects.create(user=user, provider="facebook", uid="working-facebook")
+        UserSocialAuth.objects.create(user=user, provider="removed-provider", uid="stale-provider")
+        self.client.force_login(user)
+
+        response = self.client.post(reverse("social:disconnect", kwargs={"backend": "facebook"}))
+
+        self.assertEqual(response.status_code, 403)
+        self.assertTrue(UserSocialAuth.objects.filter(pk=working.pk).exists())
+
 
 class TestGetSessionTimeout(TestCase):
     """

@@ -7,6 +7,7 @@ from unittest import mock
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.db import IntegrityError, connection, models
@@ -156,6 +157,26 @@ class TestUserSocialAuth(TestCase):
         m = mock.Mock()
         UserSocialAuth.disconnect(m)
         self.assertListEqual(m.method_calls, [mock.call.delete()])
+
+    @mock.patch("social_django.storage.load_backends", return_value={"facebook": mock.sentinel.backend})
+    def test_allowed_to_disconnect_requires_configured_remaining_backend(self, load_backends):
+        facebook = UserSocialAuth.objects.create(user=self.user, provider="facebook", uid="facebook-user")
+
+        self.assertTrue(UserSocialAuth.allowed_to_disconnect(self.user, "my-provider"))
+        self.assertFalse(UserSocialAuth.allowed_to_disconnect(self.user, "facebook"))
+        self.assertTrue(UserSocialAuth.allowed_to_disconnect(self.user, "unused", self.usa.pk))
+        self.assertFalse(UserSocialAuth.allowed_to_disconnect(self.user, "unused", facebook.pk))
+
+        self.user.set_password("password")
+        self.assertTrue(UserSocialAuth.allowed_to_disconnect(self.user, "facebook"))
+        load_backends.assert_called_with(settings.AUTHENTICATION_BACKENDS)
+
+    @mock.patch("social_django.storage.load_backends", return_value={"facebook": mock.sentinel.backend})
+    def test_allowed_to_disconnect_matches_backend_name_exactly(self, _load_backends):
+        user = self.user_model._default_manager.create_user(username="case-sensitive")
+        UserSocialAuth.objects.create(user=user, provider="FACEBOOK", uid="uppercase-provider")
+
+        self.assertFalse(UserSocialAuth.allowed_to_disconnect(user, "unused"))
 
     def test_username_field(self):
         self.assertEqual(UserSocialAuth.username_field(), "username")
