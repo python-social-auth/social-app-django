@@ -4,9 +4,7 @@ from unittest.mock import patch
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.contrib.sessions.middleware import SessionMiddleware
-from django.db import models
 from django.test import RequestFactory, TestCase, override_settings
-from django.test.utils import isolate_apps
 from social_core.backends.keycloak import KeycloakOAuth2
 from social_core.backends.mediawiki import MediaWiki
 from social_core.exceptions import AuthConfigurationError
@@ -73,21 +71,11 @@ class GroupSyncTest(TestCase):
             self.assertEqual(caught.exception.code, "invalid_setting")
             self.assertEqual(caught.exception.parameter, "GROUPS_MAP")
 
-    @isolate_apps()
     @override_settings(SOCIAL_AUTH_KEYCLOAK_GROUPS_MAP={"a": ["A"]})
     def test_custom_intermediary_is_rejected_before_membership_changes(self):
-        class Membership(models.Model):
-            user = models.ForeignKey(get_user_model(), on_delete=models.CASCADE)
-            group = models.ForeignKey(Group, on_delete=models.CASCADE)
-            metadata = models.CharField(max_length=100)
-
-            class Meta:
-                app_label = "tests"
-
         self.user.groups.add(self.a, self.unrelated)
-        relation = self.user._meta.get_field("groups").remote_field
         with (
-            patch.object(relation, "through", Membership),
+            patch.object(self.user.groups.through._meta, "auto_created", False),
             self.assertNumQueries(0),
             self.assertRaises(AuthConfigurationError) as caught,
         ):
