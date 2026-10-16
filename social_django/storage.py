@@ -297,7 +297,7 @@ class DjangoUserMixin(UserMixin):
         if provider:
             qs = qs.filter(provider=provider)
 
-        if id:
+        if id is not None:
             qs = qs.filter(id=id)
         return qs
 
