@@ -174,6 +174,7 @@ and [Identifier migration](https://python-social-auth.readthedocs.io/en/latest/c
 | `POST social:begin` | `backend` route value | Yes | Backend must be registered; unknown backends fail closed | (maintainer, 2026-10-14) |
 | `POST social:begin` | Form/query values, including `next` | Yes | CSRF middleware protects initiation; supported `social-auth-core` sanitizes request-derived redirects by default, and the application keeps that default enabled with trusted allowlists | (maintainer, 2026-10-14) |
 | `social:complete` | `backend` and provider callback parameters such as code, state, token, SAML response, or `RelayState` | Yes | Selected `social-auth-core` backend validates the applicable protocol and binds it to saved flow state | (maintainer, 2026-10-14) |
+| `POST social:complete` (legacy e-mail/username backends) | Login form values carrying the backend identity field | Yes | No provider callback exists; the package requires a CSRF-protected POST before running the pipeline for the current user | (maintainer, 2026-10-16) |
 | `social:complete` | Session and partial-pipeline state | Browser selects a cookie but cannot forge protected contents under §5 | Django session integrity; package/core partial-resume ownership and confirmation rules | (maintainer, 2026-10-14) |
 | `GET social:idp_launch` | `backend`, `iss`, `target_link_uri` | Yes | Bridge enabled; HTTPS issuer allowlist and redirect host checks pass | (maintainer, 2026-10-14) |
 | `GET social:app_launch` | `backend`, optional `iss`, `next` | Yes | Bridge enabled; supported issuer, origin indicators when present, and redirect host checks pass | (maintainer, 2026-10-14) |
@@ -265,8 +266,8 @@ termination for normal, bounded Django requests. (maintainer, 2026-10-14)
 
 - `csrf_exempt` on `social:complete` permits cross-site provider callbacks; it
   is not a lack of flow validation. Protocol state, nonce, signature, issuer,
-  and request correlation are supplied by the selected backend. (maintainer,
-  2026-10-14)
+  and request correlation are supplied by the selected backend. Legacy form
+  submissions instead require a CSRF-protected POST. (maintainer, 2026-10-16)
 - Fetch Metadata headers influence launch-bridge auto-submission but are not
   credentials. Browsers may omit them; issuer, redirect, CSRF, framing, and
   user-confirmation controls remain authoritative. (maintainer, 2026-10-14)
@@ -351,7 +352,7 @@ The embedding application and operator must:
 
 | Report pattern | Why it is not a defect under this model |
 | --- | --- |
-| `social:complete` is `csrf_exempt` | Provider callbacks cannot generally carry a Django CSRF token; §8 instead requires backend protocol correlation and protected local transitions. (maintainer, 2026-10-14) |
+| `social:complete` is `csrf_exempt` | Provider callbacks cannot generally carry a Django CSRF token; §8 instead requires backend protocol correlation. Legacy form submissions are protected local transitions and require a CSRF-protected POST. (maintainer, 2026-10-16) |
 | Launch requests without `Sec-Fetch-*` headers are not rejected | Fetch Metadata is optional defense-in-depth; the authoritative controls are listed in §8. (maintainer, 2026-10-14) |
 | A general `next` redirect is external after the integrator explicitly disabled sanitization | The non-default override and loss of the general redirect property are explicit in §5a and §9; launch-bridge targets remain protected. (maintainer, 2026-10-14) |
 | Tokens or association secrets are readable in a database dump | Encryption at rest is disclaimed in §9 and database confidentiality is required by §5. A package-caused disclosure to an untrusted requester remains valid. (maintainer, 2026-10-14) |

@@ -10,6 +10,7 @@ from django.views.decorators.clickjacking import xframe_options_deny
 from django.views.decorators.csrf import csrf_exempt, csrf_protect
 from django.views.decorators.http import require_GET, require_POST
 from social_core.actions import do_auth, do_complete, do_disconnect
+from social_core.backends.legacy import LegacyAuth
 from social_core.utils import setting_name, social_logger
 
 from .constants import LaunchBridge, RedirectParamName
@@ -233,18 +234,30 @@ def app_launch(request, backend):
     return apply_framing_protection(response)
 
 
-@never_cache
-@login_not_required
-@csrf_exempt
-@psa(f"{NAMESPACE}:complete")
-def complete(request, backend, *args, **kwargs):
-    """Authentication complete view"""
+def _complete(request, backend, *args, **kwargs):
     kwargs.update(
         user=request.user,
         redirect_name=REDIRECT_FIELD_NAME,
         request=request,
     )
     return do_complete(request.backend, _do_login, *args, **kwargs)
+
+
+# Legacy backends have no provider callback. A request carrying their identity
+# field is a local form submission and needs the same protections as
+# ``social:begin``. Partial-pipeline resumes do not carry that field.
+_complete_legacy_form = require_POST(csrf_protect(_complete))
+
+
+@never_cache
+@login_not_required
+@csrf_exempt
+@psa(f"{NAMESPACE}:complete")
+def complete(request, backend, *args, **kwargs):
+    """Authentication complete view"""
+    if isinstance(request.backend, LegacyAuth) and request.backend.id_key() in request.backend.data:
+        return _complete_legacy_form(request, backend, *args, **kwargs)
+    return _complete(request, backend, *args, **kwargs)
 
 
 @never_cache
