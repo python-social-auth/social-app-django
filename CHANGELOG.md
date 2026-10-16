@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Security
 
+- Require external partial pipeline confirmations to remain bound to the local
+  user who initiated the flow, preventing mailed validation links from
+  associating provider identities with another authenticated account.
 - Retain original exception tracebacks in server logs when authentication 5xx
   failures are handled through an error redirect.
 - Prevent passwordless users from disconnecting their last association backed

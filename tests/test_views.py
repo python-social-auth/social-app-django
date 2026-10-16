@@ -2,7 +2,7 @@ from unittest import mock
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractBaseUser, AnonymousUser
-from django.test import TestCase, override_settings
+from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 from social_core.backends.open_id_connect import OpenIdConnectAuth
 
@@ -87,6 +87,90 @@ class TestEmailConfirmation(TestCase):
             self.assertTrue(Partial.objects.filter(token=token).exists())
             self.assertFalse(get_user_model().objects.filter(email=code.email).exists())
             send_email.assert_called_once()
+
+    def test_authenticated_user_cannot_confirm_anonymous_flow(self):
+        url = reverse("social:complete", kwargs={"backend": "email"})
+        user_model = get_user_model()
+        victim = user_model._default_manager.create_user(
+            username="victim",
+            email="victim@example.com",
+            first_name="Victim",
+        )
+        victim_client = Client()
+        victim_client.force_login(victim)
+        with mock.patch("tests.test_views.send_validation") as send_email:
+            self.client.post(url, {"email": "attacker@example.com"})
+            code = send_email.call_args.args[2]
+            token = send_email.call_args.args[3]
+
+            response = victim_client.get(
+                url,
+                {"verification_code": code.code, "partial_token": token},
+            )
+
+            self.assertRedirects(response, "/error/", fetch_redirect_response=False)
+            self.assertFalse(Code.objects.get(pk=code.pk).verified)
+            self.assertTrue(Partial.objects.filter(token=token).exists())
+            self.assertFalse(UserSocialAuth.objects.filter(user=victim).exists())
+            self.assertFalse(user_model._default_manager.filter(email=code.email).exists())
+            victim.refresh_from_db()
+            self.assertEqual(victim.first_name, "Victim")
+
+    def test_authenticated_user_cannot_submit_anonymous_confirmation(self):
+        url = reverse("social:complete", kwargs={"backend": "email"})
+        victim = get_user_model()._default_manager.create_user(username="victim", email="victim@example.com")
+        with mock.patch("tests.test_views.send_validation") as send_email:
+            self.client.post(url, {"email": "attacker@example.com"})
+            code = send_email.call_args.args[2]
+            token = send_email.call_args.args[3]
+            response = self.client.get(
+                url,
+                {"verification_code": code.code, "partial_token": token},
+            )
+            self.assertTemplateUsed(response, "social_django/partial_pipeline_external_resume.html")
+            context = response.context
+            self.client.force_login(victim)
+
+            response = self.client.post(
+                context["action_url"],
+                {
+                    context["confirmation_parameter"]: context["confirmation_value"],
+                    context["confirmation_nonce_parameter"]: context["confirmation_nonce"],
+                },
+            )
+
+            self.assertRedirects(response, "/error/", fetch_redirect_response=False)
+            self.assertFalse(Code.objects.get(pk=code.pk).verified)
+            self.assertTrue(Partial.objects.filter(token=token).exists())
+            self.assertFalse(UserSocialAuth.objects.filter(user=victim).exists())
+
+    def test_authenticated_user_can_confirm_own_flow(self):
+        url = reverse("social:complete", kwargs={"backend": "email"})
+        user = get_user_model()._default_manager.create_user(username="owner", email="owner@example.com")
+        self.client.force_login(user)
+        with mock.patch("tests.test_views.send_validation") as send_email:
+            self.client.post(url, {"email": user.email})
+            code = send_email.call_args.args[2]
+            token = send_email.call_args.args[3]
+            response = self.client.get(
+                url,
+                {"verification_code": code.code, "partial_token": token},
+            )
+            self.assertTemplateUsed(response, "social_django/partial_pipeline_external_resume.html")
+            context = response.context
+
+            response = self.client.post(
+                context["action_url"],
+                {
+                    context["confirmation_parameter"]: context["confirmation_value"],
+                    context["confirmation_nonce_parameter"]: context["confirmation_nonce"],
+                },
+            )
+
+            self.assertRedirects(response, "/done/", fetch_redirect_response=False)
+            self.assertTrue(Code.objects.get(pk=code.pk).verified)
+            self.assertTrue(UserSocialAuth.objects.filter(user=user, provider="email", uid=code.email).exists())
+            self.assertFalse(Partial.objects.filter(token=token).exists())
 
 
 @override_settings(SOCIAL_AUTH_FACEBOOK_KEY="1", SOCIAL_AUTH_FACEBOOK_SECRET="2")  # ruff: ignore[hardcoded-password-func-arg]
