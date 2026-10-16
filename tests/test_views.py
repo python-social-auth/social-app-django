@@ -4,9 +4,12 @@ from hashlib import sha256
 from unittest import mock
 from urllib.parse import parse_qs, urlencode, urlsplit
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractBaseUser, AnonymousUser
 from django.contrib.messages import get_messages
+from django.http import HttpRequest
+from django.middleware.csrf import get_token
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 from social_core.backends.open_id_connect import OpenIdConnectAuth
@@ -32,6 +35,7 @@ def send_validation(strategy, backend, code, partial_token):
     SOCIAL_AUTH_PIPELINE=(
         "social_core.pipeline.social_auth.social_details",
         "social_core.pipeline.social_auth.social_uid",
+        "social_core.pipeline.social_auth.social_user",
         "social_core.pipeline.user.get_username",
         "social_core.pipeline.mail.mail_validation",
         "social_core.pipeline.user.create_user",
@@ -44,6 +48,122 @@ def send_validation(strategy, backend, code, partial_token):
     SOCIAL_AUTH_LOGIN_ERROR_URL="/error/",
 )
 class TestEmailConfirmation(TestCase):
+    @staticmethod
+    def csrf_client() -> tuple[Client, str]:
+        request = HttpRequest()
+        token = get_token(request)
+        client = Client(enforce_csrf_checks=True)
+        client.cookies[settings.CSRF_COOKIE_NAME] = request.META["CSRF_COOKIE"]
+        return client, token
+
+    def test_login_form_requires_post(self):
+        user = get_user_model()._default_manager.create_user(username="victim")
+        self.client.force_login(user)
+        url = reverse("social:complete", kwargs={"backend": "email"})
+        with mock.patch("tests.test_views.send_validation") as send_email:
+            response = self.client.get(url, {"email": "attacker@example.com"})
+        self.assertEqual(response.status_code, 405)
+        send_email.assert_not_called()
+        self.assertFalse(Partial.objects.exists())
+        self.assertFalse(UserSocialAuth.objects.filter(user=user).exists())
+
+    def test_login_form_requires_csrf_token(self):
+        url = reverse("social:complete", kwargs={"backend": "email"})
+        client, token = self.csrf_client()
+        with mock.patch("tests.test_views.send_validation") as send_email:
+            response = client.post(url, {"email": "confirm@example.com"})
+            self.assertEqual(response.status_code, 403)
+            send_email.assert_not_called()
+
+            response = client.post(
+                url,
+                {"email": "confirm@example.com", "csrfmiddlewaretoken": token},
+            )
+            self.assertRedirects(response, "/email-sent/", fetch_redirect_response=False)
+            send_email.assert_called_once()
+
+            code = send_email.call_args.args[2]
+            partial_token = send_email.call_args.args[3]
+            response = client.get(url, {"verification_code": code.code, "partial_token": partial_token})
+            self.assertTemplateUsed(response, "social_django/partial_pipeline_external_resume.html")
+            context = response.context
+            response = client.post(
+                context["action_url"],
+                {
+                    context["confirmation_parameter"]: context["confirmation_value"],
+                    context["confirmation_nonce_parameter"]: context["confirmation_nonce"],
+                },
+            )
+            self.assertRedirects(response, "/done/", fetch_redirect_response=False)
+            self.assertTrue(Code.objects.get(pk=code.pk).verified)
+
+    def test_authenticated_user_can_link_email_with_csrf_token(self):
+        user = get_user_model()._default_manager.create_user(username="existing")
+        client, token = self.csrf_client()
+        client.force_login(user)
+        url = reverse("social:complete", kwargs={"backend": "email"})
+        with mock.patch("tests.test_views.send_validation") as send_email:
+            response = client.post(
+                url,
+                {"email": "linked@example.com", "csrfmiddlewaretoken": token},
+            )
+            self.assertRedirects(response, "/email-sent/", fetch_redirect_response=False)
+            code = send_email.call_args.args[2]
+            partial_token = send_email.call_args.args[3]
+            response = client.get(
+                url,
+                {"verification_code": code.code, "partial_token": partial_token},
+            )
+            context = response.context
+            response = client.post(
+                context["action_url"],
+                {
+                    context["confirmation_parameter"]: context["confirmation_value"],
+                    context["confirmation_nonce_parameter"]: context["confirmation_nonce"],
+                },
+            )
+        self.assertRedirects(response, "/done/", fetch_redirect_response=False)
+        self.assertTrue(
+            UserSocialAuth.objects.filter(
+                user=user,
+                provider="email",
+                uid="linked@example.com",
+            ).exists()
+        )
+
+    @override_settings(SOCIAL_AUTH_PASSWORDLESS=False)
+    def test_existing_user_can_log_in_with_csrf_token(self):
+        user = get_user_model()._default_manager.create_user(username="existing")
+        UserSocialAuth.objects.create(
+            user=user,
+            provider="email",
+            uid="existing@example.com",
+            id_key="email",
+        )
+        client, token = self.csrf_client()
+        url = reverse("social:complete", kwargs={"backend": "email"})
+        with mock.patch("tests.test_views.send_validation") as send_email:
+            response = client.post(
+                url,
+                {"email": "existing@example.com", "csrfmiddlewaretoken": token},
+            )
+        send_email.assert_not_called()
+        self.assertRedirects(response, "/done/", fetch_redirect_response=False)
+        self.assertEqual(int(client.session["_auth_user_id"]), user.pk)
+
+    @override_settings(AUTHENTICATION_BACKENDS=("social_core.backends.username.UsernameAuth",))
+    def test_username_login_form_requires_post_and_csrf_token(self):
+        user = get_user_model()._default_manager.create_user(username="victim")
+        self.client.force_login(user)
+        url = reverse("social:complete", kwargs={"backend": "username"})
+        self.assertEqual(self.client.get(url, {"username": "attacker"}).status_code, 405)
+
+        client = Client(enforce_csrf_checks=True)
+        client.force_login(user)
+        self.assertEqual(client.post(url, {"username": "attacker"}).status_code, 403)
+        self.assertFalse(Partial.objects.exists())
+        self.assertFalse(UserSocialAuth.objects.filter(user=user).exists())
+
     def test_confirmation_replays_code_without_resending_email(self):
         url = reverse("social:complete", kwargs={"backend": "email"})
         with mock.patch("tests.test_views.send_validation") as send_email:
@@ -134,6 +254,10 @@ class TestViews(TestCase):
 
     @mock.patch("social_core.backends.base.BaseAuth.request")
     def test_complete(self, mock_request):
+        client = Client(enforce_csrf_checks=True)
+        session = client.session
+        session["facebook_state"] = "1"
+        session.save()
         url = reverse("social:complete", kwargs={"backend": "facebook"})
         url += "?code=2&state=1"
         mock_request.return_value.json.side_effect = [
@@ -144,7 +268,7 @@ class TestViews(TestCase):
             "django.contrib.sessions.backends.base.SessionBase.set_expiry",
             side_effect=[OverflowError, None],
         ):
-            response = self.client.get(url)
+            response = client.get(url)
             self.assertEqual(response.status_code, 302)
             self.assertEqual(response.url, "/accounts/profile/")
 
