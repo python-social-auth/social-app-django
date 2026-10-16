@@ -6,7 +6,7 @@ from django.http.multipartparser import MultiPartParserError
 from django.utils.functional import SimpleLazyObject, empty
 from social_core.backends.utils import load_backends, user_backends_data
 
-from .utils import Storage
+from .utils import Storage, load_strategy
 
 
 class LazyDict(SimpleLazyObject):
@@ -31,9 +31,12 @@ def backends(request):
 
     def get_data():
         data = user_backends_data(request.user, settings.AUTHENTICATION_BACKENDS, Storage)
+        strategy = load_strategy(request)
         data["metadata"] = {
             name: {
-                "title": backend.title or name,
+                "title": backend.get_title(strategy)
+                if callable(getattr(backend, "get_title", None))
+                else backend.title or name,
                 "icon": f"social_auth/icons/{backend.icon}" if backend.icon else None,
             }
             for name, backend in load_backends(settings.AUTHENTICATION_BACKENDS).items()
