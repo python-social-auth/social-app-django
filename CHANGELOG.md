@@ -18,6 +18,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
   failures are handled through an error redirect.
 - Prevent passwordless users from disconnecting their last association backed
   by a configured authentication backend when only stale provider rows remain.
+- Reject authentication callbacks when their authenticated cookie session
+  belongs to a different user than the restored flow session, preventing a
+  provider identity from being associated with the wrong local account.
 - Document the integration's security boundaries, assumptions, downstream
   responsibilities, and triage dispositions in the
   [threat model](https://github.com/python-social-auth/social-app-django/blob/master/THREAT_MODEL.md).

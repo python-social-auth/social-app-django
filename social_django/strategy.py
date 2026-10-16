@@ -17,10 +17,10 @@ from django.utils.datastructures import MultiValueDict
 from django.utils.encoding import force_str
 from django.utils.functional import Promise
 from django.utils.translation import get_language
-from social_core.exceptions import AuthConfigurationError
+from social_core.exceptions import AuthConfigurationError, AuthSessionError
 from social_core.groups import group_sync_targets
 from social_core.strategy import BaseStrategy, BaseTemplateStrategy
-from social_core.utils import PARTIAL_TOKEN_PENDING_CONFIRMATION_SESSION_NAME
+from social_core.utils import PARTIAL_TOKEN_PENDING_CONFIRMATION_SESSION_NAME, user_is_authenticated
 
 if TYPE_CHECKING:
     from django.contrib.sessions.backends.base import SessionBase
@@ -296,11 +296,19 @@ class DjangoStrategy(BaseStrategy):
 
     def restore_session(self, session_id: str, kwargs: dict[str, Any]) -> None:
         request = self._require_request()
-        # Load session
-        request.session = self.session = create_session(session_id)
-        # Update request user
-        request.user = get_user(request)
-        if "user" in kwargs and request.user.is_authenticated:
-            kwargs["user"] = request.user
+        restored_session = create_session(session_id)
+        restored_request = HttpRequest()
+        restored_request.session = restored_session
+        restored_user = get_user(restored_request)
+        incoming_user = kwargs.get("user")
+        if user_is_authenticated(incoming_user) and (
+            not restored_user.is_authenticated or incoming_user != restored_user
+        ):
+            raise AuthSessionError(code="user_mismatch", stage="callback")
+
+        request.session = self.session = restored_session
+        request.user = restored_user
+        if "user" in kwargs:
+            kwargs["user"] = restored_user if restored_user.is_authenticated else None
         # Rotate session key to avoid reuse
         self.session.cycle_key()
