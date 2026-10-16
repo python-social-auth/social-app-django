@@ -114,9 +114,15 @@ class DjangoUserMixin(UserMixin):
         valid_password = user.has_usable_password() if hasattr(user, "has_usable_password") else True
         if valid_password:
             return True
-        configured_backends = load_backends(settings.AUTHENTICATION_BACKENDS)
+        # Association-only backends link provider access to an already
+        # authenticated user; they never log anyone in, so they are no fallback.
+        login_backends = {
+            name
+            for name, backend in load_backends(settings.AUTHENTICATION_BACKENDS).items()
+            if not getattr(backend, "ASSOCIATION_ONLY", False)
+        }
         providers = qs.values_list("provider", flat=True)
-        return any(provider in configured_backends for provider in providers)
+        return any(provider in login_backends for provider in providers)
 
     @classmethod
     def disconnect(cls, entry):
