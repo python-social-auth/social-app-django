@@ -322,8 +322,13 @@ class TestUserSocialAuth(TestCase):
             self.assertIsNone(UserSocialAuth.objects.get_social_auth(wrong_provider, self.usa.uid))
 
     def test_get_social_auth_for_user(self):
-        qs = UserSocialAuth.get_social_auth_for_user(user=self.user, provider=self.usa.provider, id=self.usa.id)
-        self.assertEqual(qs.count(), 1)
+        other = UserSocialAuth.objects.create(user=self.user, provider=self.usa.provider, uid="5678")
+        for association_id, expected in ((None, [self.usa, other]), (self.usa.id, [self.usa]), (0, [])):
+            with self.subTest(association_id=association_id):
+                qs = UserSocialAuth.get_social_auth_for_user(
+                    user=self.user, provider=self.usa.provider, id=association_id
+                )
+                self.assertCountEqual(qs, expected)
 
     def test_create_social_auth(self):
         usa = UserSocialAuth.create_social_auth(user=self.user, provider="test", uid=1, id_key="id")

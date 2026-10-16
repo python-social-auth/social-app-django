@@ -7,15 +7,17 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
-### Fixed
-
-- Handle reused Discourse callbacks and missing nonces through the configured
-  authentication error page or redirect instead of returning HTTP 500.
-
 ### Changed
 
 - Resolve sign-in labels through the strategy-aware backend `get_title()`
   method when available, including Hosted Weblate and custom Weblate issuers.
+
+### Fixed
+
+- Treat association ID `0` as a specific ID when disconnecting, preventing
+  accidental removal of all associations for the backend.
+- Handle reused Discourse callbacks and missing nonces through the configured
+  authentication error page or redirect instead of returning HTTP 500.
 
 ### Security
 

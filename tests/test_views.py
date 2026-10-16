@@ -185,6 +185,24 @@ class TestViews(TestCase):
         self.assertEqual(response.status_code, 403)
         self.assertTrue(UserSocialAuth.objects.filter(pk=working.pk).exists())
 
+    def test_disconnect_individual_zero_id_keeps_last_association(self):
+        user = get_user_model()._default_manager.create_user(username="passwordless")
+        association = UserSocialAuth.objects.create(user=user, provider="facebook", uid="working-facebook")
+        self.assertFalse(user.has_usable_password())
+        self.client.force_login(user)
+
+        for association_id, status in ((None, 403), (association.pk, 403), (0, 302)):
+            with self.subTest(association_id=association_id):
+                kwargs = {"backend": "facebook"}
+                url_name = "social:disconnect"
+                if association_id is not None:
+                    kwargs["association_id"] = association_id
+                    url_name = "social:disconnect_individual"
+                response = self.client.post(reverse(url_name, kwargs=kwargs))
+
+                self.assertEqual(response.status_code, status)
+                self.assertQuerySetEqual(user.social_auth.all(), [association])
+
 
 class TestGetSessionTimeout(TestCase):
     """
