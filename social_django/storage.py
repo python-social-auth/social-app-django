@@ -347,17 +347,18 @@ class DjangoUserMixin(UserMixin):
 
 class DjangoNonceMixin(NonceMixin):
     objects: ClassVar[Manager[Model]]
+    DoesNotExist: ClassVar[type[ObjectDoesNotExist]]
 
     @classmethod
     def use(cls, server_url, timestamp, salt):
         return cls.objects.get_or_create(server_url=server_url, timestamp=timestamp, salt=salt)[1]
 
     @classmethod
-    def get(cls, server_url, salt):
-        return cls.objects.get(
-            server_url=server_url,
-            salt=salt,
-        )
+    def get(cls, server_url: str, salt: str) -> Model | None:
+        try:
+            return cls.objects.get(server_url=server_url, salt=salt)
+        except cls.DoesNotExist:
+            return None
 
     @classmethod
     def delete(cls, nonce):

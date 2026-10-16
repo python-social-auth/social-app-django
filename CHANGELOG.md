@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Fixed
+
+- Handle reused Discourse callbacks and missing nonces through the configured
+  authentication error page or redirect instead of returning HTTP 500.
+
 ### Changed
 
 - Resolve sign-in labels through the strategy-aware backend `get_title()`

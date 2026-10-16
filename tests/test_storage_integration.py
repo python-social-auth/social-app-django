@@ -378,6 +378,17 @@ class TestNonceMixinIntegration(TestCase):
         self.assertEqual(nonce.server_url, server_url)
         self.assertEqual(nonce.salt, salt)
 
+    def test_get_method_missing(self) -> None:
+        server_url = "https://example.com/openid"
+        salt = "test_salt"
+        self.assertIsNone(Nonce.get(server_url, salt))
+
+        Nonce.use(server_url, 1234567890, salt)
+        self.assertIsNone(Nonce.get("https://other.example.com/openid", salt))
+        self.assertIsNone(Nonce.get(server_url, "unknown"))
+        Nonce.delete(Nonce.get(server_url, salt))
+        self.assertIsNone(Nonce.get(server_url, salt))
+
     def test_delete_method(self):
         """Test the delete method for nonces"""
         server_url = "https://example.com/openid"

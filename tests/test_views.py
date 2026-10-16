@@ -1,12 +1,17 @@
+import hmac
+from base64 import urlsafe_b64decode, urlsafe_b64encode
+from hashlib import sha256
 from unittest import mock
+from urllib.parse import parse_qs, urlencode, urlsplit
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractBaseUser, AnonymousUser
-from django.test import TestCase, override_settings
+from django.contrib.messages import get_messages
+from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 from social_core.backends.open_id_connect import OpenIdConnectAuth
 
-from social_django.models import Code, Partial, UserSocialAuth
+from social_django.models import Code, Nonce, Partial, UserSocialAuth
 from social_django.utils import LaunchBridge
 from social_django.views import get_session_timeout
 
@@ -560,3 +565,66 @@ class TestLaunchViews(TestCase):
         app_url = reverse("social:app_launch", kwargs={"backend": "mock-oidc"})
         self.assertEqual(self.client.get(idp_url, {"iss": "https://idp.example.com"}).status_code, 200)
         self.assertEqual(self.client.get(app_url, headers={"sec-fetch-site": "same-origin"}).status_code, 404)
+
+
+@override_settings(
+    DEBUG=False,
+    AUTHENTICATION_BACKENDS=("social_core.backends.discourse.DiscourseAuth",),
+    SOCIAL_AUTH_DISCOURSE_SERVER_URL="https://forum.example.com",
+    SOCIAL_AUTH_DISCOURSE_SECRET="discourse-test-secret",  # ruff: ignore[hardcoded-password-func-arg]
+    LOGIN_REDIRECT_URL="/done/",
+)
+class TestDiscourseCallback(TestCase):
+    def signed_callback(self, **data: str) -> str:
+        payload = urlsafe_b64encode(urlencode(data).encode()).decode()
+        signature = hmac.new(b"discourse-test-secret", payload.encode(), sha256).hexdigest()
+        url = reverse("social:complete", kwargs={"backend": "discourse"})
+        return url + "?" + urlencode({"sso": payload, "sig": signature})
+
+    def complete_login(self) -> str:
+        response = self.client.post(reverse("social:begin", kwargs={"backend": "discourse"}))
+        self.assertEqual(response.status_code, 302)
+        query = parse_qs(urlsplit(response.url).query)
+        request = parse_qs(urlsafe_b64decode(query["sso"][0]).decode())
+        callback = self.signed_callback(
+            nonce=request["nonce"][0], external_id="42", username="member42", email="member42@example.com"
+        )
+        response = self.client.get(callback)
+        self.assertRedirects(response, "/done/", fetch_redirect_response=False)
+        self.assertIn("_auth_user_id", self.client.session)
+        self.assertEqual(UserSocialAuth.objects.get().uid, "42")
+        self.assertFalse(Nonce.objects.exists())
+        return callback
+
+    def test_reused_callback_returns_authentication_error(self) -> None:
+        callback = self.complete_login()
+        client = Client()
+        response = client.get(callback)
+        self.assertEqual(response.status_code, 403)
+        self.assertTemplateUsed(response, "social_django/error.html")
+        self.assertEqual(response.context["error_code"], "nonce_mismatch")
+        self.assertEqual(response.context["error_stage"], "callback")
+        self.assertNotIn("_auth_user_id", client.session)
+        self.assertEqual(get_user_model().objects.count(), 1)
+        self.assertEqual(UserSocialAuth.objects.count(), 1)
+
+    @override_settings(SOCIAL_AUTH_LOGIN_ERROR_URL="/error/")
+    def test_reused_callback_redirects_to_login_error_url(self) -> None:
+        callback = self.complete_login()
+        client = Client()
+        response = client.get(callback)
+        self.assertRedirects(response, "/error/", fetch_redirect_response=False)
+        self.assertTrue(list(get_messages(response.wsgi_request)))
+        self.assertNotIn("_auth_user_id", client.session)
+        self.assertEqual(get_user_model().objects.count(), 1)
+        self.assertEqual(UserSocialAuth.objects.count(), 1)
+
+    def test_unknown_or_missing_nonce_returns_authentication_error(self) -> None:
+        for data in ({"nonce": "unknown"}, {"nonce": ""}, {}):
+            with self.subTest(data=data):
+                response = self.client.get(self.signed_callback(external_id="42", **data))
+                self.assertEqual(response.status_code, 403)
+                self.assertEqual(response.context["error_code"], "nonce_mismatch")
+                self.assertNotIn("_auth_user_id", self.client.session)
+                self.assertFalse(get_user_model().objects.exists())
+                self.assertFalse(UserSocialAuth.objects.exists())
