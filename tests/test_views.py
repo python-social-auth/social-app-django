@@ -309,6 +309,41 @@ class TestViews(TestCase):
         self.assertEqual(response.status_code, 403)
         self.assertTrue(UserSocialAuth.objects.filter(pk=working.pk).exists())
 
+    @override_settings(
+        AUTHENTICATION_BACKENDS=(
+            "social_core.backends.facebook.FacebookOAuth2",
+            "social_core.backends.drip.DripOAuth",
+            "django.contrib.auth.backends.ModelBackend",
+        )
+    )
+    @mock.patch("social_core.backends.utils.BACKENDSCACHE", {})
+    def test_disconnect_rejects_association_only_remaining_association(self):
+        user = get_user_model()._default_manager.create_user(username="passwordless")
+        working = UserSocialAuth.objects.create(user=user, provider="facebook", uid="working-facebook")
+        self.assertFalse(user.has_usable_password())
+        self.client.force_login(user)
+
+        for individual in (False, True):
+            with self.subTest(individual=individual):
+                association_only = UserSocialAuth.objects.create(user=user, provider="drip", uid="association-only")
+                url_name = "social:disconnect_individual" if individual else "social:disconnect"
+                kwargs = {"backend": "facebook"}
+                if individual:
+                    kwargs["association_id"] = working.pk
+
+                response = self.client.post(reverse(url_name, kwargs=kwargs))
+
+                self.assertEqual(response.status_code, 403)
+                self.assertQuerySetEqual(user.social_auth.order_by("pk"), [working, association_only])
+
+                kwargs = {"backend": "drip"}
+                if individual:
+                    kwargs["association_id"] = association_only.pk
+                response = self.client.post(reverse(url_name, kwargs=kwargs))
+
+                self.assertEqual(response.status_code, 302)
+                self.assertQuerySetEqual(user.social_auth.all(), [working])
+
     def test_disconnect_individual_zero_id_keeps_last_association(self):
         user = get_user_model()._default_manager.create_user(username="passwordless")
         association = UserSocialAuth.objects.create(user=user, provider="facebook", uid="working-facebook")

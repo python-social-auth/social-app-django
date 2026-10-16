@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 
+- Do not count associations for association-only backends, which cannot log a
+  user in, as a remaining login method when disconnecting.
 - Repair historical Twitch OpenID Connect identifier labels in a new migration,
   restoring login for accounts affected by the 7.1.0 backfill. Historical
   `SOCIAL_AUTH_OLD_ID_KEYS` overrides take precedence over backend detection;

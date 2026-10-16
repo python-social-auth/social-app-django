@@ -178,6 +178,23 @@ class TestUserSocialAuth(TestCase):
 
         self.assertFalse(UserSocialAuth.allowed_to_disconnect(user, "unused"))
 
+    @mock.patch(
+        "social_django.storage.load_backends",
+        return_value={"facebook": mock.sentinel.backend, "drip": mock.Mock(ASSOCIATION_ONLY=True)},
+    )
+    def test_allowed_to_disconnect_ignores_association_only_backend(self, _load_backends):
+        facebook = UserSocialAuth.objects.create(user=self.user, provider="facebook", uid="facebook-user")
+        drip = UserSocialAuth.objects.create(user=self.user, provider="drip", uid="drip-user")
+
+        self.assertFalse(UserSocialAuth.allowed_to_disconnect(self.user, "facebook"))
+        self.assertFalse(UserSocialAuth.allowed_to_disconnect(self.user, "unused", facebook.pk))
+        self.assertTrue(UserSocialAuth.allowed_to_disconnect(self.user, "drip"))
+        self.assertTrue(UserSocialAuth.allowed_to_disconnect(self.user, "unused", drip.pk))
+
+        self.user.set_password("password")
+        self.assertTrue(UserSocialAuth.allowed_to_disconnect(self.user, "facebook"))
+        self.assertTrue(UserSocialAuth.allowed_to_disconnect(self.user, "unused", facebook.pk))
+
     def test_username_field(self):
         self.assertEqual(UserSocialAuth.username_field(), "username")
         with mock.patch(
