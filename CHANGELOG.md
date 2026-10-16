@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 
+- Repair historical Twitch OpenID Connect identifier labels in a new migration,
+  restoring login for accounts affected by the 7.1.0 backfill. Historical
+  `SOCIAL_AUTH_OLD_ID_KEYS` overrides take precedence over backend detection;
+  review any user accounts orphaned by earlier failed logins separately.
 - Treat association ID `0` as a specific ID when disconnecting, preventing
   accidental removal of all associations for the backend.
 - Handle reused Discourse callbacks and missing nonces through the configured
