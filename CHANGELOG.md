@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Changed
+
+- Resolve sign-in labels through the strategy-aware backend `get_title()`
+  method when available, including Hosted Weblate and custom Weblate issuers.
+
 ### Security
 
 - Retain original exception tracebacks in server logs when authentication 5xx
