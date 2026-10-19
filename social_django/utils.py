@@ -96,7 +96,7 @@ def is_safe_url(
 
     A URL is considered safe if:
     - It is a relative path (e.g. '/dashboard')
-    - Or its host is present in `allowed_hosts`
+    - Or its authority (host and any explicit port) exactly matches `allowed_hosts`
     - It does not use unsafe schemes (javascript:, data:, etc.)
     - It does not contain backslashes or protocol-relative trickery without allowed hosts.
     - It does not contain multiple leading slashes (e.g. '///evil.example')
@@ -104,7 +104,7 @@ def is_safe_url(
 
     Args:
         url: The URL string to validate.
-        allowed_hosts: Set/container of allowed hostnames.
+        allowed_hosts: Container of allowed authorities, including any explicit ports.
         require_https: If True, requires HTTPS scheme for absolute URLs.
 
     Returns:
@@ -145,11 +145,10 @@ def is_safe_url(
     if not scheme_valid:
         return False
 
-    # If the URL specifies a host (absolute or protocol-relative), it must match allowed_hosts
+    # Match the full authority so a bare hostname cannot allow other ports or userinfo,
+    # consistent with social_core.utils.sanitize_redirect().
     if parsed.netloc:
-        allowed = allowed_hosts or ()
-        hostname = parsed.hostname or ""
-        return parsed.netloc in allowed or hostname in allowed
+        return parsed.netloc in (allowed_hosts or ())
 
     return True
 
