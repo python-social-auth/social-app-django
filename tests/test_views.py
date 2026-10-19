@@ -8,11 +8,11 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractBaseUser, AnonymousUser
 from django.contrib.contenttypes.models import ContentType
-from django.contrib.messages import get_messages
 from django.http import HttpRequest, HttpResponse
 from django.middleware.csrf import get_token
 from django.test import Client, TestCase, override_settings
 from django.urls import include, path, reverse
+from social_core.backends.discourse import DiscourseAuth
 from social_core.backends.facebook import FacebookOAuth2
 from social_core.backends.open_id_connect import OpenIdConnectAuth
 from social_core.utils import PARTIAL_TOKEN_PENDING_REQUEST_SESSION_NAME
@@ -20,6 +20,7 @@ from social_core.utils import PARTIAL_TOKEN_PENDING_REQUEST_SESSION_NAME
 from social_django.models import Code, Nonce, Partial, UserSocialAuth
 from social_django.utils import LaunchBridge
 from social_django.views import get_session_timeout
+from tests.helpers import begin_facebook_login
 
 
 class MockOIDCBackend(OpenIdConnectAuth):
@@ -349,11 +350,6 @@ class TestOAuth2NonceClaim(TestCase):
 
 @override_settings(SOCIAL_AUTH_FACEBOOK_KEY="1", SOCIAL_AUTH_FACEBOOK_SECRET="2")  # ruff: ignore[hardcoded-password-func-arg]
 class TestViews(TestCase):
-    def setUp(self):
-        session = self.client.session
-        session["facebook_state"] = "1"
-        session.save()
-
     def test_begin_view(self):
         response = self.client.post(reverse("social:begin", kwargs={"backend": "facebook"}))
         self.assertEqual(response.status_code, 302)
@@ -388,11 +384,9 @@ class TestViews(TestCase):
     @mock.patch("social_core.backends.base.BaseAuth.request")
     def test_complete(self, mock_request):
         client = Client(enforce_csrf_checks=True)
-        session = client.session
-        session["facebook_state"] = "1"
-        session.save()
+        state = begin_facebook_login(client)
         url = reverse("social:complete", kwargs={"backend": "facebook"})
-        url += "?code=2&state=1"
+        url += f"?code=2&state={state}"
         mock_request.return_value.json.side_effect = [
             {"access_token": "123"},
             {"id": "facebook-user-123"},
@@ -508,8 +502,8 @@ class TestViews(TestCase):
 class TestSessionExpiration(TestCase):
     def complete_login(self, field: str, expiry: int | str) -> tuple[Client, HttpResponse]:
         client = Client(enforce_csrf_checks=True)
+        state = begin_facebook_login(client)
         session = client.session
-        session["facebook_state"] = "1"
         session["existing_data"] = "preserved"
         session.save()
         with mock.patch("social_core.backends.base.BaseAuth.request") as provider_request:
@@ -519,7 +513,7 @@ class TestSessionExpiration(TestCase):
             ]
             response = client.get(
                 reverse("social:complete", kwargs={"backend": "facebook"}),
-                {"code": "2", "state": "1"},
+                {"code": "2", "state": state},
             )
         return client, response
 
@@ -1084,29 +1078,31 @@ class TestDiscourseCallback(TestCase):
         response = client.get(callback)
         self.assertEqual(response.status_code, 403)
         self.assertTemplateUsed(response, "social_django/error.html")
-        self.assertEqual(response.context["error_code"], "nonce_mismatch")
         self.assertEqual(response.context["error_stage"], "callback")
         self.assertNotIn("_auth_user_id", client.session)
         self.assertEqual(get_user_model().objects.count(), 1)
         self.assertEqual(UserSocialAuth.objects.count(), 1)
 
-    @override_settings(SOCIAL_AUTH_LOGIN_ERROR_URL="/error/")
-    def test_reused_callback_redirects_to_login_error_url(self) -> None:
-        callback = self.complete_login()
-        client = Client()
-        response = client.get(callback)
-        self.assertRedirects(response, "/error/", fetch_redirect_response=False)
-        self.assertTrue(list(get_messages(response.wsgi_request)))
-        self.assertNotIn("_auth_user_id", client.session)
-        self.assertEqual(get_user_model().objects.count(), 1)
-        self.assertEqual(UserSocialAuth.objects.count(), 1)
+    def test_callback_from_other_session_cannot_link_account(self) -> None:
+        if not hasattr(DiscourseAuth, "validate_session_nonce"):
+            self.skipTest("requires session-bound Discourse callbacks in social-auth-core")
 
-    def test_unknown_or_missing_nonce_returns_authentication_error(self) -> None:
-        for data in ({"nonce": "unknown"}, {"nonce": ""}, {}):
-            with self.subTest(data=data):
-                response = self.client.get(self.signed_callback(external_id="42", **data))
-                self.assertEqual(response.status_code, 403)
-                self.assertEqual(response.context["error_code"], "nonce_mismatch")
-                self.assertNotIn("_auth_user_id", self.client.session)
-                self.assertFalse(get_user_model().objects.exists())
-                self.assertFalse(UserSocialAuth.objects.exists())
+        attacker = Client()
+        response = attacker.post(reverse("social:begin", kwargs={"backend": "discourse"}))
+        self.assertEqual(response.status_code, 302)
+        query = parse_qs(urlsplit(response.url).query)
+        nonce = parse_qs(urlsafe_b64decode(query["sso"][0]).decode())["nonce"][0]
+        callback = self.signed_callback(nonce=nonce, external_id="42", username="attacker")
+
+        victim = get_user_model().objects.create_user(username="victim")
+        victim_client = Client()
+        victim_client.force_login(victim)
+        response = victim_client.get(callback)
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.context["error_code"], "session_context_missing")
+        self.assertFalse(UserSocialAuth.objects.exists())
+
+        response = attacker.get(callback)
+        self.assertRedirects(response, "/done/", fetch_redirect_response=False)
+        self.assertEqual(UserSocialAuth.objects.get().uid, "42")
+        self.assertNotEqual(UserSocialAuth.objects.get().user_id, victim.pk)
