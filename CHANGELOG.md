@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 
+- Validate provider session expiry before logging in so invalid expiry data
+  cannot leave an authenticated session after an error redirect or bypass
+  `SOCIAL_AUTH_MAX_SESSION_LENGTH`.
 - Do not count associations for association-only backends, which cannot log a
   user in, as a remaining login method when disconnecting.
 - Repair historical Twitch OpenID Connect identifier labels in a new migration,

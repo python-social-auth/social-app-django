@@ -319,9 +319,6 @@ def _do_login(backend, user, social_user):
     enable_session_expiration = backend.setting("SESSION_EXPIRATION", False)
     max_session_length_setting = backend.setting("MAX_SESSION_LENGTH", None)
 
-    # Log the user in, creating a new session.
-    login(backend.strategy.request, user)
-
     # Make sure that the max_session_length value is either an integer or
     # None. Because we get this as a setting from the backend, it can be set
     # to whatever the backend creator wants; we want to be resilient against
@@ -334,11 +331,15 @@ def _do_login(backend, user, social_user):
 
     # Get the session expiration length based on the maximum session length
     # setting, combined with any session length received from the backend.
+    # Resolve invalid expiry errors before authenticating the session.
     session_expiry = get_session_timeout(
         social_user,
         enable_session_expiration=enable_session_expiration,
         max_session_length=max_session_length,
     )
+
+    # Log the user in, creating a new session.
+    login(backend.strategy.request, user)
 
     try:
         # Set the session length to our previously determined expiry length.

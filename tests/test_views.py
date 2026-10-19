@@ -8,7 +8,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractBaseUser, AnonymousUser
 from django.contrib.messages import get_messages
-from django.http import HttpRequest
+from django.http import HttpRequest, HttpResponse
 from django.middleware.csrf import get_token
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
@@ -361,6 +361,70 @@ class TestViews(TestCase):
 
                 self.assertEqual(response.status_code, status)
                 self.assertQuerySetEqual(user.social_auth.all(), [association])
+
+
+@override_settings(
+    DEBUG=False,
+    SOCIAL_AUTH_FACEBOOK_KEY="1",
+    SOCIAL_AUTH_FACEBOOK_SECRET="2",  # ruff: ignore[hardcoded-password-func-arg]
+    SOCIAL_AUTH_FACEBOOK_EXTRA_DATA=["expires", "expires_on"],
+    SOCIAL_AUTH_SESSION_EXPIRATION=True,
+    SOCIAL_AUTH_MAX_SESSION_LENGTH=3600,
+    SOCIAL_AUTH_LOGIN_ERROR_URL="/login-error/",
+)
+class TestSessionExpiration(TestCase):
+    def complete_login(self, field: str, expiry: int | str) -> tuple[Client, HttpResponse]:
+        client = Client(enforce_csrf_checks=True)
+        session = client.session
+        session["facebook_state"] = "1"
+        session["existing_data"] = "preserved"
+        session.save()
+        with mock.patch("social_core.backends.base.BaseAuth.request") as provider_request:
+            provider_request.return_value.json.side_effect = [
+                {"access_token": "123", field: expiry},
+                {"id": "facebook-expiry-user", field: expiry},
+            ]
+            response = client.get(
+                reverse("social:complete", kwargs={"backend": "facebook"}),
+                {"code": "2", "state": "1"},
+            )
+        return client, response
+
+    def test_invalid_expiry_does_not_authenticate(self):
+        for error_url in ("/login-error/", None):
+            for field in ("expires_in", "expires", "expires_on"):
+                for expiry in ("unknown", "", "3600.0"):
+                    with (
+                        self.subTest(error_url=error_url, field=field, expiry=expiry),
+                        override_settings(SOCIAL_AUTH_LOGIN_ERROR_URL=error_url),
+                        self.assertLogs("social", level="ERROR") as logs,
+                    ):
+                        client, response = self.complete_login(field, expiry)
+                        if error_url:
+                            self.assertRedirects(response, error_url, fetch_redirect_response=False)
+                        else:
+                            self.assertEqual(response.status_code, 500)
+                        self.assertIn("code=invalid_expiry", logs.output[0])
+                        self.assertFalse(response.wsgi_request.user.is_authenticated)
+                        self.assertNotIn("_auth_user_id", client.session)
+                        self.assertNotIn("social_auth_last_login_backend", client.session)
+                        self.assertEqual(client.session["existing_data"], "preserved")
+
+    def test_valid_expiry_respects_maximum(self):
+        client, response = self.complete_login("expires_in", 7200)
+
+        self.assertRedirects(response, "/accounts/profile/", fetch_redirect_response=False)
+        self.assertIn("_auth_user_id", client.session)
+        self.assertEqual(client.session.get_expiry_age(), 3600)
+        self.assertEqual(response.cookies[settings.SESSION_COOKIE_NAME]["max-age"], 3600)
+
+    @override_settings(SOCIAL_AUTH_SESSION_EXPIRATION=False)
+    def test_disabled_expiration_ignores_invalid_provider_expiry(self):
+        client, response = self.complete_login("expires_in", "unknown")
+
+        self.assertRedirects(response, "/accounts/profile/", fetch_redirect_response=False)
+        self.assertIn("_auth_user_id", client.session)
+        self.assertEqual(client.session.get_expiry_age(), 3600)
 
 
 class TestGetSessionTimeout(TestCase):
