@@ -593,6 +593,52 @@ class TestGetSessionTimeout(TestCase):
     SOCIAL_AUTH_ENABLE_LAUNCH_BRIDGES=[LaunchBridge.APP, LaunchBridge.IDP],
 )
 class TestLaunchViews(TestCase):
+    @override_settings(
+        LOGIN_REDIRECT_URL="/welcome/",
+        SOCIAL_AUTH_ALLOWED_REDIRECT_HOSTS=["frontend.example.com:8443"],
+        SOCIAL_AUTH_MOCK_OIDC_ALLOWED_REDIRECT_HOSTS=["backend.example.com:9443"],
+    )
+    def test_launch_targets_require_exact_authority(self):
+        user = get_user_model()._default_manager.create_user(username="launch_authority")
+        cases = [
+            ("testserver", "https://testserver/dashboard", True),
+            ("testserver", "https://testserver:8443/dashboard", False),
+            ("testserver", "https://testserver:443/dashboard", False),
+            ("testserver", "https://user@testserver/dashboard", False),
+            ("testserver", "https://TESTSERVER/dashboard", False),
+            ("testserver:8443", "https://testserver:8443/dashboard", True),
+            ("testserver:8443", "https://testserver/dashboard", False),
+            ("testserver:8443", "https://testserver:9443/dashboard", False),
+            ("testserver", "https://frontend.example.com:8443/dashboard", True),
+            ("testserver", "https://frontend.example.com:9443/dashboard", False),
+            ("testserver", "https://backend.example.com:9443/dashboard", True),
+            ("testserver", "https://backend.example.com:8443/dashboard", False),
+        ]
+        for authenticated in (False, True):
+            if authenticated:
+                self.client.force_login(user, backend="django.contrib.auth.backends.ModelBackend")
+            for bridge, parameter in (("idp_launch", "target_link_uri"), ("app_launch", "next")):
+                url = reverse(f"social:{bridge}", kwargs={"backend": "mock-oidc"})
+                for host, target, accepted in cases:
+                    with self.subTest(authenticated=authenticated, bridge=bridge, host=host, target=target):
+                        headers = {"Host": host, "Sec-Fetch-Site": "same-origin"}
+                        if bridge == "idp_launch":
+                            headers["Sec-Fetch-Site"] = "cross-site"
+                        response = self.client.get(
+                            url,
+                            {"iss": "https://idp.example.com", parameter: target},
+                            secure=True,
+                            headers=headers,
+                        )
+                        if authenticated:
+                            self.assertEqual(response.status_code, 302)
+                            self.assertEqual(response["Location"], target if accepted else "/welcome/")
+                        else:
+                            self.assertEqual(response.status_code, 200)
+                            self.assertEqual(response.context["params"].get("next"), target if accepted else None)
+                            self.assertContains(response, 'name="next"', count=1 if accepted else 0)
+                            self.assertContains(response, f'value="{target}"', count=1 if accepted else 0)
+
     @override_settings(ROOT_URLCONF=LaunchRedirectURLConf)
     def test_authenticated_launch_targets_are_literal_urls(self):
         user = get_user_model()._default_manager.create_user(username="literal_target")

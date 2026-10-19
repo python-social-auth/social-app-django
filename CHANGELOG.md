@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 
+- Require launch bridge redirect targets and application launch `Referer` headers to
+  match allowed hosts exactly, including explicit ports.
 - Preserve request and provider dictionaries resembling model references when
   resuming partial pipelines. New saved values distinguish model references
   from ordinary data while retaining support for existing partials. Deploy

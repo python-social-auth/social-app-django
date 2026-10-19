@@ -80,6 +80,17 @@ class TestUtils(TestCase):
             # Unsafe disallowed hosts
             ("https://evil.com/phishing", {"example.com"}, False, False),
             ("//evil.com/phishing", {"example.com"}, False, False),
+            # Match the full authority, including explicit ports and userinfo.
+            ("https://example.com:8443/", {"example.com"}, True, False),
+            ("https://example.com:443/", {"example.com"}, True, False),
+            ("https://example.com:8443/", {"example.com:8443"}, True, True),
+            ("https://example.com:443/", {"example.com:443"}, True, True),
+            ("https://example.com/", {"example.com:8443"}, True, False),
+            ("https://example.com:9443/", {"example.com:8443"}, True, False),
+            ("https://user@example.com/", {"example.com"}, True, False),
+            ("https://EXAMPLE.COM/", {"example.com"}, True, False),
+            ("//example.com:8443/", {"example.com"}, False, False),
+            ("//example.com:8443/", {"example.com:8443"}, False, True),
             # Unsafe schemes
             ("javascript:alert(1)", {"example.com"}, False, False),
             ("data:text/html,<script>alert(1)</script>", {"example.com"}, False, False),
@@ -205,6 +216,34 @@ class TestUtils(TestCase):
         is_valid, error = validate_app_launch_origin(request)
         self.assertTrue(is_valid)
         self.assertIsNone(error)
+
+    def test_app_launch_referer_requires_exact_authority(self):
+        cases = [
+            ("testserver", "https://testserver/home", True),
+            ("testserver", "https://testserver:8443/home", False),
+            ("testserver", "https://testserver:443/home", False),
+            ("testserver:8443", "https://testserver:8443/home", True),
+            ("testserver:8443", "https://testserver/home", False),
+            ("testserver:8443", "https://testserver:9443/home", False),
+        ]
+        for host, referer, expected in cases:
+            with self.subTest(host=host, referer=referer):
+                request = self.factory.get("/", secure=True, headers={"Host": host, "Referer": referer})
+                is_valid, error = validate_app_launch_origin(request)
+                self.assertEqual(is_valid, expected)
+                if expected:
+                    self.assertIsNone(error)
+                else:
+                    self.assertIn("Untrusted Referer origin rejected", error)
+
+        request = self.factory.get(
+            "/",
+            secure=True,
+            headers={"Referer": "https://testserver:8443/home", "Sec-Fetch-Site": "same-site"},
+        )
+        is_valid, error = validate_app_launch_origin(request)
+        self.assertFalse(is_valid)
+        self.assertIn("Cross-site launch rejected", error)
 
     def test_get_backend_issuer(self):
         backend = mock.MagicMock()
