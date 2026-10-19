@@ -11,7 +11,7 @@ from django.contrib.messages import get_messages
 from django.http import HttpRequest, HttpResponse
 from django.middleware.csrf import get_token
 from django.test import Client, TestCase, override_settings
-from django.urls import reverse
+from django.urls import include, path, reverse
 from social_core.backends.open_id_connect import OpenIdConnectAuth
 
 from social_django.models import Code, Nonce, Partial, UserSocialAuth
@@ -24,6 +24,17 @@ class MockOIDCBackend(OpenIdConnectAuth):
     AUTHORIZATION_URL = "https://idp.example.com/auth"
     ACCESS_TOKEN_URL = "https://idp.example.com/token"  # ruff: ignore[hardcoded-password-string]
     ID_TOKEN_ISSUER = "https://idp.example.com"  # ruff: ignore[hardcoded-password-string]
+
+
+def launch_redirect_destination(request: HttpRequest) -> HttpResponse:
+    return HttpResponse()
+
+
+class LaunchRedirectURLConf:
+    urlpatterns = (
+        path("welcome/", launch_redirect_destination, name="dashboard"),
+        path("", include("tests.urls")),
+    )
 
 
 def send_validation(strategy, backend, code, partial_token):
@@ -497,6 +508,68 @@ class TestGetSessionTimeout(TestCase):
     SOCIAL_AUTH_ENABLE_LAUNCH_BRIDGES=[LaunchBridge.APP, LaunchBridge.IDP],
 )
 class TestLaunchViews(TestCase):
+    @override_settings(ROOT_URLCONF=LaunchRedirectURLConf)
+    def test_authenticated_launch_targets_are_literal_urls(self):
+        user = get_user_model()._default_manager.create_user(username="literal_target")
+        self.client.force_login(user, backend="django.contrib.auth.backends.ModelBackend")
+        self.assertEqual(reverse("dashboard"), "/welcome/")
+        for bridge, parameter in (("idp_launch", "target_link_uri"), ("app_launch", "next")):
+            url = reverse(f"social:{bridge}", kwargs={"backend": "mock-oidc"})
+            for target in ("unknown", "dashboard", "?tab=x", "#top", "/dashboard"):
+                with self.subTest(bridge=bridge, target=target):
+                    response = self.client.get(
+                        url,
+                        {"iss": "https://idp.example.com", parameter: target},
+                        headers={"sec-fetch-site": "same-origin"},
+                    )
+                    self.assertEqual(response.status_code, 302)
+                    self.assertEqual(response["Location"], target)
+
+    @override_settings(LOGIN_REDIRECT_URL="admin:index")
+    def test_authenticated_launch_fallback_resolves_url_name(self):
+        user = get_user_model()._default_manager.create_user(username="named_fallback")
+        self.client.force_login(user, backend="django.contrib.auth.backends.ModelBackend")
+        for bridge, parameter in (("idp_launch", "target_link_uri"), ("app_launch", "next")):
+            url = reverse(f"social:{bridge}", kwargs={"backend": "mock-oidc"})
+            for target in (None, "", "https://evil.example/phishing"):
+                with self.subTest(bridge=bridge, target=target):
+                    params = {"iss": "https://idp.example.com"}
+                    if target is not None:
+                        params[parameter] = target
+                    response = self.client.get(url, params, headers={"sec-fetch-site": "same-origin"})
+                    self.assertEqual(response.status_code, 302)
+                    self.assertEqual(response["Location"], "/admin/")
+
+    @override_settings(
+        LOGIN_REDIRECT_URL="nonexistent-route",
+        SOCIAL_AUTH_ALLOWED_REDIRECT_HOSTS=["frontend.example.com"],
+    )
+    def test_authenticated_launch_explicit_target_skips_fallback_resolution(self):
+        user = get_user_model()._default_manager.create_user(username="explicit_target")
+        self.client.force_login(user, backend="django.contrib.auth.backends.ModelBackend")
+        for bridge, parameter in (("idp_launch", "target_link_uri"), ("app_launch", "next")):
+            url = reverse(f"social:{bridge}", kwargs={"backend": "mock-oidc"})
+            for target in ("dashboard", "https://frontend.example.com/portal"):
+                with self.subTest(bridge=bridge, target=target):
+                    response = self.client.get(
+                        url,
+                        {"iss": "https://idp.example.com", parameter: target},
+                        headers={"sec-fetch-site": "same-origin"},
+                    )
+                    self.assertEqual(response.status_code, 302)
+                    self.assertEqual(response["Location"], target)
+
+    def test_anonymous_launch_preserves_relative_target(self):
+        for bridge, parameter in (("idp_launch", "target_link_uri"), ("app_launch", "next")):
+            with self.subTest(bridge=bridge):
+                url = reverse(f"social:{bridge}", kwargs={"backend": "mock-oidc"})
+                response = self.client.get(
+                    url,
+                    {"iss": "https://idp.example.com", parameter: "dashboard"},
+                    headers={"sec-fetch-site": "same-origin"},
+                )
+                self.assertContains(response, 'name="next" value="dashboard"')
+
     def test_idp_launch_renders_form(self):
         url = reverse("social:idp_launch", kwargs={"backend": "mock-oidc"})
         response = self.client.get(url, {"iss": "https://idp.example.com"})
