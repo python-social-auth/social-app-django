@@ -2,8 +2,8 @@ from django.conf import settings
 from django.contrib.auth import REDIRECT_FIELD_NAME, login
 from django.contrib.auth.decorators import login_not_required, login_required
 from django.core.exceptions import BadRequest
-from django.http import Http404
-from django.shortcuts import redirect, render
+from django.http import Http404, HttpResponseRedirect
+from django.shortcuts import render, resolve_url
 from django.urls import reverse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.clickjacking import xframe_options_deny
@@ -100,13 +100,14 @@ def idp_launch(request, backend):
     # Layer 4: Authenticated session bypass — Skip authentication roundtrip if session is already authenticated
     user = getattr(request, "user", None)
     if user and user.is_authenticated:
-        redirect_to = safe_target_link_uri or settings.LOGIN_REDIRECT_URL
+        # Request targets are literal URLs; only the configured fallback may be a URL name.
+        redirect_to = safe_target_link_uri or resolve_url(settings.LOGIN_REDIRECT_URL)
         social_logger.info(
             "idp_launch: User `%s` already authenticated, redirecting to `%s`",
             user,
             redirect_to,
         )
-        return redirect(redirect_to)
+        return HttpResponseRedirect(redirect_to)
 
     # Layers 5 & 6: Fetch Metadata validation & Manual confirmation fallback — Inspect Sec-Fetch-* headers
     auto_submit, _ = check_fetch_metadata(request, "idp_launch")
@@ -194,13 +195,14 @@ def app_launch(request, backend):
     # Layer 5: Authenticated session bypass — Skip authentication roundtrip if session is already authenticated
     user = getattr(request, "user", None)
     if user and user.is_authenticated:
-        redirect_to = safe_next_url or settings.LOGIN_REDIRECT_URL
+        # Request targets are literal URLs; only the configured fallback may be a URL name.
+        redirect_to = safe_next_url or resolve_url(settings.LOGIN_REDIRECT_URL)
         social_logger.info(
             "app_launch: User `%s` already authenticated, redirecting to `%s`",
             user,
             redirect_to,
         )
-        return redirect(redirect_to)
+        return HttpResponseRedirect(redirect_to)
 
     # Layers 6 & 7: Fetch Metadata validation & Manual confirmation fallback — Inspect Sec-Fetch-* headers
     auto_submit, _ = check_fetch_metadata(request, "app_launch")

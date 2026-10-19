@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 
+- Treat authenticated launch-bridge redirect targets as literal URLs, fixing
+  errors for relative targets and unintended resolution as URL pattern names.
 - Validate provider session expiry before logging in so invalid expiry data
   cannot leave an authenticated session after an error redirect or bypass
   `SOCIAL_AUTH_MAX_SESSION_LENGTH`.
