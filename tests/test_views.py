@@ -7,12 +7,14 @@ from urllib.parse import parse_qs, urlencode, urlsplit
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractBaseUser, AnonymousUser
+from django.contrib.contenttypes.models import ContentType
 from django.contrib.messages import get_messages
 from django.http import HttpRequest, HttpResponse
 from django.middleware.csrf import get_token
 from django.test import Client, TestCase, override_settings
 from django.urls import include, path, reverse
 from social_core.backends.open_id_connect import OpenIdConnectAuth
+from social_core.utils import PARTIAL_TOKEN_PENDING_REQUEST_SESSION_NAME
 
 from social_django.models import Code, Nonce, Partial, UserSocialAuth
 from social_django.utils import LaunchBridge
@@ -66,6 +68,89 @@ class TestEmailConfirmation(TestCase):
         client = Client(enforce_csrf_checks=True)
         client.cookies[settings.CSRF_COOKIE_NAME] = request.META["CSRF_COOKIE"]
         return client, token
+
+    def test_login_parameters_survive_partial_resume(self):
+        target = get_user_model().objects.create_user(username="target")
+        ctype = ContentType.objects.get_for_model(target)
+        url = reverse("social:complete", kwargs={"backend": "email"})
+        for index, probe in enumerate((
+            {"pk": str(target.pk), "ctype": str(ctype.pk)},
+            {"pk": str(target.pk + 1), "ctype": str(ctype.pk)},
+            {"pk": "invalid", "ctype": "invalid"},
+            {"__social_django_session_value__": "1", "kind": "model", "value": "request"},
+        )):
+            with (
+                self.subTest(probe=probe),
+                self.settings(
+                    SOCIAL_AUTH_PIPELINE=(
+                        *settings.SOCIAL_AUTH_PIPELINE,
+                        "social_core.pipeline.social_auth.load_extra_data",
+                    )
+                ),
+                mock.patch("tests.test_views.send_validation") as send_email,
+            ):
+                email = f"confirm{index}@example.com"
+                client, csrf_token = self.csrf_client()
+                response = client.post(url, {"email": email, "csrfmiddlewaretoken": csrf_token, **probe})
+                self.assertRedirects(response, "/email-sent/", fetch_redirect_response=False)
+                response = client.get(url)
+                self.assertRedirects(response, "/email-sent/", fetch_redirect_response=False)
+                code = send_email.call_args.args[2]
+                partial_token = send_email.call_args.args[3]
+                response = client.get(url, {"verification_code": code.code, "partial_token": partial_token})
+                context = response.context
+                response = client.post(
+                    context["action_url"],
+                    {
+                        "csrfmiddlewaretoken": csrf_token,
+                        context["confirmation_parameter"]: context["confirmation_value"],
+                        context["confirmation_nonce_parameter"]: context["confirmation_nonce"],
+                    },
+                )
+                self.assertRedirects(response, "/done/", fetch_redirect_response=False)
+                association = UserSocialAuth.objects.get(provider="email", uid=email)
+                self.assertNotEqual(association.user_id, target.pk)
+                self.assertEqual(int(client.session["_auth_user_id"]), association.user_id)
+                self.assertTrue(Code.objects.get(pk=code.pk).verified)
+
+    def test_confirmation_parameters_survive_session_storage(self):
+        target = get_user_model().objects.create_user(username="target")
+        ctype = ContentType.objects.get_for_model(target)
+        url = reverse("social:complete", kwargs={"backend": "email"})
+        for legacy in (False, True):
+            for index, pk in enumerate((str(target.pk), "missing")):
+                with self.subTest(legacy=legacy, pk=pk), mock.patch("tests.test_views.send_validation") as send_email:
+                    email = f"confirm{legacy}{index}@example.com"
+                    client, csrf_token = self.csrf_client()
+                    client.post(url, {"email": email, "csrfmiddlewaretoken": csrf_token})
+                    code = send_email.call_args.args[2]
+                    partial_token = send_email.call_args.args[3]
+                    probe = {
+                        "verification_code": code.code,
+                        "partial_token": partial_token,
+                        "pk": pk,
+                        "ctype": str(ctype.pk),
+                    }
+                    response = client.get(url, probe)
+                    self.assertTemplateUsed(response, "social_django/partial_pipeline_external_resume.html")
+                    if legacy:
+                        session = client.session
+                        session[PARTIAL_TOKEN_PENDING_REQUEST_SESSION_NAME] = probe
+                        session.save()
+                    context = response.context
+                    response = client.post(
+                        context["action_url"],
+                        {
+                            "csrfmiddlewaretoken": csrf_token,
+                            context["confirmation_parameter"]: context["confirmation_value"],
+                            context["confirmation_nonce_parameter"]: context["confirmation_nonce"],
+                        },
+                    )
+                    self.assertRedirects(response, "/done/", fetch_redirect_response=False)
+                    association = UserSocialAuth.objects.get(provider="email", uid=email)
+                    self.assertNotEqual(association.user_id, target.pk)
+                    self.assertEqual(int(client.session["_auth_user_id"]), association.user_id)
+                    self.assertTrue(Code.objects.get(pk=code.pk).verified)
 
     def test_login_form_requires_post(self):
         user = get_user_model()._default_manager.create_user(username="victim")

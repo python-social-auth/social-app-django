@@ -1,3 +1,4 @@
+import json
 from unittest import mock
 
 from django.contrib.auth import authenticate as django_authenticate
@@ -11,6 +12,7 @@ from social_core.exceptions import AuthSessionError
 from social_core.pipeline.utils import partial_prepare
 from social_core.utils import PARTIAL_TOKEN_PENDING_CONFIRMATION_SESSION_NAME
 
+from social_django.models import Partial, UserSocialAuth
 from social_django.strategy import PARTIAL_PIPELINE_CONFIRMATION_NONCE_PARAMETER
 from social_django.utils import load_backend, load_strategy
 
@@ -193,10 +195,159 @@ class TestStrategy(TestCase):
         ctype = ContentType.objects.get_for_model(user_model)
 
         val = self.strategy.to_session_value(val=user)
-        self.assertEqual(val, {"pk": user.pk, "ctype": ctype.pk})
+        self.assertEqual(
+            val,
+            {
+                "__social_django_session_value__": 1,
+                "kind": "model",
+                "value": {"pk": user.pk, "ctype": ctype.pk},
+            },
+        )
 
-        instance = self.strategy.from_session_value(val=val)
+        instance = self.strategy.from_session_value(val=json.loads(json.dumps(val)))
         self.assertEqual(instance, user)
+
+    def test_session_value_preserves_plain_data(self):
+        user = get_user_model().objects.create_user(username="test")
+        reference = {"pk": user.pk, "ctype": ContentType.objects.get_for_model(user).pk}
+        envelope = {"__social_django_session_value__": 1, "kind": "model", "value": reference}
+        values = (
+            None,
+            False,
+            1,
+            "value",
+            {},
+            {"provider": "facebook", "uid": "test"},
+            reference,
+            {**reference, "email": "test@example.com"},
+            {"pk": "missing", "ctype": "invalid"},
+            envelope,
+            {"__social_django_session_value__": "invalid"},
+            {"__social_django_session_value__": 1, "kind": "plain", "value": envelope},
+            {"nested": envelope},
+            [reference, envelope],
+        )
+        for value in values:
+            with self.subTest(value=value), self.assertNumQueries(0):
+                encoded = self.strategy.to_session_value(value)
+                decoded = self.strategy.from_session_value(json.loads(json.dumps(encoded)))
+                self.assertEqual(decoded, value)
+
+    def test_from_session_value_preserves_legacy_request_data(self):
+        for value in (
+            {"pk": "1", "ctype": "1"},
+            {"pk": "missing", "ctype": "invalid"},
+            {"pk": 1, "ctype": "1"},
+            {"pk": 1, "ctype": True},
+            {"pk": 1, "ctype": 1.0},
+            {"pk": 1, "ctype": 1, "extra": "data"},
+            {"pk": 1},
+            {"ctype": 1},
+            {"nested": {"pk": 1, "ctype": 1}},
+        ):
+            with self.subTest(value=value), self.assertNumQueries(0):
+                self.assertIs(self.strategy.from_session_value(value), value)
+
+    def test_from_session_value_preserves_unsupported_envelopes(self):
+        envelope = {
+            "__social_django_session_value__": 1,
+            "kind": "model",
+            "value": {"pk": 1, "ctype": 1},
+        }
+        values = (
+            {"__social_django_session_value__": 1},
+            {**envelope, "extra": "data"},
+            {**envelope, "__social_django_session_value__": True},
+            {**envelope, "__social_django_session_value__": 1.0},
+            {**envelope, "__social_django_session_value__": "1"},
+            {**envelope, "__social_django_session_value__": 2},
+            {**envelope, "kind": "unknown"},
+            {**envelope, "kind": []},
+            {**envelope, "value": None},
+            {**envelope, "value": {"pk": 1, "ctype": "1"}},
+            {**envelope, "value": {"pk": 1, "ctype": True}},
+            {**envelope, "value": {"pk": 1, "ctype": 1, "extra": "data"}},
+            {**envelope, "kind": "plain", "value": []},
+            {**envelope, "pk": 1, "ctype": 1},
+        )
+        for value in values:
+            with self.subTest(value=value), self.assertNumQueries(0):
+                self.assertIs(self.strategy.from_session_value(value), value)
+
+    def test_session_value_preserves_model_lookup_errors(self):
+        user_model = get_user_model()
+        user = user_model.objects.create_user(username="test")
+        ctype = ContentType.objects.get_for_model(user)
+        stale = ContentType.objects.create(app_label="missing", model="missing")
+        cases = (
+            ({"pk": user.pk + 1, "ctype": ctype.pk}, user_model.DoesNotExist),
+            ({"pk": user.pk, "ctype": stale.pk + 1}, ContentType.DoesNotExist),
+            ({"pk": user.pk, "ctype": stale.pk}, TypeError),
+        )
+        for reference, error in cases:
+            for value in (
+                reference,
+                {"__social_django_session_value__": 1, "kind": "model", "value": reference},
+            ):
+                with self.subTest(value=value), self.assertRaises(error):
+                    self.strategy.from_session_value(value)
+
+    def test_partial_round_trip_with_model_and_plain_values(self):
+        user = get_user_model().objects.create_user(username="test")
+        social = UserSocialAuth.objects.create(user=user, provider="facebook", uid="test")
+        reference = {"pk": user.pk, "ctype": ContentType.objects.get_for_model(user).pk}
+        for probe in (
+            {"pk": "missing", "ctype": "invalid"},
+            {"__social_django_session_value__": "1", "kind": "model", "value": "request"},
+        ):
+            with self.subTest(probe=probe):
+                request = self.request_factory.get("/complete/facebook/", data=probe)
+                SessionMiddleware(lambda: None).process_request(request)
+                strategy = load_strategy(request=request)
+                backend = load_backend(strategy=strategy, name="facebook", redirect_uri="/")
+                partial = partial_prepare(strategy, backend, 0, user, social, user, response=reference)
+                strategy.storage.partial.store(partial)
+
+                loaded = strategy.partial_load(partial.token)
+
+                self.assertEqual(loaded.args, [user])
+                self.assertEqual(loaded.kwargs["user"], user)
+                self.assertEqual(loaded.kwargs["social"], social)
+                self.assertEqual(loaded.kwargs["response"], reference)
+                self.assertEqual(loaded.request_data, probe)
+
+    def test_partial_load_preserves_legacy_values(self):
+        user = get_user_model().objects.create_user(username="test")
+        social = UserSocialAuth.objects.create(user=user, provider="facebook", uid="test")
+        reference = {"pk": user.pk, "ctype": ContentType.objects.get_for_model(user).pk}
+        backend = load_backend(strategy=self.strategy, name="facebook", redirect_uri="/")
+        probe = {"pk": "missing", "ctype": "invalid", "email": "test@example.com"}
+        for legacy_request in (False, True):
+            with self.subTest(legacy_request=legacy_request):
+                data = {
+                    "args": [reference],
+                    "kwargs": {
+                        "user": user.pk,
+                        "social": {"provider": social.provider, "uid": social.uid},
+                        "response": probe,
+                    },
+                }
+                if legacy_request:
+                    data["kwargs"]["request"] = probe
+                else:
+                    data["request_data"] = probe
+                partial = Partial.objects.create(
+                    token=Partial.generate_token(), backend=backend.name, next_step=0, data=data
+                )
+
+                loaded = self.strategy.partial_load(partial.token)
+
+                self.assertEqual(loaded.args, [user])
+                self.assertEqual(loaded.kwargs["user"], user)
+                self.assertEqual(loaded.kwargs["social"], social)
+                self.assertEqual(loaded.kwargs["response"], probe)
+                self.assertEqual(loaded.request_data, probe)
+                self.assertNotIn("request", loaded.kwargs)
 
     def test_session_value_flattens_request_data(self):
         request = self.request_factory.get(
