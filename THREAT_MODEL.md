@@ -129,8 +129,10 @@ Reachability determines whether a report is in scope:
   ordered where the selected flow requires them. Session cookies and server-side
   session data have integrity and confidentiality. (maintainer, 2026-10-14)
 - Multi-instance deployments use shared session storage for flows that restore
-  an initiating session, and the same browser retains the flow context.
-  (documented; [SAML](https://python-social-auth.readthedocs.io/en/latest/backends/saml.html))
+  an initiating session, and the same browser retains the flow context. OAuth2
+  callbacks share the database-backed Nonce claim store across workers.
+  (documented; [Django storage cleanup](https://python-social-auth.readthedocs.io/en/latest/configuration/django.html#authentication-storage-cleanup),
+  [Nonce storage](https://python-social-auth.readthedocs.io/en/latest/storage.html#nonce))
 - The database enforces the schema's constraints and transactions correctly.
   Database contents, backups, and credentials are protected from unauthorized
   access, while string comparison behavior may vary by supported database.

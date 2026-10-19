@@ -13,6 +13,7 @@ from django.core.management import call_command
 from django.db import IntegrityError, connection, models
 from django.test import TestCase, override_settings
 from django.test.utils import isolate_apps
+from django.utils import timezone
 from social_core.backends.cognito import CognitoOAuth2
 from social_core.exceptions import AuthAssociationError
 from social_core.pipeline.user import get_username
@@ -549,6 +550,24 @@ class TestNonce(TestCase):
         self.assertTrue(Nonce.use(server_url="/", timestamp=1, salt="1"))
         self.assertFalse(Nonce.use(server_url="/", timestamp=1, salt="1"))
         self.assertEqual(Nonce.objects.count(), 1)
+
+    def test_clearsocial_removes_old_nonces_in_all_scopes(self):
+        now = int(timezone.now().timestamp())
+        scopes = (
+            "social_core.oauth2.google-oauth2",
+            "https://openid.example.com",
+            "https://discourse.example.com",
+        )
+        for scope in scopes:
+            Nonce.use(server_url=scope, timestamp=now - 3 * 86400, salt="old")
+            Nonce.use(server_url=scope, timestamp=now - 86400, salt="recent")
+
+        call_command("clearsocial", age=2)
+
+        self.assertEqual(
+            set(Nonce.objects.values_list("server_url", "salt")),
+            {(scope, "recent") for scope in scopes},
+        )
 
 
 class TestAssociation(TestCase):

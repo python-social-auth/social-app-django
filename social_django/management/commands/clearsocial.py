@@ -3,7 +3,7 @@ from datetime import timedelta
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
-from social_django.models import Association, Code, Partial
+from social_django.models import Association, Code, Nonce, Partial
 
 
 class Command(BaseCommand):
@@ -28,5 +28,8 @@ class Command(BaseCommand):
 
         # Delete old partial data
         Partial.objects.filter(timestamp__lt=age).delete()
+
+        # All nonce timestamps are Unix timestamps, regardless of scope.
+        Nonce.objects.filter(timestamp__lt=int(age.timestamp())).delete()
 
         Association.cleanup_expired()
