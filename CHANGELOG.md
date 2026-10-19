@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 
+- Preserve request and provider dictionaries resembling model references when
+  resuming partial pipelines. New saved values distinguish model references
+  from ordinary data while retaining support for existing partials. Deploy
+  all workers together; older versions cannot read the new encoded values.
 - Treat authenticated launch-bridge redirect targets as literal URLs, fixing
   errors for relative targets and unintended resolution as URL pattern names.
 - Validate provider session expiry before logging in so invalid expiry data

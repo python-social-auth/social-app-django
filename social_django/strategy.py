@@ -29,6 +29,11 @@ if TYPE_CHECKING:
 
 
 PARTIAL_PIPELINE_CONFIRMATION_NONCE_PARAMETER = "partial_pipeline_confirm_nonce"
+_SESSION_VALUE_MARKER = "__social_django_session_value__"
+
+
+def _is_model_reference(value: Any) -> bool:
+    return isinstance(value, dict) and value.keys() == {"pk", "ctype"} and type(value["ctype"]) is int
 
 
 def render_template_string(request, html, context=None):
@@ -262,28 +267,45 @@ class DjangoStrategy(BaseStrategy):
     def random_string(self, length=12, chars=BaseStrategy.ALLOWED_CHARS):
         return get_random_string(length, chars)
 
-    def to_session_value(self, val):
-        """
-        Converts values that are instance of Model to a dictionary
-        with enough information to retrieve the instance back later.
-        """
+    def to_session_value(self, val: Any) -> Any:
+        """Encode model references and escape dictionaries that resemble encoded values."""
         if isinstance(val, MultiValueDict):
             val = val.dict()
-        elif isinstance(val, Model):
-            val = {"pk": val.pk, "ctype": ContentType.objects.get_for_model(val).pk}
+        if isinstance(val, Model):
+            return {
+                _SESSION_VALUE_MARKER: 1,
+                "kind": "model",
+                "value": {"pk": val.pk, "ctype": ContentType.objects.get_for_model(val).pk},
+            }
+        if isinstance(val, dict) and (_SESSION_VALUE_MARKER in val or {"pk", "ctype"} <= val.keys()):
+            return {_SESSION_VALUE_MARKER: 1, "kind": "plain", "value": val}
         return val
 
-    def from_session_value(self, val):
-        """Converts back the instance saved by self._ctype function."""
-        if isinstance(val, dict) and "pk" in val and "ctype" in val:
-            ctype = ContentType.objects.get_for_id(val["ctype"])
-            model_class = ctype.model_class()
-            if model_class is None:
-                msg = f"Content type {ctype.pk} does not reference a model"
-                raise TypeError(msg)
-            val = model_class._default_manager.get(pk=val["pk"])
+    def from_session_value(self, val: Any) -> Any:
+        """Decode one saved value, including model references from older partials."""
+        if isinstance(val, dict) and _SESSION_VALUE_MARKER in val:
+            if (
+                val.keys() != {_SESSION_VALUE_MARKER, "kind", "value"}
+                or type(val[_SESSION_VALUE_MARKER]) is not int
+                or val[_SESSION_VALUE_MARKER] != 1
+            ):
+                return val
+            payload = val["value"]
+            if val["kind"] == "plain" and isinstance(payload, dict):
+                # Do not decode again: the payload may itself resemble a reference.
+                return payload
+            if val["kind"] != "model" or not _is_model_reference(payload):
+                return val
+            val = payload
+        elif not _is_model_reference(val):
+            return val
 
-        return val
+        ctype = ContentType.objects.get_for_id(val["ctype"])
+        model_class = ctype.model_class()
+        if model_class is None:
+            msg = f"Content type {ctype.pk} does not reference a model"
+            raise TypeError(msg)
+        return model_class._default_manager.get(pk=val["pk"])
 
     def get_language(self):
         """Return current language"""
