@@ -13,6 +13,7 @@ from django.http import HttpRequest, HttpResponse
 from django.middleware.csrf import get_token
 from django.test import Client, TestCase, override_settings
 from django.urls import include, path, reverse
+from social_core.backends.facebook import FacebookOAuth2
 from social_core.backends.open_id_connect import OpenIdConnectAuth
 from social_core.utils import PARTIAL_TOKEN_PENDING_REQUEST_SESSION_NAME
 
@@ -308,6 +309,42 @@ class TestEmailConfirmation(TestCase):
             self.assertTrue(Partial.objects.filter(token=token).exists())
             self.assertFalse(get_user_model().objects.filter(email=code.email).exists())
             send_email.assert_called_once()
+
+
+@override_settings(
+    DEBUG=False,
+    SESSION_ENGINE="django.contrib.sessions.backends.signed_cookies",
+    SOCIAL_AUTH_FACEBOOK_KEY="1",
+    SOCIAL_AUTH_FACEBOOK_SECRET="2",  # ruff: ignore[hardcoded-password-func-arg]
+    SOCIAL_AUTH_LOGIN_ERROR_URL="/login-error/",
+)
+class TestOAuth2NonceClaim(TestCase):
+    def test_same_session_snapshot_cannot_exchange_state_twice(self):
+        if not hasattr(FacebookOAuth2, "_nonce_scope"):
+            self.skipTest("requires the one-time OAuth2 state caller in social-auth-core")
+
+        first = Client()
+        begin_url = reverse("social:begin", kwargs={"backend": "facebook"})
+        start = first.post(begin_url)
+        self.assertEqual(start.status_code, 302)
+        state = parse_qs(urlsplit(start["Location"]).query)["state"][0]
+        second = Client()
+        second.cookies = first.cookies.copy()
+        complete_url = reverse("social:complete", kwargs={"backend": "facebook"})
+
+        with mock.patch("social_core.backends.base.BaseAuth.request") as provider_request:
+            provider_request.return_value.json.side_effect = [
+                {"access_token": "token"},
+                {"id": "facebook-user-123"},
+            ]
+            accepted = first.get(complete_url, {"code": "code", "state": state})
+            rejected = second.get(complete_url, {"code": "code", "state": state})
+
+        self.assertRedirects(accepted, "/accounts/profile/", fetch_redirect_response=False)
+        self.assertRedirects(rejected, "/login-error/", fetch_redirect_response=False)
+        self.assertEqual(provider_request.call_count, 2)
+        self.assertFalse(rejected.wsgi_request.user.is_authenticated)
+        self.assertFalse(Nonce.objects.exists())
 
 
 @override_settings(SOCIAL_AUTH_FACEBOOK_KEY="1", SOCIAL_AUTH_FACEBOOK_SECRET="2")  # ruff: ignore[hardcoded-password-func-arg]

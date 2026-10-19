@@ -102,7 +102,7 @@ class Nonce(models.Model, DjangoNonceMixin):
     """One use numbers"""
 
     server_url = models.CharField(max_length=NONCE_SERVER_URL_LENGTH)
-    timestamp = models.IntegerField()
+    timestamp = models.IntegerField(db_index=True)
     salt = models.CharField(max_length=65)
 
     class Meta:

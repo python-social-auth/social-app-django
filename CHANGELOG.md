@@ -38,6 +38,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Security
 
+- Atomically claim OAuth2 transaction state through the existing Nonce model,
+  preventing simultaneous callbacks from consuming the same state. Expired
+  claims are removed by `clearsocial`, which now applies its `--age` retention
+  limit to all stored nonces using an indexed timestamp.
 - Retain original exception tracebacks in server logs when authentication 5xx
   failures are handled through an error redirect.
 - Prevent passwordless users from disconnecting their last association backed

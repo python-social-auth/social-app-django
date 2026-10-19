@@ -370,6 +370,11 @@ class DjangoNonceMixin(NonceMixin):
     def delete(cls, nonce):
         nonce.delete()
 
+    @classmethod
+    def consume(cls, server_url: str, timestamp: int, salt: str) -> bool:
+        deleted, _ = cls.objects.filter(server_url=server_url, timestamp=timestamp, salt=salt).delete()
+        return deleted == 1
+
 
 class DjangoAssociationMixin(AssociationMixin):
     @classmethod

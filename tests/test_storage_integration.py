@@ -401,3 +401,30 @@ class TestNonceMixinIntegration(TestCase):
         # Test delete() method
         Nonce.delete(nonce)
         self.assertEqual(Nonce.objects.count(), 0)
+
+    def test_consume_claims_once_without_a_prior_read(self) -> None:
+        scope = "social_core.oauth2.google-oauth2"
+        timestamp = 1234567890
+        self.assertTrue(Nonce.use(scope, timestamp, "first"))
+        self.assertTrue(Nonce.use(scope, timestamp, "second"))
+
+        with CaptureQueriesContext(connection) as queries:
+            self.assertTrue(Nonce.consume(scope, timestamp, "first"))
+        self.assertFalse(any("SELECT" in query["sql"].upper() for query in queries))
+        self.assertFalse(Nonce.consume(scope, timestamp, "first"))
+        self.assertFalse(Nonce.consume(scope, timestamp + 1, "second"))
+        self.assertTrue(Nonce.consume(scope, timestamp, "second"))
+
+    def test_identical_values_in_different_scopes_are_independent(self) -> None:
+        timestamp = 1234567890
+        salt = "shared-value"
+        scopes = (
+            "https://example.com/openid",
+            "social_core.oauth2.google-oauth2",
+            "social_core.oauth2.github",
+        )
+        for scope in scopes:
+            self.assertTrue(Nonce.use(scope, timestamp, salt))
+        for scope in scopes:
+            self.assertTrue(Nonce.consume(scope, timestamp, salt))
+            self.assertFalse(Nonce.consume(scope, timestamp, salt))
