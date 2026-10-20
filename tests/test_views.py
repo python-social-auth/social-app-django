@@ -12,8 +12,6 @@ from django.http import HttpRequest, HttpResponse
 from django.middleware.csrf import get_token
 from django.test import Client, TestCase, override_settings
 from django.urls import include, path, reverse
-from social_core.backends.discourse import DiscourseAuth
-from social_core.backends.facebook import FacebookOAuth2
 from social_core.backends.open_id_connect import OpenIdConnectAuth
 from social_core.utils import PARTIAL_TOKEN_PENDING_REQUEST_SESSION_NAME
 
@@ -321,9 +319,6 @@ class TestEmailConfirmation(TestCase):
 )
 class TestOAuth2NonceClaim(TestCase):
     def test_same_session_snapshot_cannot_exchange_state_twice(self):
-        if not hasattr(FacebookOAuth2, "_nonce_scope"):
-            self.skipTest("requires the one-time OAuth2 state caller in social-auth-core")
-
         first = Client()
         begin_url = reverse("social:begin", kwargs={"backend": "facebook"})
         start = first.post(begin_url)
@@ -1084,9 +1079,6 @@ class TestDiscourseCallback(TestCase):
         self.assertEqual(UserSocialAuth.objects.count(), 1)
 
     def test_callback_from_other_session_cannot_link_account(self) -> None:
-        if not hasattr(DiscourseAuth, "validate_session_nonce"):
-            self.skipTest("requires session-bound Discourse callbacks in social-auth-core")
-
         attacker = Client()
         response = attacker.post(reverse("social:begin", kwargs={"backend": "discourse"}))
         self.assertEqual(response.status_code, 302)
