@@ -87,19 +87,30 @@ at <https://python-social-auth.readthedocs.io/>.
 - Do not expose client secrets, access or refresh tokens, association secrets,
   partial-pipeline state, verification codes, raw provider responses, or private
   exception details in responses, URLs, templates, or unsafe logs.
-- Review `THREAT_MODEL.md` when changing public endpoints; authentication,
-  account-linking, disconnection, partial-pipeline, session, error, or redirect
-  behavior; persistent authentication data or migrations; deployment modes;
-  supported extension contracts; or security-relevant dependency and setting
-  defaults.
-- Review does not necessarily require an edit. Update the threat model in the
-  same change only when its scope, actors, trust boundaries, assumptions,
-  claimed or disclaimed security properties, or triage dispositions change or
-  leave a gap, following §12, "Conditions that would change this model."
-  Features covered by the existing contract do not need individual entries.
-  Keep feature-level endpoint, configuration, implementation, and limit details
-  in the published documentation; link to them only when needed to explain a
-  distinct boundary, exception, or triage outcome.
+- Review `THREAT_MODEL.md` for changes to public flows, protocols, input
+  formats, sessions, persistence, network/filesystem effects, extension
+  contracts, deployment assumptions, or security-relevant defaults. Compare
+  the change with existing model statements before deciding whether to edit.
+- A fix restoring an already claimed property normally needs regression tests,
+  a changelog entry, and relevant user documentation, not a new threat-model
+  entry. For example, removing private diagnostics from an error page restores
+  the safe-error guarantee; introducing a new session-restoration mechanism
+  requires review of its distinct trust boundary and assumptions.
+- Edit the model only when a boundary, actor, assumption, guarantee, exception,
+  downstream responsibility, or triage rule changes or leaves a gap. Prefer
+  updating an existing general statement. Backend-specific text needs a
+  distinct boundary or exception that the shared property cannot express
+  accurately. Keep each necessary exception in one place and cross-reference it.
+- Put configuration names, defaults, limits, API usage, deployment requirements,
+  upgrade steps, and remediation in `social-docs`; put release history in the
+  changelog. Do not accumulate per-fix narratives, repeated disclaimers,
+  manually maintained claim counts, or documentation back-map appendices in
+  the threat model.
+- When a shared contract changes, review the `social-auth-core` model too.
+  Update it only if its own guarantees or assumptions change. Core owns protocol
+  validation and shared pipeline/interface contracts; Django owns HTTP/CSRF,
+  session, concrete storage, template, and error-presentation boundaries. Keep
+  both models understandable without duplicating the companion's details.
 
 ## Testing and linting instructions
 
