@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Changed
 
+- Consolidate the Django threat model around integration security boundaries,
+  linking deployment and configuration guidance to the
+  [project documentation](https://python-social-auth.readthedocs.io/en/latest/security.html).
 - Resolve sign-in labels through the strategy-aware backend `get_title()`
   method when available, including Hosted Weblate and custom Weblate issuers.
 
