@@ -5,7 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## [7.2.0](https://github.com/python-social-auth/social-app-django/releases/tag/7.2.0) - 2026-10-20
+
+### Added
+
+- Support Python 3.15 and Django 6.1.
 
 ### Changed
 

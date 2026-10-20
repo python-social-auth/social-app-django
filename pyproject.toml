@@ -39,7 +39,7 @@ classifiers = [
 dependencies = [
   "asgiref>=3.8.1",
   "Django>=5.2",
-  "social-auth-core>=6.1.0,<7.0.0"
+  "social-auth-core>=6.2.0,<7.0.0"
 ]
 description = "Python Social Authentication, Django integration."
 keywords = ["django", "oauth", "openid", "saml", "social auth"]
@@ -48,7 +48,7 @@ license-files = ["LICENSE"]
 name = "social-auth-app-django"
 readme = "README.md"
 requires-python = ">=3.10"
-version = "7.1.0"
+version = "7.2.0"
 
 [project.optional-dependencies]
 # This is present until pip implements supports for PEP 735
