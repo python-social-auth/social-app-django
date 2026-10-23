@@ -25,6 +25,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Keep migration 0013 forward and reverse writes on the database alias being migrated.
 - Treat configured social login session limits as fixed end times rather than sliding inactivity timeouts.
 - Claim email verification codes atomically so simultaneous uses cannot both succeed.
+- Launch authentication for signed-in users in `app_launch` instead of
+  redirecting them to `next` or `LOGIN_REDIRECT_URL`, so the bridge can link
+  accounts and reauthenticate like a login form. Applications that relied on
+  the redirect should check authentication before sending users to the bridge.
+  `idp_launch` still redirects signed-in users.
 
 ## [8.0.0](https://github.com/python-social-auth/social-app-django/releases/tag/8.0.0) - 2026-11-09
 
