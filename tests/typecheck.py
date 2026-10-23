@@ -3,8 +3,9 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from typing import assert_type
+
     from django.db.models import QuerySet
-    from typing_extensions import assert_type
 
     from social_django.models import AbstractUserSocialAuth, UserSocialAuth
 

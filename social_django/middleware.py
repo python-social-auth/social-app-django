@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Iterable
-from enum import Enum
+from enum import StrEnum
 from http import HTTPStatus
 from typing import TYPE_CHECKING
 from urllib.parse import parse_qsl, quote, urlencode, urlsplit, urlunsplit
@@ -35,7 +35,7 @@ if TYPE_CHECKING:
     from django.http import HttpRequest, HttpResponse
 
 
-class ErrorTransport(str, Enum):
+class ErrorTransport(StrEnum):
     """Transport mechanisms for delivering social auth error messages to the client."""
 
     MESSAGES = "messages"
