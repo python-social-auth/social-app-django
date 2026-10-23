@@ -86,7 +86,7 @@ the affected guarantee; supported configuration details belong in
 | Local initiation, disconnection, and legacy login-form completion require a CSRF-protected POST; provider callbacks instead rely on core protocol validation | A protected transition succeeds without required intent or protocol proof |
 | External partial resumes require explicit session-bound confirmation and preserve saved ownership | An attacker resumes or rebinds another user's flow without the required confirmation |
 | Request-derived authentication/disconnection redirects obey core sanitization and trusted host/scheme allowlists | A redirect escapes the supported boundary |
-| Enabled launch bridges constrain issuers to supported HTTPS identities and targets to approved destinations, protect against framing, and bridge initiation into a CSRF-protected POST | An unapproved issuer/target or cross-site/framed launch bypasses the documented controls |
+| Enabled launch bridges constrain issuers to supported HTTPS identities, targets to approved destinations, and forwarded fields to configured names; admit app launches only from same-origin, direct, or explicitly trusted initiators; protect against framing; and bridge initiation into a CSRF-protected POST | An unapproved issuer/target/field, an untrusted cross-site initiator, or a framed launch bypasses the documented controls |
 | Restored server-side sessions are rotated before continued use under the shared-session and same-browser assumptions | An attacker reuses the old session key to obtain the restored flow |
 | Built-in error presentation exposes safe default messages and explicitly public metadata, without provider credentials, raw responses, or private exception details | A packaged response discloses authentication secrets or private diagnostics |
 | Invalid/expired records and ordinary authentication errors do not authenticate a user | Malformed or rejected data establishes an authenticated session |
@@ -135,7 +135,10 @@ bounded requests. Deployment limits, retention, and monitoring remain required.
 Launch-bridge redirect checks remain independent of general redirect
 sanitization, even when the latter is disabled. Fetch Metadata affects bridge
 behavior but is not a credential; its absence does not remove issuer, redirect,
-CSRF, framing, or confirmation requirements. Direct record deletion bypasses
+CSRF, framing, or confirmation requirements. Trusted app-launch origins vouch
+for every navigation they initiate, including through later redirects, and a
+user can directly open any app-launch URL; forwarded fields therefore remain
+request-controlled begin input. Direct record deletion bypasses
 the disconnection pipeline and its policy/revocation steps.
 
 The package mutates sessions and ORM data, renders, redirects, and logs; its

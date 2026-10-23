@@ -986,9 +986,141 @@ class TestLaunchViews(TestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, 400)
 
-    def test_app_launch_unsupported_backend_returns_400(self):
+    def test_app_launch_backend_without_issuer(self):
         url = reverse("social:app_launch", kwargs={"backend": "facebook"})
-        response = self.client.get(url, headers={"sec-fetch-site": "same-origin"})
+        response = self.client.get(url, {"next": "/dashboard"}, headers={"sec-fetch-site": "same-origin"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["params"], {"next": "/dashboard"})
+        self.assertContains(response, 'action="/login/facebook/"')
+        self.assertNotContains(response, 'name="iss"')
+
+        # Issuer selection is rejected for backends without an issuer
+        response = self.client.get(
+            url,
+            {"iss": "https://facebook.com"},
+            headers={"sec-fetch-site": "same-origin"},
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_app_launch_invalid_issuer_configuration_returns_400(self):
+        url = reverse("social:app_launch", kwargs={"backend": "facebook"})
+        for raw_issuer in ("http://insecure.example.com", False, 0, {}):
+            with (
+                self.subTest(raw_issuer=raw_issuer),
+                override_settings(SOCIAL_AUTH_FACEBOOK_ID_TOKEN_ISSUER=raw_issuer),
+            ):
+                response = self.client.get(url, headers={"sec-fetch-site": "same-origin"})
+                self.assertEqual(response.status_code, 400)
+
+    @override_settings(
+        SOCIAL_AUTH_APP_LAUNCH_FORWARDED_PARAMS=[
+            "subdomain",
+            "is_signup",
+            "missing",
+            "iss",
+            "next",
+            "csrfmiddlewaretoken",
+        ],
+    )
+    def test_app_launch_forwards_configured_params(self):
+        url = reverse("social:app_launch", kwargs={"backend": "mock-oidc"})
+        response = self.client.get(
+            url,
+            {
+                "subdomain": '"><b>example',
+                "is_signup": "1",
+                "untrusted_param": "attacker_value",
+                "iss": "https://idp.example.com",
+                "next": "https://evil.example/phishing",
+                "csrfmiddlewaretoken": "attacker_token",
+            },
+            headers={"sec-fetch-site": "same-origin"},
+        )
+        self.assertEqual(response.status_code, 200)
+        # Reserved parameters keep their validated values
+        self.assertEqual(
+            response.context["params"],
+            {"subdomain": '"><b>example', "is_signup": "1", "iss": "https://idp.example.com"},
+        )
+        self.assertContains(response, 'name="subdomain" value="&quot;&gt;&lt;b&gt;example"')
+        self.assertContains(response, 'name="csrfmiddlewaretoken"', count=1)
+        self.assertNotContains(response, "attacker_value")
+        self.assertNotContains(response, "attacker_token")
+        self.assertNotContains(response, "evil.example")
+
+        # Requested issuers are still validated
+        response = self.client.get(
+            url,
+            {"subdomain": "example", "iss": "https://attacker-idp.example.com"},
+            headers={"sec-fetch-site": "same-origin"},
+        )
+        self.assertEqual(response.status_code, 400)
+
+    @override_settings(
+        SOCIAL_AUTH_APP_LAUNCH_FORWARDED_PARAMS=["subdomain"],
+        SOCIAL_AUTH_FACEBOOK_APP_LAUNCH_FORWARDED_PARAMS=["idp"],
+    )
+    def test_app_launch_backend_forwarded_params(self):
+        params = {"subdomain": "example", "idp": "corporate"}
+        for backend, expected in (("facebook", {"idp": "corporate"}), ("mock-oidc", {"subdomain": "example"})):
+            with self.subTest(backend=backend):
+                url = reverse("social:app_launch", kwargs={"backend": backend})
+                response = self.client.get(url, params, headers={"sec-fetch-site": "same-origin"})
+                self.assertEqual(response.status_code, 200)
+                forwarded = dict(response.context["params"])
+                forwarded.pop("iss", None)
+                self.assertEqual(forwarded, expected)
+
+    def test_app_launch_forwards_no_params_by_default(self):
+        url = reverse("social:app_launch", kwargs={"backend": "facebook"})
+        response = self.client.get(
+            url, {"subdomain": "example", "idp": "corporate"}, headers={"sec-fetch-site": "none"}
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["params"], {})
+
+    @override_settings(SOCIAL_AUTH_APP_LAUNCH_FORWARDED_PARAMS=["subdomain"])
+    def test_app_launch_forwarded_params_reach_begin(self):
+        url = reverse("social:app_launch", kwargs={"backend": "facebook"})
+        response = self.client.get(url, {"subdomain": "example"}, headers={"sec-fetch-site": "none"})
+        self.assertEqual(response.status_code, 200)
+        with override_settings(SOCIAL_AUTH_FIELDS_STORED_IN_SESSION=["subdomain"]):
+            response = self.client.post(response.context["action_url"], response.context["params"])
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(self.client.session["subdomain"], "example")
+
+    def test_app_launch_accepts_direct_navigation(self):
+        url = reverse("social:app_launch", kwargs={"backend": "mock-oidc"})
+        response = self.client.get(url, headers={"sec-fetch-site": "none"})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "form.submit()")
+
+    @override_settings(
+        SOCIAL_AUTH_APP_LAUNCH_ALLOWED_ORIGINS=["https://*.tenants.example"],
+        SOCIAL_AUTH_FACEBOOK_APP_LAUNCH_ALLOWED_ORIGINS=["https://custom.example.org"],
+    )
+    def test_app_launch_allowed_origins(self):
+        cases = [
+            ("mock-oidc", "same-site", "https://org.tenants.example/", 200),
+            ("mock-oidc", "cross-site", "https://org.tenants.example/", 200),
+            ("mock-oidc", "same-site", None, 400),
+            ("mock-oidc", "same-site", "https://testserver/", 400),
+            ("mock-oidc", "cross-site", "https://custom.example.org/", 400),
+            ("facebook", "cross-site", "https://custom.example.org/", 200),
+            ("facebook", "same-site", "https://org.tenants.example/", 400),
+        ]
+        for backend, sec_fetch_site, referer, status in cases:
+            with self.subTest(backend=backend, sec_fetch_site=sec_fetch_site, referer=referer):
+                headers = {"sec-fetch-site": sec_fetch_site}
+                if referer:
+                    headers["referer"] = referer
+                url = reverse("social:app_launch", kwargs={"backend": backend})
+                response = self.client.get(url, secure=True, headers=headers)
+                self.assertEqual(response.status_code, status)
+
+    def test_app_launch_rejects_same_site_without_allowed_origins(self):
+        url = reverse("social:app_launch", kwargs={"backend": "mock-oidc"})
+        response = self.client.get(url, headers={"sec-fetch-site": "same-site", "referer": "http://testserver/"})
         self.assertEqual(response.status_code, 400)
 
     def test_app_launch_authenticated_user_redirects(self):
