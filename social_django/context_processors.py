@@ -1,3 +1,4 @@
+from typing import Any
 from urllib.parse import quote
 
 from django.conf import settings
@@ -12,15 +13,15 @@ from .utils import Storage, load_strategy
 class LazyDict(SimpleLazyObject):
     """Lazy dict initialization."""
 
-    def __getitem__(self, name):
+    def __getitem__(self, key: Any) -> Any:
         if self._wrapped is empty:
             self._setup()
-        return self._wrapped[name]
+        return self._wrapped[key]
 
-    def __setitem__(self, name, value):
+    def __setitem__(self, key: Any, value: Any) -> None:
         if self._wrapped is empty:
             self._setup()
-        self._wrapped[name] = value
+        self._wrapped[key] = value
 
 
 def backends(request):

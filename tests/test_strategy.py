@@ -400,6 +400,15 @@ class TestStrategy(TestCase):
         result = self.strategy.tpl.render_string(html="xoxo", context=ctx)
         self.assertEqual(result, "xoxo")
 
+    def test_html_missing_template_falls_back_to_string(self):
+        result = self.strategy.render_html(tpl="missing.html", html="Hello {{ name }}", context={"name": "world"})
+        self.assertEqual(result, "Hello world")
+
+    def test_html_template_type_error_falls_back_to_string(self):
+        with mock.patch("social_django.strategy.loader.get_template", side_effect=TypeError):
+            result = self.strategy.render_html(tpl="test.html", html="fallback")
+        self.assertEqual(result, "fallback")
+
     def test_partial_pipeline_external_resume_confirmation(self):
         request = self.request_factory.get(
             "/complete/facebook/",

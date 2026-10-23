@@ -600,6 +600,16 @@ class TestGetSessionTimeout(TestCase):
         expiration_length = get_session_timeout(self.social_user, enable_session_expiration=True, max_session_length=60)
         self.assertEqual(expiration_length, 60)
 
+    def test_expiration_enabled_with_zero_max(self):
+        for seconds in (None, 60):
+            with self.subTest(seconds=seconds):
+                if seconds is not None:
+                    self.set_user_expiration(seconds)
+                expiration_length = get_session_timeout(
+                    self.social_user, enable_session_expiration=True, max_session_length=0
+                )
+                self.assertEqual(expiration_length, 0)
+
     def test_user_has_no_session_length_no_max(self):
         expiration_length = get_session_timeout(self.social_user, enable_session_expiration=True)
         self.assertIsNone(expiration_length)

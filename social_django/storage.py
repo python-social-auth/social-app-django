@@ -149,7 +149,7 @@ class DjangoUserMixin(UserMixin):
     def create_user(cls, *args, **kwargs):
         username_field = cls.username_field()
         model = cls.user_model()
-        manager = model._default_manager
+        manager = cast("_DjangoUserManager", model._default_manager)
         if "username" in kwargs:
             if username_field not in kwargs:
                 kwargs[username_field] = kwargs.pop("username")

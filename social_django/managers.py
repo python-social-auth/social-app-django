@@ -1,7 +1,13 @@
+from __future__ import annotations
+
+from typing import TypeVar
+
 from django.db import models
 
+_SocialAuthT_co = TypeVar("_SocialAuthT_co", bound=models.Model, covariant=True)
 
-class UserSocialAuthManager(models.Manager):
+
+class UserSocialAuthManager(models.Manager[_SocialAuthT_co]):
     """Manager for the UserSocialAuth django model."""
 
     class Meta:
