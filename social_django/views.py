@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from django.conf import settings
 from django.contrib.auth import REDIRECT_FIELD_NAME, login
 from django.contrib.auth.decorators import login_not_required, login_required
@@ -24,6 +28,9 @@ from .utils import (
     validate_app_launch_origin,
     validate_idp_issuer,
 )
+
+if TYPE_CHECKING:
+    from social_core.storage import UserMixin
 
 NAMESPACE = getattr(settings, setting_name("URL_NAMESPACE"), None) or "social"
 
@@ -272,7 +279,13 @@ def disconnect(request, backend, association_id=None):
     return do_disconnect(request.backend, request.user, association_id, redirect_name=REDIRECT_FIELD_NAME)
 
 
-def get_session_timeout(social_user, enable_session_expiration=False, max_session_length=None):
+def get_session_timeout(
+    social_user: UserMixin,
+    *,
+    enable_session_expiration: bool = False,
+    max_session_length: int | None = None,
+) -> float | None:
+    session_expiry: float | None
     if enable_session_expiration:
         # Retrieve an expiration date from the social user who just finished
         # logging in; this value was set by the social auth backend, and was
@@ -282,20 +295,16 @@ def get_session_timeout(social_user, enable_session_expiration=False, max_sessio
         # We've enabled session expiration. Check to see if we got
         # a specific expiration time from the provider for this user;
         # if not, use the platform default expiration.
-        received_expiration_time = expiration.total_seconds() if expiration else DEFAULT_SESSION_TIMEOUT
+        received_expiration_time: float | None = expiration.total_seconds() if expiration else DEFAULT_SESSION_TIMEOUT
 
         # Check to see if the backend set a value as a maximum length
         # that a session may be; if they did, then we should use the minimum
         # of that and the received session expiration time, if any, to
         # set the session length.
-        if received_expiration_time is None and max_session_length is None:
-            # We neither received an expiration length, nor have a maximum
-            # session length. Use the platform default.
-            session_expiry = DEFAULT_SESSION_TIMEOUT
-        elif received_expiration_time is None and max_session_length is not None:
-            # We only have a maximum session length; use that.
+        if received_expiration_time is None:
+            # Use the maximum session length, or the platform default if unset.
             session_expiry = max_session_length
-        elif received_expiration_time is not None and max_session_length is None:
+        elif max_session_length is None:
             # We only have an expiration time received by the backend
             # from the provider, with no set maximum. Use that.
             session_expiry = received_expiration_time

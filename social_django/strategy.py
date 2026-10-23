@@ -222,11 +222,18 @@ class DjangoStrategy(BaseStrategy):
         submitted_nonce = request_data.get(PARTIAL_PIPELINE_CONFIRMATION_NONCE_PARAMETER)
         return bool(expected_nonce) and submitted_nonce == expected_nonce
 
-    def render_html(self, tpl=None, html=None, context=None):
+    def render_html(
+        self,
+        tpl: str | None = None,
+        html: str | None = None,
+        context: dict[str, Any] | None = None,
+    ) -> str:
         if not tpl and not html:
             msg = "Missing template or html parameters"
             raise ValueError(msg)
         context = context or {}
+        if tpl is None:
+            return render_template_string(self.request, html, context)
         try:
             template = loader.get_template(tpl)
             return template.render(context=context, request=self.request)
