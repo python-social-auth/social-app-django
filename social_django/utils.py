@@ -197,10 +197,9 @@ def get_backend_issuer(
     elif hasattr(backend_obj, "setting"):
         raw_issuer = backend_obj.setting("ID_TOKEN_ISSUER", None)
 
-    if not raw_issuer:
-        issuers: list[str] = []
-    elif isinstance(raw_issuer, str):
-        issuers = [raw_issuer]
+    # Only None, an empty string, or an empty sequence means no issuer is configured
+    if raw_issuer is None or isinstance(raw_issuer, str):
+        issuers: list[str] = [raw_issuer] if raw_issuer else []
     elif isinstance(raw_issuer, (list, tuple, set)):
         issuers = list(raw_issuer)
     else:

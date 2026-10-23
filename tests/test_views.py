@@ -1002,11 +1002,15 @@ class TestLaunchViews(TestCase):
         )
         self.assertEqual(response.status_code, 400)
 
-    @override_settings(SOCIAL_AUTH_FACEBOOK_ID_TOKEN_ISSUER="http://insecure.example.com")  # ruff: ignore[hardcoded-password-func-arg]
     def test_app_launch_invalid_issuer_configuration_returns_400(self):
         url = reverse("social:app_launch", kwargs={"backend": "facebook"})
-        response = self.client.get(url, headers={"sec-fetch-site": "same-origin"})
-        self.assertEqual(response.status_code, 400)
+        for raw_issuer in ("http://insecure.example.com", False, 0, {}):
+            with (
+                self.subTest(raw_issuer=raw_issuer),
+                override_settings(SOCIAL_AUTH_FACEBOOK_ID_TOKEN_ISSUER=raw_issuer),
+            ):
+                response = self.client.get(url, headers={"sec-fetch-site": "same-origin"})
+                self.assertEqual(response.status_code, 400)
 
     @override_settings(
         SOCIAL_AUTH_APP_LAUNCH_FORWARDED_PARAMS=[

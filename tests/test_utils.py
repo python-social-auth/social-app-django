@@ -421,7 +421,12 @@ class TestUtils(TestCase):
 
     def test_get_backend_issuer_optional(self):
         # Backends without an issuer are accepted when the issuer is optional
-        for backend in (mock.MagicMock(spec=[]), mock.MagicMock(**{"id_token_issuer.return_value": []})):
+        backends = [mock.MagicMock(spec=[])]
+        for raw_issuer in (None, "", [], (), set()):
+            backend = mock.MagicMock()
+            backend.id_token_issuer.return_value = raw_issuer
+            backends.append(backend)
+        for backend in backends:
             with self.subTest(backend=backend):
                 self.assertEqual(get_backend_issuer(backend, "mock-backend", required=False), ([], None))
 
@@ -433,8 +438,16 @@ class TestUtils(TestCase):
             (["https://idp.example.com"], None),
         )
 
-        # Invalid issuer configuration is still rejected
-        for raw_issuer in (123, "http://insecure.example.com", ["https://idp.example.com", "not a url"]):
+        # Invalid issuer configuration is still rejected, including falsy values of invalid types
+        for raw_issuer in (
+            123,
+            False,
+            0,
+            {},
+            b"",
+            "http://insecure.example.com",
+            ["https://idp.example.com", "not a url"],
+        ):
             with self.subTest(raw_issuer=raw_issuer):
                 backend.id_token_issuer.return_value = raw_issuer
                 issuers, error = get_backend_issuer(backend, "mock-backend", required=False)
