@@ -6,8 +6,7 @@ import base64
 import re
 import sqlite3
 import time
-from datetime import timedelta
-from datetime import timezone as datetime_timezone
+from datetime import UTC, timedelta
 from typing import TYPE_CHECKING, cast
 
 from django.conf import settings
@@ -431,8 +430,8 @@ class DjangoCodeMixin(CodeMixin):
             timestamp = timezone.make_aware(timestamp, timezone.get_default_timezone())
         if timezone.is_naive(now):
             now = timezone.make_aware(now, timezone.get_default_timezone())
-        timestamp = timestamp.astimezone(datetime_timezone.utc)
-        return now.astimezone(datetime_timezone.utc) >= timestamp + timedelta(seconds=seconds)
+        timestamp = timestamp.astimezone(UTC)
+        return now.astimezone(UTC) >= timestamp + timedelta(seconds=seconds)
 
     @classmethod
     def get_code(cls, code):

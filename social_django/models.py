@@ -20,9 +20,7 @@ from .storage import (
 )
 
 if TYPE_CHECKING:
-    from typing import ClassVar
-
-    from typing_extensions import Self
+    from typing import ClassVar, Self
 
 USER_MODEL = (
     getattr(settings, setting_name("USER_MODEL"), None) or getattr(settings, "AUTH_USER_MODEL", None) or "auth.User"

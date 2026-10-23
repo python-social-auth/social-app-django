@@ -1,4 +1,4 @@
-from enum import Enum
+from enum import StrEnum
 from typing import Final
 
 # Expected Sec-Fetch-Dest header for top-level document navigation
@@ -9,14 +9,14 @@ SEC_FETCH_SITE_SAME_ORIGIN: Final[str] = "same-origin"
 BLOCKED_SEC_FETCH_MODES: Final[tuple[str, ...]] = ("iframe", "frame", "embed")
 
 
-class RedirectParamName(str, Enum):
+class RedirectParamName(StrEnum):
     """Query parameter names used for redirect targets across launch views."""
 
     NEXT = "next"
     TARGET_LINK_URI = "target_link_uri"
 
 
-class LaunchBridge(str, Enum):
+class LaunchBridge(StrEnum):
     """Launch bridges that can be enabled via SOCIAL_AUTH_ENABLE_LAUNCH_BRIDGES."""
 
     APP = "app_launch"
