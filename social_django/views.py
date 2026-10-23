@@ -21,6 +21,7 @@ from .constants import LaunchBridge, RedirectParamName
 from .utils import (
     apply_framing_protection,
     check_fetch_metadata,
+    get_app_launch_forwarded_params,
     get_backend_issuer,
     is_launch_bridge_enabled,
     psa,
@@ -149,10 +150,12 @@ def app_launch(request, backend):
     Bridge app-initiated (e.g., SPA) GET redirects to the CSRF-protected `social:begin` POST flow.
 
     Provides a layered security approach for app-initiated requests:
-    1. Origin validation: Requires Sec-Fetch-Site header to be 'same-origin' when present.
-    2. Referer validation: Verifies Referer header against allowed hosts when present.
+    1. Origin validation: Accepts 'same-origin' or 'none' Sec-Fetch-Site headers; other values
+       require a Referer from an origin in `SOCIAL_AUTH_APP_LAUNCH_ALLOWED_ORIGINS`.
+    2. Referer validation: Verifies Referer header against the request host or allowed origins when present.
     3. Framing protection: Applies X-Frame-Options: DENY and CSP frame-ancestors 'none'.
-    4. Open redirect prevention: Validates next parameter using `is_safe_url`.
+    4. Open redirect prevention: Validates next parameter using `is_safe_url`; forwards only `iss`
+       and parameters listed in `SOCIAL_AUTH_APP_LAUNCH_FORWARDED_PARAMS`.
     5. Authenticated session bypass: Immediately redirects authenticated users to
        `safe_next_url` or `settings.LOGIN_REDIRECT_URL`, skipping the backend roundtrip.
     6. Fetch Metadata validation: Inspects `Sec-Fetch-*` headers to detect embedding or non-document requests.
@@ -171,20 +174,21 @@ def app_launch(request, backend):
     Raises:
         Http404: If the App launch bridge is not enabled.
         BadRequest: If origin or referer validation fails.
-        BadRequest: If the backend does not support ID token issuer validation or the requested issuer is invalid.
+        BadRequest: If the backend's ID token issuer configuration or the requested issuer is invalid.
     """
     if not is_launch_bridge_enabled(LaunchBridge.APP):
         raise Http404
 
-    # Layer 1 & 2: Origin and Referer validation — Verify same-origin Sec-Fetch-Site and allowed Referer
-    is_valid_origin, origin_error = validate_app_launch_origin(request)
+    # Layer 1 & 2: Origin and Referer validation — Verify trusted Sec-Fetch-Site and Referer
+    backend_obj = request.backend
+    is_valid_origin, origin_error = validate_app_launch_origin(request, backend=backend_obj)
     if not is_valid_origin:
         social_logger.error(origin_error)
         raise BadRequest(origin_error)
 
-    backend_obj = request.backend
-    configured_issuers, issuer_error = get_backend_issuer(backend_obj, backend)
-    if issuer_error or not configured_issuers:
+    # Backends without an ID token issuer launch without `iss`
+    configured_issuers, issuer_error = get_backend_issuer(backend_obj, backend, required=False)
+    if issuer_error or configured_issuers is None:
         message = f"app_launch: {issuer_error}"
         social_logger.error(message)
         raise BadRequest(message)
@@ -214,17 +218,23 @@ def app_launch(request, backend):
     # Layers 6 & 7: Fetch Metadata validation & Manual confirmation fallback — Inspect Sec-Fetch-* headers
     auto_submit, _ = check_fetch_metadata(request, "app_launch")
 
-    # Select issuer (defaults to primary configured issuer or validated optional query param)
-    validated_iss: str | None = configured_issuers[0]
-    requested_iss = request.GET.get("iss")
-    if requested_iss:
-        validated_iss, iss_err = validate_idp_issuer(backend_obj, backend, requested_iss)
-        if iss_err:
-            social_logger.error("app_launch: %s", iss_err)
-            raise BadRequest(iss_err)
-
     # Whitelist parameters passed to social:begin
-    params = {"iss": validated_iss}
+    params = get_app_launch_forwarded_params(request, backend=backend_obj)
+
+    # Select issuer (defaults to primary configured issuer or validated optional query param)
+    requested_iss = request.GET.get("iss")
+    if configured_issuers:
+        if requested_iss:
+            _, iss_err = validate_idp_issuer(backend_obj, backend, requested_iss)
+            if iss_err:
+                social_logger.error("app_launch: %s", iss_err)
+                raise BadRequest(iss_err)
+        params["iss"] = requested_iss or configured_issuers[0]
+    elif requested_iss:
+        message = f"app_launch: Backend `{backend}` does not support ID token issuer validation"
+        social_logger.error(message)
+        raise BadRequest(message)
+
     if safe_next_url:
         params[REDIRECT_FIELD_NAME] = safe_next_url
 

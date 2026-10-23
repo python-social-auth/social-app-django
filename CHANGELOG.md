@@ -7,11 +7,26 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Added
+
+- Allow `app_launch` to forward query parameters named in the new
+  `SOCIAL_AUTH_APP_LAUNCH_FORWARDED_PARAMS` setting to `social:begin`, such as
+  SAML `idp` or fields listed in `SOCIAL_AUTH_FIELDS_STORED_IN_SESSION`. The
+  `iss`, `next`, and CSRF token fields cannot be overridden.
+- Accept `app_launch` navigations from other subdomains or sites when their
+  `Referer` matches the new `SOCIAL_AUTH_APP_LAUNCH_ALLOWED_ORIGINS` setting.
+
 ### Changed
 
 - Clarify manager, lazy dictionary, template rendering, and session timeout type
   annotations for compatibility with type checkers.
 - Make the `get_session_timeout()` options keyword-only.
+- Support `app_launch` with backends that have no ID token issuer, such as
+  OAuth2 and SAML backends. These launches omit `iss` and reject a requested
+  `iss`; invalid issuer configuration is still rejected.
+- Accept `app_launch` navigations with `Sec-Fetch-Site: none`, which browsers
+  send for user-initiated navigations such as links opened from native apps.
+  Missing Fetch Metadata still requires a trusted `Referer`.
 
 ## [7.2.0](https://github.com/python-social-auth/social-app-django/releases/tag/7.2.0) - 2026-10-20
 
