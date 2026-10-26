@@ -75,6 +75,10 @@ Operators protect configuration, persistence, backups, and administrative access
 
 Built-in guarantees assume conforming extensions, required checks, enabled
 redirect sanitization with trusted allowlists, and production error handling.
+Core's SAML browser return page brings SameSite=Lax cookies into the callback
+before it validates the initiating AuthnRequest; the integration returns the
+core response without SAML-specific flow logic. Explicitly enabled
+IdP-initiated SAML remains uncorrelated as described in the core threat model.
 Launch bridges are opt-in. Explicitly weakening the supported posture removes
 the affected guarantee; supported configuration details belong in
 [Django configuration](https://python-social-auth.readthedocs.io/en/latest/configuration/django.html).

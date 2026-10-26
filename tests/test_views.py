@@ -1,4 +1,5 @@
 import hmac
+import unittest
 from base64 import urlsafe_b64decode, urlsafe_b64encode
 from hashlib import sha256
 from unittest import mock
@@ -19,6 +20,73 @@ from social_django.models import Code, Nonce, Partial, UserSocialAuth
 from social_django.utils import LaunchBridge
 from social_django.views import get_session_timeout
 from tests.helpers import begin_facebook_login
+
+try:
+    from social_core.backends.saml import SAMLAuth
+
+    SAML_AVAILABLE = SAMLAuth is not None
+except ImportError:
+    SAML_AVAILABLE = False
+
+
+@unittest.skipUnless(SAML_AVAILABLE, "Requires the SAML extra")
+@override_settings(AUTHENTICATION_BACKENDS=("social_core.backends.saml.SAMLAuth",))
+class TestSAMLBrowserReturn(TestCase):
+    def test_cookie_less_post_returns_core_form_and_repost_uses_browser_session(self):
+        url = reverse("social:complete", args=["saml"])
+        victim = Client()
+        session = victim.session
+        session["saml_idp_authn_request_id"] = "victim-request"
+        session.save()
+
+        posted = {"SAMLResponse": 'value"><script>alert(1)</script>', "RelayState": '{"idp":"idp"}'}
+        initial = Client().post(url, posted)
+        self.assertEqual(initial.status_code, 200)
+        self.assertContains(initial, "&lt;script&gt;alert(1)&lt;/script&gt;")
+        self.assertNotContains(initial, "<script>alert(1)</script>")
+        self.assertEqual(initial["X-Frame-Options"], "DENY")
+        self.assertEqual(initial["Referrer-Policy"], "no-referrer")
+        self.assertIn("no-store", initial["Cache-Control"])
+        self.assertIn("form-action 'self'", initial["Content-Security-Policy"])
+        self.assertNotIn(settings.SESSION_COOKIE_NAME, initial.cookies)
+
+        seen = []
+
+        def complete(backend, *args, **kwargs):
+            seen.append(backend.strategy.session_get("saml_idp_authn_request_id"))
+            return HttpResponse("completed")
+
+        with mock.patch.object(SAMLAuth, "auth_complete", autospec=True, side_effect=complete):
+            response = victim.post(
+                url,
+                {**posted, SAMLAuth.BROWSER_RETURN_FIELD: "1"},
+            )
+        self.assertEqual(response.content, b"completed")
+        self.assertEqual(seen, ["victim-request"])
+
+    def test_return_marker_without_browser_session_reaches_core(self):
+        url = reverse("social:complete", args=["saml"])
+        with mock.patch.object(
+            SAMLAuth, "auth_complete", autospec=True, return_value=HttpResponse("checked")
+        ) as complete:
+            response = Client().post(
+                url,
+                {"SAMLResponse": "irrelevant", SAMLAuth.BROWSER_RETURN_FIELD: "1"},
+            )
+        self.assertEqual(response.content, b"checked")
+        complete.assert_called_once()
+
+    def test_relay_state_in_query_is_preserved_on_browser_return(self):
+        url = reverse("social:complete", args=["saml"])
+        response = Client().post(
+            f"{url}?RelayState=%7B%22idp%22%3A%22idp%22%7D",
+            {"SAMLResponse": "irrelevant"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(
+            'name="RelayState" value="{&quot;idp&quot;:&quot;idp&quot;}"',
+            response.content.decode(),
+        )
 
 
 class MockOIDCBackend(OpenIdConnectAuth):

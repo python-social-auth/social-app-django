@@ -1,6 +1,6 @@
 import runpy
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from typing import ClassVar
 from unittest import mock
@@ -59,13 +59,19 @@ class TestCodeExpiry(TestCase):
 
                 code = Code.make_code("expiry@example.com")
                 now = code.timestamp
-                Code.objects.filter(pk=code.pk).update(timestamp=now - timedelta(days=7))
+                aware_now = now
+                if timezone.is_naive(aware_now):
+                    aware_now = timezone.make_aware(aware_now, timezone.get_default_timezone())
+                cutoff = (aware_now.astimezone(UTC) - timedelta(days=7)).astimezone(timezone.get_default_timezone())
+                if not use_tz:
+                    cutoff = cutoff.replace(tzinfo=None)
+                Code.objects.filter(pk=code.pk).update(timestamp=cutoff)
                 with mock.patch("social_django.storage.timezone.now", return_value=now):
                     self.assertFalse(strategy.validate_email(code.email, code.code))
                 code.refresh_from_db()
                 self.assertFalse(code.verified)
 
-                Code.objects.filter(pk=code.pk).update(timestamp=now - timedelta(days=7) + timedelta(microseconds=1))
+                Code.objects.filter(pk=code.pk).update(timestamp=cutoff + timedelta(microseconds=1))
                 with mock.patch("social_django.storage.timezone.now", return_value=now):
                     self.assertTrue(strategy.validate_email(code.email, code.code))
 

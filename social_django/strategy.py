@@ -4,7 +4,7 @@ from importlib import import_module
 from typing import TYPE_CHECKING, Any, cast
 
 from django.conf import settings
-from django.contrib.auth import authenticate, get_user
+from django.contrib.auth import authenticate
 from django.contrib.auth.models import Group
 from django.contrib.contenttypes.models import ContentType
 from django.db import router, transaction
@@ -17,12 +17,14 @@ from django.utils.datastructures import MultiValueDict
 from django.utils.encoding import force_str
 from django.utils.functional import Promise
 from django.utils.translation import get_language
-from social_core.exceptions import AuthConfigurationError, AuthSessionError
+from social_core.exceptions import AuthConfigurationError
 from social_core.groups import group_sync_targets
 from social_core.strategy import BaseStrategy, BaseTemplateStrategy
-from social_core.utils import PARTIAL_TOKEN_PENDING_CONFIRMATION_SESSION_NAME, user_is_authenticated
+from social_core.utils import PARTIAL_TOKEN_PENDING_CONFIRMATION_SESSION_NAME
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from django.contrib.sessions.backends.base import SessionBase
     from social_core.backends.base import BaseAuth
     from social_core.storage import PartialMixin
@@ -173,6 +175,12 @@ class DjangoStrategy(BaseStrategy):
     def html(self, content):
         return HttpResponse(content, content_type="text/html;charset=UTF-8")
 
+    def html_with_headers(self, content: str, headers: Mapping[str, str]) -> HttpResponse:
+        response = self.html(content)
+        for name, value in headers.items():
+            response[name] = value
+        return response
+
     def partial_pipeline_external_resume_confirmation(  # type: ignore[override]
         self,
         backend: BaseAuth,
@@ -317,27 +325,3 @@ class DjangoStrategy(BaseStrategy):
     def get_language(self):
         """Return current language"""
         return get_language()
-
-    def get_session_id(self) -> str | None:
-        if self.session.session_key is None:
-            self.session.create()
-        return self.session.session_key
-
-    def restore_session(self, session_id: str, kwargs: dict[str, Any]) -> None:
-        request = self._require_request()
-        restored_session = create_session(session_id)
-        restored_request = HttpRequest()
-        restored_request.session = restored_session
-        restored_user = get_user(restored_request)
-        incoming_user = kwargs.get("user")
-        if user_is_authenticated(incoming_user) and (
-            not restored_user.is_authenticated or incoming_user != restored_user
-        ):
-            raise AuthSessionError(code="user_mismatch", stage="callback")
-
-        request.session = self.session = restored_session
-        request.user = restored_user
-        if "user" in kwargs:
-            kwargs["user"] = restored_user if restored_user.is_authenticated else None
-        # Rotate session key to avoid reuse
-        self.session.cycle_key()
