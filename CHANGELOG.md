@@ -7,11 +7,21 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Security
+
+- SAML callbacks use the browser return page in social-auth-core 7.0.0 or later
+  to check SameSite=Lax sessions against the initiating AuthnRequest.
+
 ### Changed
 
 - Clarify manager, lazy dictionary, template rendering, and session timeout type
   annotations for compatibility with type checkers.
 - Make the `get_session_timeout()` options keyword-only.
+
+### Removed
+
+- Remove the unused Django strategy session-restoration methods; custom
+  backends must use browser-bound callback correlation.
 
 ## [7.2.0](https://github.com/python-social-auth/social-app-django/releases/tag/7.2.0) - 2026-10-20
 
