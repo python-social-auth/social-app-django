@@ -595,7 +595,7 @@ class TestAssociation(TestCase):
                 lifetime=lifetime,
                 assoc_type="state",
             )
-        with mock.patch("social_django.storage.time.time", return_value=2799):
+        with mock.patch("social_django.storage._time", return_value=2799):
             self.assertEqual(Association.cleanup_expired(), 3)
         self.assertEqual(Association.cleanup_expired(now=2800), 2)
         self.assertEqual(Association.cleanup_expired(now=2800), 0)
@@ -614,7 +614,7 @@ class TestAssociation(TestCase):
                 lifetime=lifetime,
                 assoc_type="state",
             )
-        with mock.patch("social_django.storage.time.time", return_value=1060):
+        with mock.patch("social_django.storage._time", return_value=1060):
             call_command("clearsocial", age=30)
         self.assertEqual(list(Association.objects.values_list("handle", flat=True)), ["active"])
 
