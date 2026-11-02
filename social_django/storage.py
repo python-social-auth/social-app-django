@@ -5,8 +5,8 @@ from __future__ import annotations
 import base64
 import re
 import sqlite3
-import time
 from datetime import UTC, timedelta
+from time import time as _time
 from typing import TYPE_CHECKING, cast
 
 from django.conf import settings
@@ -380,7 +380,7 @@ class DjangoAssociationMixin(AssociationMixin):
     def cleanup_expired(cls, now: int | None = None) -> int:
         """Delete expired OpenID associations and OIDC nonces."""
         if now is None:
-            now = int(time.time())
+            now = int(_time())
         expired = cls.objects.alias(expires=Cast("issued", BigIntegerField()) + F("lifetime")).filter(
             Q(lifetime__lte=0) | Q(expires__lte=now)
         )

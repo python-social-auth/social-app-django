@@ -54,7 +54,8 @@ class OidcNonceLifetimeMigrationTests(TransactionTestCase):
                     lifetime=lifetime,
                     assoc_type="state",
                 )
-            with patch("time.time", return_value=2000):
+            migration = import_module("social_django.migrations.0019_oidc_nonce_lifetime")
+            with patch.object(migration, "_time", return_value=2000):
                 executor = MigrationExecutor(connection)
                 executor.migrate(new_target)
             apps = executor.loader.project_state(new_target).apps
@@ -66,8 +67,10 @@ class OidcNonceLifetimeMigrationTests(TransactionTestCase):
                 self.assertEqual(row.secret, secret)
                 self.assertEqual(row.assoc_type, "state")
             # Reapplying the function must not extend the grace period.
-            migration = import_module("social_django.migrations.0019_oidc_nonce_lifetime")
-            with connection.schema_editor() as schema_editor, patch("time.time", return_value=3000):
+            with (
+                connection.schema_editor() as schema_editor,
+                patch.object(migration, "_time", return_value=3000),
+            ):
                 migration.bound_legacy_oidc_nonces(apps, schema_editor)
             self.assertEqual(association.objects.get(handle="legacy-one").issued, 2000)
         finally:

@@ -1,4 +1,4 @@
-import time
+from time import time as _time
 
 from django.db import migrations
 
@@ -6,7 +6,7 @@ from django.db import migrations
 def bound_legacy_oidc_nonces(apps, schema_editor):
     association = apps.get_model("social_django", "Association")
     association.objects.using(schema_editor.connection.alias).filter(secret="", issued=0, lifetime=0).update(
-        issued=int(time.time()), lifetime=1800
+        issued=int(_time()), lifetime=1800
     )
 
 
