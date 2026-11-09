@@ -24,6 +24,8 @@ Project documentation is available at <https://python-social-auth.readthedocs.io
 
 ## Setup
 
+Requires Python 3.11 or later, Django 5.2 or later, and social-auth-core 7.x.
+
 ```shell
 pip install social-auth-app-django
 ```

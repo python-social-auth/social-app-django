@@ -5,25 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## [8.0.0](https://github.com/python-social-auth/social-app-django/releases/tag/8.0.0) - 2026-11-09
 
 ### Security
 
-- SAML callbacks use the browser return page in social-auth-core 7.0.0 or later
-  to check SameSite=Lax sessions against the initiating AuthnRequest.
+- Support social-auth-core's SAML browser return page and its security headers,
+  allowing callbacks to use the initiating browser's SameSite=Lax session for
+  AuthnRequest correlation in service-provider-initiated flows.
 
-### Changed
+### Breaking
 
-- Require social-auth-core 7.x and preserve Django response types through
-  strategies, backends, actions, and decorated partial pipeline steps.
-- Clarify manager, lazy dictionary, template rendering, and session timeout type
-  annotations for compatibility with type checkers.
-- Make the `get_session_timeout()` options keyword-only.
+- Drop Python 3.10 support; Python 3.11 or later is required.
+- Require social-auth-core 7.x.
+- Remove `DjangoStrategy.get_session_id()` and `DjangoStrategy.restore_session()`.
+  Custom strategies and backends using these methods must migrate to
+  browser-bound callback correlation.
+- Make `get_session_timeout()` options keyword-only. Pass
+  `enable_session_expiration` and `max_session_length` by name in custom callers.
 
-### Removed
+### Fixed
 
-- Remove the unused Django strategy session-restoration methods; custom
-  backends must use browser-bound callback correlation.
+- Preserve Django response types through strategies, backends, authentication
+  actions, and decorated partial pipeline steps.
+- Improve type annotations for social authentication managers, lazy dictionaries,
+  template rendering, session timeouts, and bundled icon storage.
 
 ## [7.2.0](https://github.com/python-social-auth/social-app-django/releases/tag/7.2.0) - 2026-10-20
 
