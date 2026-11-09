@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from importlib import import_module
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from django.conf import settings
 from django.contrib.auth import authenticate
@@ -27,7 +27,10 @@ if TYPE_CHECKING:
 
     from django.contrib.sessions.backends.base import SessionBase
     from social_core.backends.base import BaseAuth
-    from social_core.storage import PartialMixin
+    from social_core.storage import PartialMixin, UserProtocol
+
+
+_BackendResponseT = TypeVar("_BackendResponseT")
 
 
 PARTIAL_PIPELINE_CONFIRMATION_NONCE_PARAMETER = "partial_pipeline_confirm_nonce"
@@ -61,7 +64,7 @@ def create_session(session_key: str | None = None) -> SessionBase:
     return engine.SessionStore(session_key)
 
 
-class DjangoStrategy(BaseStrategy):
+class DjangoStrategy(BaseStrategy[HttpResponse]):
     DEFAULT_TEMPLATE_STRATEGY = DjangoTemplateStrategy
     _session: SessionBase
 
@@ -169,10 +172,10 @@ class DjangoStrategy(BaseStrategy):
         """Request POST data"""
         return self._require_request().POST.copy()
 
-    def redirect(self, url):
+    def redirect(self, url: str) -> HttpResponse:
         return redirect(url)
 
-    def html(self, content):
+    def html(self, content: str) -> HttpResponse:
         return HttpResponse(content, content_type="text/html;charset=UTF-8")
 
     def html_with_headers(self, content: str, headers: Mapping[str, str]) -> HttpResponse:
@@ -181,9 +184,9 @@ class DjangoStrategy(BaseStrategy):
             response[name] = value
         return response
 
-    def partial_pipeline_external_resume_confirmation(  # type: ignore[override]
+    def partial_pipeline_external_resume_confirmation(
         self,
-        backend: BaseAuth,
+        backend: BaseAuth[object],
         partial: PartialMixin,
         request_data: dict[str, Any],
     ) -> HttpResponse | None:
@@ -213,7 +216,7 @@ class DjangoStrategy(BaseStrategy):
 
     def partial_pipeline_external_resume_confirmed(
         self,
-        backend: BaseAuth,
+        backend: BaseAuth[object],
         request_data: dict[str, Any],
     ) -> bool:
         if not self.request or self.request.method != "POST":
@@ -248,12 +251,14 @@ class DjangoStrategy(BaseStrategy):
         except (TypeError, TemplateDoesNotExist):
             return render_template_string(self.request, html, context)
 
-    def authenticate(self, backend, **kwargs):
+    def authenticate(self, backend: BaseAuth[_BackendResponseT], **kwargs) -> UserProtocol | _BackendResponseT | None:
         kwargs["strategy"] = self
         kwargs["storage"] = self.storage
         kwargs["backend"] = backend
         kwargs.pop("request", None)
-        return authenticate(self.request, **kwargs)
+        # Django's annotations only describe users, but social backends can
+        # also return a framework response to interrupt the pipeline.
+        return cast("UserProtocol | _BackendResponseT | None", authenticate(self.request, **kwargs))
 
     def clean_authenticate_args(self, request, *args, **kwargs):
         # pipelines don't want a positional request argument

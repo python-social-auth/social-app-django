@@ -38,7 +38,7 @@ classifiers = [
 dependencies = [
   "asgiref>=3.8.1",
   "Django>=5.2",
-  "social-auth-core>=6.2.0,<7.0.0"
+  "social-auth-core>=7.0.0,<8.0.0"
 ]
 description = "Python Social Authentication, Django integration."
 keywords = ["django", "oauth", "openid", "saml", "social auth"]

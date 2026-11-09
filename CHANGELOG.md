@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Changed
 
+- Require social-auth-core 7.x and preserve Django response types through
+  strategies, backends, actions, and decorated partial pipeline steps.
 - Clarify manager, lazy dictionary, template rendering, and session timeout type
   annotations for compatibility with type checkers.
 - Make the `get_session_timeout()` options keyword-only.

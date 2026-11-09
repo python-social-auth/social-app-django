@@ -8,6 +8,8 @@ from django.contrib.sessions.middleware import SessionMiddleware
 from django.http import HttpResponse, QueryDict
 from django.test import RequestFactory, TestCase
 from django.utils.translation import gettext_lazy
+from social_core.backends.base import BaseAuth
+from social_core.pipeline.partial import partial_step
 from social_core.pipeline.utils import partial_prepare
 from social_core.utils import PARTIAL_TOKEN_PENDING_CONFIRMATION_SESSION_NAME
 
@@ -268,6 +270,18 @@ class TestStrategy(TestCase):
         result = self.strategy.tpl.render_string(html="xoxo", context=ctx)
         self.assertEqual(result, "xoxo")
 
+    def test_partial_pipeline_returns_html_response(self):
+        @partial_step(save_to_session=False)
+        def render_page(strategy, **kwargs):
+            return strategy.html("<form></form>")
+
+        backend = BaseAuth(self.strategy)
+        response = render_page(self.strategy, backend, 0)
+
+        self.assertIsInstance(response, HttpResponse)
+        self.assertEqual(response.content, b"<form></form>")
+        self.assertFalse(hasattr(response, "url"))
+
     def test_html_missing_template_falls_back_to_string(self):
         result = self.strategy.render_html(tpl="missing.html", html="Hello {{ name }}", context={"name": "world"})
         self.assertEqual(result, "Hello world")
@@ -425,6 +439,15 @@ class TestStrategy(TestCase):
             result = self.strategy.authenticate(backend=backend, response=mock.Mock())
             self.assertEqual(result, user)
             self.assertEqual(result.backend, "social_core.backends.facebook.FacebookOAuth2")
+
+    def test_authenticate_returns_html_response(self):
+        backend = load_backend(strategy=self.strategy, name="facebook", redirect_uri="/")
+        response = self.strategy.html("<form></form>")
+        with mock.patch("social_core.backends.base.BaseAuth.pipeline", return_value=response):
+            result = self.strategy.authenticate(backend=backend, response={})
+
+        self.assertIs(result, response)
+        self.assertFalse(hasattr(result, "url"))
 
     def test_authenticate_uses_strategy_request_without_forwarding_it(self):
         backend = load_backend(strategy=self.strategy, name="facebook", redirect_uri="/")
