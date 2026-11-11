@@ -60,6 +60,8 @@ if TYPE_CHECKING:
         def __str__(self) -> str: ...
 
     class _DjangoAssociation(Model):
+        server_url: str
+        handle: str
         secret: str
         issued: int
         lifetime: int
@@ -390,26 +392,92 @@ class DjangoAssociationMixin(AssociationMixin):
     objects: ClassVar[Manager[_DjangoAssociation]]
     DoesNotExist: ClassVar[type[ObjectDoesNotExist]]
 
+    @staticmethod
+    def _is_unique_conflict(error: IntegrityError) -> bool:
+        cause = error.__cause__
+        if isinstance(cause, sqlite3.IntegrityError):
+            return getattr(cause, "sqlite_errorcode", SQLITE_UNIQUE_ERROR_CODE) in (
+                SQLITE_UNIQUE_ERROR_CODE,
+                SQLITE_PRIMARY_KEY_ERROR_CODE,
+            )
+        if getattr(cause, "sqlstate", None) == "23505" or getattr(cause, "pgcode", None) == "23505":
+            return True
+        args: tuple[object, ...] = getattr(cause, "args", ())
+        return bool(args) and (args[0] == MYSQL_DUPLICATE_KEY_ERROR_CODE or getattr(args[0], "code", None) == 1)
+
     @classmethod
     def store(cls, server_url, association):
-        # Don't use get_or_create because issued cannot be null
+        # A collation may equate distinct URLs or handles under the database
+        # uniqueness constraint. Never overwrite the other provider's secret.
+        using = router.db_for_write(cls.objects.model)
+        values = {
+            "server_url": server_url,
+            "handle": association.handle,
+            "secret": base64.encodebytes(association.secret).decode(),
+            "issued": association.issued,
+            "lifetime": association.lifetime,
+            "assoc_type": association.assoc_type,
+        }
         try:
-            assoc = cls.objects.get(
-                server_url=server_url,
-                handle=association.handle,
-            )
-        except cls.DoesNotExist:
-            assoc = cls.objects.model(server_url=server_url, handle=association.handle)
-
-        assoc.secret = base64.encodebytes(association.secret).decode()
-        assoc.issued = association.issued
-        assoc.lifetime = association.lifetime
-        assoc.assoc_type = association.assoc_type
-        assoc.save()
+            # Write first. A read before the write makes concurrent stores fail
+            # while upgrading SQLite's deferred transaction to a write lock.
+            with transaction.atomic(using=using):
+                cls.objects.using(using).create(**values)
+        except IntegrityError as error:
+            existing = None
+            with transaction.atomic(using=using):
+                try:
+                    existing = (
+                        cls.objects
+                        .using(using)
+                        .select_for_update()
+                        .get(server_url=server_url, handle=association.handle)
+                    )
+                except cls.DoesNotExist:
+                    # A uniqueness constraint may use a broader collation than
+                    # the exact lookup. Find that conflict before re-raising.
+                    try:
+                        existing = (
+                            cls.objects
+                            .using(using)
+                            .select_for_update()
+                            .get(server_url__iexact=server_url, handle__iexact=association.handle)
+                        )
+                    except cls.DoesNotExist:
+                        existing = None
+                if existing is not None:
+                    if existing.server_url != server_url or existing.handle != association.handle:
+                        raise AuthAssociationError(
+                            code="openid_association_collision",
+                            source="storage",
+                            stage="callback",
+                            recovery="contact_administrator",
+                        ) from error
+                    for name, value in values.items():
+                        setattr(existing, name, value)
+                    existing.save(using=using, update_fields=values)
+                    return
+            if not cls._is_unique_conflict(error):
+                raise error from None
+            # Cleanup may have removed the conflicting row after the failed
+            # insert. Retry from a fresh transaction to avoid SQLite upgrades.
+            with transaction.atomic(using=using):
+                cls.objects.using(using).create(**values)
+        else:
+            return
 
     @classmethod
     def get(cls, *args, **kwargs):
-        return cls.objects.filter(*args, **kwargs)
+        query = cls.objects.filter(*args, **kwargs)
+        # We need to compare to filter out case- and accent-insensitive
+        # lookups in some databases (MySQL/MariaDB): a secret negotiated
+        # with one server must never verify assertions for another.
+        exact = {name: kwargs[name] for name in ("server_url", "handle") if name in kwargs}
+        if not exact:
+            return query
+        return query.filter(
+            pk__in=[assoc.pk for assoc in query if all(getattr(assoc, name) == value for name, value in exact.items())]
+        )
 
     @classmethod
     def remove(cls, ids_to_delete):

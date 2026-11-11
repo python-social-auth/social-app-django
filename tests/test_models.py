@@ -3,7 +3,7 @@ import sqlite3
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from typing import ClassVar
-from unittest import mock
+from unittest import mock, skipUnless
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
@@ -626,10 +626,126 @@ class TestAssociation(TestCase):
 
         qs = Association.get(handle="a")
         self.assertEqual(qs.count(), 1)
+        self.assertEqual(Association.get().count(), 1)
         self.assertEqual(qs[0].secret, "Yg==\n")
+
+        Association.store(
+            server_url="/",
+            association=mock.Mock(handle="a", secret=b"c", issued=3, lifetime=4, assoc_type="c"),
+        )
+        self.assertEqual(Association.get(server_url="/", handle="a").get().secret, "Yw==\n")
+        self.assertEqual(Association.objects.count(), 1)
 
         Association.remove(ids_to_delete=[qs.first().id])
         self.assertEqual(Association.objects.count(), 0)
+
+    def test_get_store_compare_exactly(self):
+        other = Association.objects.create(
+            server_url="https://lögin.example/openid",
+            handle="a",
+            secret="Yg==\n",  # ruff: ignore[hardcoded-password-func-arg]
+            issued=1,
+            lifetime=2,
+            assoc_type="c",
+        )
+        # Simulate a case- and accent-insensitive collation (MySQL/MariaDB)
+        everything = Association.objects.all
+        with mock.patch.object(Association.objects, "filter", side_effect=lambda *_args, **_kwargs: everything()):
+            self.assertFalse(Association.get(server_url="https://login.example/openid", handle="a").exists())
+            self.assertFalse(Association.get(server_url="https://lögin.example/openid", handle="A").exists())
+            self.assertEqual(Association.get(server_url="https://lögin.example/openid", handle="a").get(), other)
+            Association.store(
+                server_url="https://login.example/openid",
+                association=mock.Mock(handle="a", secret=b"x", issued=1, lifetime=2, assoc_type="c"),
+            )
+        other.refresh_from_db()
+        self.assertEqual(other.secret, "Yg==\n")
+        self.assertEqual(Association.objects.count(), 2)
+
+    @skipUnless(connection.vendor == "sqlite", "SQLite NOCASE index models a case-insensitive unique constraint")
+    def test_store_rejects_colliding_association_under_case_insensitive_constraint(self):
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "CREATE UNIQUE INDEX test_association_nocase ON social_auth_association "
+                "(server_url COLLATE NOCASE, handle COLLATE NOCASE)"
+            )
+        try:
+            previous = Association.objects.create(
+                server_url="https://LOGIN.example/openid",
+                handle="A",
+                secret="b2xk\n",  # ruff: ignore[hardcoded-password-func-arg]
+                issued=1,
+                lifetime=2,
+                assoc_type="HMAC-SHA1",
+            )
+            with self.assertRaises(AuthAssociationError) as caught:
+                Association.store(
+                    server_url="https://login.example/openid",
+                    association=mock.Mock(handle="a", secret=b"new", issued=3, lifetime=4, assoc_type="HMAC-SHA256"),
+                )
+            self.assertEqual(caught.exception.code, "openid_association_collision")
+            previous.refresh_from_db()
+            self.assertEqual(
+                (previous.server_url, previous.handle, previous.secret),
+                ("https://LOGIN.example/openid", "A", "b2xk\n"),
+            )
+            self.assertEqual(Association.get(server_url="https://LOGIN.example/openid", handle="A").get(), previous)
+            self.assertFalse(Association.get(server_url="https://login.example/openid", handle="a").exists())
+            self.assertEqual(Association.objects.count(), 1)
+        finally:
+            with connection.cursor() as cursor:
+                cursor.execute("DROP INDEX test_association_nocase")
+
+    def test_store_preserves_unrelated_integrity_error(self):
+        query = mock.Mock()
+        query.create.side_effect = IntegrityError("unrelated failure")
+        query.select_for_update.return_value.get.side_effect = Association.DoesNotExist
+        with (
+            mock.patch.object(Association.objects, "using", return_value=query),
+            self.assertRaisesRegex(IntegrityError, "unrelated failure"),
+        ):
+            Association.store(
+                server_url="https://login.example/openid",
+                association=mock.Mock(handle="a", secret=b"new", issued=3, lifetime=4, assoc_type="HMAC-SHA256"),
+            )
+
+    def test_store_retries_when_conflicting_row_is_removed(self):
+        error = IntegrityError("duplicate key")
+        error.__cause__ = sqlite3.IntegrityError("UNIQUE constraint failed: social_auth_association.server_url")
+        query = mock.Mock()
+        query.create.side_effect = [error, None]
+        query.select_for_update.return_value.get.side_effect = Association.DoesNotExist
+        with mock.patch.object(Association.objects, "using", return_value=query):
+            Association.store(
+                server_url="https://login.example/openid",
+                association=mock.Mock(handle="a", secret=b"new", issued=3, lifetime=4, assoc_type="HMAC-SHA256"),
+            )
+        self.assertEqual(query.create.call_count, 2)
+
+    def test_store_rejects_collation_match_after_unique_conflict(self):
+        previous = Association.objects.create(
+            server_url="https://lögin.example/openid",
+            handle="a",
+            secret="b2xk\n",  # ruff: ignore[hardcoded-password-func-arg]
+            issued=1,
+            lifetime=2,
+            assoc_type="HMAC-SHA1",
+        )
+        query = mock.Mock()
+        query.create.side_effect = IntegrityError("colliding key")
+        query.select_for_update.return_value.get.return_value = previous
+        with (
+            mock.patch.object(Association.objects, "using", return_value=query),
+            self.assertRaises(AuthAssociationError) as caught,
+        ):
+            Association.store(
+                server_url="https://login.example/openid",
+                association=mock.Mock(handle="a", secret=b"new", issued=3, lifetime=4, assoc_type="HMAC-SHA256"),
+            )
+        self.assertEqual(caught.exception.code, "openid_association_collision")
+        query.create.assert_called_once()
+        previous.refresh_from_db()
+        self.assertEqual(previous.secret, "b2xk\n")
 
 
 class TestCode(TestCase):
