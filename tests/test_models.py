@@ -9,6 +9,7 @@ from zoneinfo import ZoneInfo
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.core.files.base import ContentFile
 from django.core.management import call_command
 from django.db import DatabaseError, IntegrityError, connection, models
 from django.test import TestCase, override_settings
@@ -189,6 +190,22 @@ class TestUserSocialAuth(TestCase):
         profile = Profile(avatar="old.png")
         storage.snapshot_user_fields(profile)
         profile.avatar.name = "new.png"
+        with mock.patch.object(profile, "save") as save:
+            UserSocialAuth.changed(profile)
+
+        self.assertIn("avatar", save.call_args.kwargs["update_fields"])
+
+    @isolate_apps()
+    def test_changed_detects_uncommitted_file_with_same_name(self):
+        class Profile(models.Model):
+            avatar = models.FileField(upload_to="")
+
+            class Meta:
+                app_label = "tests"
+
+        profile = Profile(avatar="avatar.png")
+        storage.snapshot_user_fields(profile)
+        profile.avatar = ContentFile(b"replacement", name="avatar.png")
         with mock.patch.object(profile, "save") as save:
             UserSocialAuth.changed(profile)
 

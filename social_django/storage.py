@@ -8,7 +8,7 @@ import re
 import sqlite3
 from datetime import UTC, timedelta
 from time import time as _time
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from django.conf import settings
 from django.core.exceptions import FieldDoesNotExist
@@ -90,6 +90,16 @@ def _snapshot_value(value):
     return value
 
 
+def _user_field_changed(user, field, snapshot) -> bool:
+    current = getattr(user, field.attname)
+    return (
+        field.attname not in snapshot
+        or _snapshot_value(current) != snapshot[field.attname]
+        or (isinstance(current, FieldFile) and not cast("Any", current)._committed)
+        or getattr(field, "auto_now", False)
+    )
+
+
 def snapshot_user_fields(user) -> None:
     """Record the loaded field values of a user entering the pipeline.
 
@@ -135,11 +145,7 @@ class DjangoUserMixin(UserMixin):
                 for field in user._meta.concrete_fields
                 if not field.primary_key
                 and field.attname not in deferred
-                and (
-                    field.attname not in snapshot
-                    or _snapshot_value(getattr(user, field.attname)) != snapshot[field.attname]
-                    or getattr(field, "auto_now", False)
-                )
+                and _user_field_changed(user, field, snapshot)
             ]
         )
         snapshot_user_fields(user)
