@@ -12,6 +12,13 @@ dev = [
   "pyright==1.1.414",
   "tox"
 ]
+package-lint = [
+  "check-manifest==0.51",
+  "check-wheel-contents==0.6.3",
+  "pydistcheck==0.11.3",
+  "pyroma==5.0.1",
+  "twine==7.0.0"
+]
 
 [project]
 authors = [
@@ -75,7 +82,8 @@ ignore = [
   ".pre-commit-config.yaml",
   ".well-known/funding-manifest-urls",
   "AGENTS.md",
-  "tox.ini"
+  "tox.ini",
+  "uv.lock"
 ]
 
 [tool.check-wheel-contents]
