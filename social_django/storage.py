@@ -38,6 +38,7 @@ MYSQL_DUPLICATE_KEY_ERROR_CODE = 1062
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from datetime import datetime
     from typing import ClassVar
 
     from django.core.exceptions import ObjectDoesNotExist
@@ -68,6 +69,11 @@ if TYPE_CHECKING:
         assoc_type: str
 
         def __str__(self) -> str: ...
+
+    class _DjangoPartial(Model):
+        def __str__(self) -> str: ...
+
+        def is_expired(self, seconds: int) -> bool: ...
 
     class _DjangoSocialAuth(Model):
         provider: str
@@ -493,22 +499,26 @@ class DjangoAssociationMixin(AssociationMixin):
         cls.objects.filter(pk__in=ids_to_delete).delete()
 
 
+def _is_expired(timestamp: datetime | None, seconds: int) -> bool:
+    """Check expiry using Django's timezone for naive database timestamps."""
+    if timestamp is None:
+        return True
+    now = timezone.now()
+    if timezone.is_naive(timestamp):
+        timestamp = timezone.make_aware(timestamp, timezone.get_default_timezone())
+    if timezone.is_naive(now):
+        now = timezone.make_aware(now, timezone.get_default_timezone())
+    timestamp = timestamp.astimezone(UTC)
+    return now.astimezone(UTC) >= timestamp + timedelta(seconds=seconds)
+
+
 class DjangoCodeMixin(CodeMixin):
     objects: ClassVar[Manager[Model]]
     DoesNotExist: ClassVar[type[ObjectDoesNotExist]]
 
     def is_expired(self, seconds: int) -> bool:
         """Check expiry using Django's timezone for naive database timestamps."""
-        if self.timestamp is None:
-            return True
-        timestamp = self.timestamp
-        now = timezone.now()
-        if timezone.is_naive(timestamp):
-            timestamp = timezone.make_aware(timestamp, timezone.get_default_timezone())
-        if timezone.is_naive(now):
-            now = timezone.make_aware(now, timezone.get_default_timezone())
-        timestamp = timestamp.astimezone(UTC)
-        return now.astimezone(UTC) >= timestamp + timedelta(seconds=seconds)
+        return _is_expired(self.timestamp, seconds)
 
     @classmethod
     def get_code(cls, code):
@@ -519,8 +529,14 @@ class DjangoCodeMixin(CodeMixin):
 
 
 class DjangoPartialMixin(PartialMixin):
-    objects: ClassVar[Manager[Model]]
+    timestamp: datetime | None = None
+
+    objects: ClassVar[Manager[_DjangoPartial]]
     DoesNotExist: ClassVar[type[ObjectDoesNotExist]]
+
+    def is_expired(self, seconds: int) -> bool:
+        """Return whether the partial has reached its lifetime, or has no timestamp."""
+        return _is_expired(self.timestamp, seconds)
 
     @classmethod
     def load(cls, token):
