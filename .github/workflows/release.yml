@@ -161,14 +161,15 @@ jobs:
           exit 1
         fi
 
-    - name: Update GitHub release notes
+    - name: Publish GitHub release
       env:
         GH_TOKEN: ${{ github.token }}
         TAG_NAME: ${{ github.ref_name }}
-      run: gh release edit "$TAG_NAME" --notes-file release-notes.md
-
-    - name: Upload GitHub release assets
-      env:
-        GH_TOKEN: ${{ github.token }}
-        TAG_NAME: ${{ github.ref_name }}
-      run: gh release upload "$TAG_NAME" dist/*.whl dist/*.tar.gz --clobber
+      run: |
+        set -euo pipefail
+        if gh release view "$TAG_NAME" >/dev/null 2>&1; then
+          echo "A release already exists for ${TAG_NAME}; inspect it before retrying." >&2
+          exit 1
+        fi
+        gh release create "$TAG_NAME" --verify-tag --draft --notes-file release-notes.md dist/*.whl dist/*.tar.gz
+        gh release edit "$TAG_NAME" --draft=false
