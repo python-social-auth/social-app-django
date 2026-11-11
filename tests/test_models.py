@@ -15,7 +15,7 @@ from django.test import TestCase, override_settings
 from django.test.utils import isolate_apps
 from django.utils import timezone
 from social_core.backends.cognito import CognitoOAuth2
-from social_core.exceptions import AuthAssociationError
+from social_core.exceptions import AuthAssociationError, AuthCredentialError
 from social_core.pipeline.user import get_username
 
 from social_django import storage
@@ -638,6 +638,27 @@ class TestCode(TestCase):
         code2 = Code.get_code(code="abc")
         self.assertEqual(code1, code2)
         self.assertIsNone(Code.get_code(code="xyz"))
+
+    def test_verify_claims_code_once(self):
+        Code.objects.create(email="test@example.com", code="abc")
+        first = Code.get_code(code="abc")
+        second = Code.get_code(code="abc")  # read before the first request marks it used
+        first.verify()
+        self.assertTrue(first.verified)
+        self.assertTrue(Code.objects.get(pk=first.pk).verified)
+        with self.assertRaises(AuthCredentialError) as ctx:
+            second.verify()
+        self.assertEqual(ctx.exception.code, "email_verification_rejected")
+
+    def test_verify_uses_write_router_after_replica_read(self):
+        code = Code.objects.create(email="test@example.com", code="abc")
+        code._state.db = "replica"
+
+        with mock.patch("social_django.storage.router.db_for_write", return_value="default") as db_for_write:
+            code.verify()
+
+        db_for_write.assert_called_once_with(Code, instance=code)
+        self.assertTrue(Code.objects.get(pk=code.pk).verified)
 
 
 class TestPartial(TestCase):
