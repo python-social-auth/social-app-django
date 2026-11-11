@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Security
+
+- Discard session-held partial flows whose saved user differs from the signed-in user.
+
 ### Fixed
 
 - Keep migration 0013 forward and reverse writes on the database alias being migrated.

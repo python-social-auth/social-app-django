@@ -5,6 +5,7 @@ from datetime import timedelta
 from hashlib import sha256
 from unittest import mock
 from urllib.parse import parse_qs, urlencode, urlsplit
+from uuid import uuid4
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -18,6 +19,7 @@ from django.utils import timezone
 from social_core.backends.open_id_connect import OpenIdConnectAuth
 from social_core.utils import PARTIAL_TOKEN_PENDING_REQUEST_SESSION_NAME
 
+from social_django import views
 from social_django.models import Code, Nonce, Partial, UserSocialAuth
 from social_django.utils import LaunchBridge
 from social_django.views import get_session_timeout
@@ -131,6 +133,33 @@ def send_validation(strategy, backend, code, partial_token):
     SOCIAL_AUTH_LOGIN_ERROR_URL="/error/",
 )
 class TestEmailConfirmation(TestCase):
+    def test_uuid_user_keeps_own_session_partial(self):
+        user_id = uuid4()
+        request = mock.Mock()
+        request.user.is_authenticated = True
+        request.user.pk = user_id
+        request.social_strategy.session_get.return_value = "session-token"
+        request.social_strategy.partial_load.return_value = mock.Mock(
+            data={"initiating_user_id": str(user_id)}, kwargs={}
+        )
+
+        views._discard_session_partial_of_other_user(request)
+
+        request.social_strategy.clean_partial_pipeline.assert_not_called()
+
+    def test_uuid_user_discards_other_users_session_partial(self):
+        request = mock.Mock()
+        request.user.is_authenticated = True
+        request.user.pk = uuid4()
+        request.social_strategy.session_get.return_value = "session-token"
+        request.social_strategy.partial_load.return_value = mock.Mock(
+            data={"initiating_user_id": str(uuid4())}, kwargs={}
+        )
+
+        views._discard_session_partial_of_other_user(request)
+
+        request.social_strategy.clean_partial_pipeline.assert_called_once_with("session-token")
+
     @staticmethod
     def csrf_client() -> tuple[Client, str]:
         request = HttpRequest()
@@ -357,6 +386,51 @@ class TestEmailConfirmation(TestCase):
             self.assertTrue(get_user_model().objects.filter(email=code.email).exists())
             self.assertFalse(Partial.objects.filter(token=token).exists())
             send_email.assert_called_once()
+
+    def test_flow_kept_in_session_across_login_is_not_adopted(self):
+        victim = get_user_model()._default_manager.create_user(username="victim")
+        url = reverse("social:complete", kwargs={"backend": "email"})
+        attacker, csrf_token = self.csrf_client()
+        with mock.patch("tests.test_views.send_validation") as send_email:
+            attacker.post(url, {"email": "attacker@example.com", "csrfmiddlewaretoken": csrf_token})
+            browser = Client(enforce_csrf_checks=True)
+            # Confirming the link without its code halts the flow again, in
+            # the session that resumed it.
+            context = browser.get(url, {"partial_token": send_email.call_args.args[3]}).context
+            response = browser.post(
+                context["action_url"],
+                {
+                    context["confirmation_parameter"]: context["confirmation_value"],
+                    context["confirmation_nonce_parameter"]: context["confirmation_nonce"],
+                },
+            )
+            self.assertRedirects(response, "/email-sent/", fetch_redirect_response=False)
+            self.assertEqual(send_email.call_count, 2)
+            # login() keeps the data of the anonymous session.
+            browser.force_login(victim)
+            self.assertIn("partial_pipeline_token", browser.session)
+            self.assertEqual(int(browser.session["_auth_user_id"]), victim.pk)
+            response = browser.get(url)
+            self.assertRedirects(response, "/error/", fetch_redirect_response=False)
+            self.assertEqual(send_email.call_count, 2)
+        self.assertNotIn("partial_pipeline_token", browser.session)
+        self.assertFalse(Partial.objects.exists())
+        self.assertFalse(UserSocialAuth.objects.filter(user=victim).exists())
+
+    def test_flow_saved_for_signed_in_user_survives_resume(self):
+        user = get_user_model()._default_manager.create_user(username="existing")
+        client, csrf_token = self.csrf_client()
+        client.force_login(user)
+        url = reverse("social:complete", kwargs={"backend": "email"})
+        with mock.patch("tests.test_views.send_validation") as send_email:
+            client.post(url, {"email": "linked@example.com", "csrfmiddlewaretoken": csrf_token})
+            token = send_email.call_args.args[3]
+            self.assertEqual(client.session["partial_pipeline_token"], token)
+            response = client.get(url)
+            self.assertRedirects(response, "/email-sent/", fetch_redirect_response=False)
+        self.assertEqual(send_email.call_count, 2)
+        self.assertFalse(Partial.objects.filter(token=token).exists())
+        self.assertEqual(client.session["partial_pipeline_token"], send_email.call_args.args[3])
 
     def test_invalid_confirmation_nonce_does_not_verify_code(self):
         url = reverse("social:complete", kwargs={"backend": "email"})
