@@ -1,6 +1,7 @@
 import hmac
 import unittest
 from base64 import urlsafe_b64decode, urlsafe_b64encode
+from datetime import timedelta
 from hashlib import sha256
 from unittest import mock
 from urllib.parse import parse_qs, urlencode, urlsplit
@@ -13,6 +14,7 @@ from django.http import HttpRequest, HttpResponse
 from django.middleware.csrf import get_token
 from django.test import Client, TestCase, override_settings
 from django.urls import include, path, reverse
+from django.utils import timezone
 from social_core.backends.open_id_connect import OpenIdConnectAuth
 from social_core.utils import PARTIAL_TOKEN_PENDING_REQUEST_SESSION_NAME
 
@@ -605,8 +607,22 @@ class TestSessionExpiration(TestCase):
 
         self.assertRedirects(response, "/accounts/profile/", fetch_redirect_response=False)
         self.assertIn("_auth_user_id", client.session)
-        self.assertEqual(client.session.get_expiry_age(), 3600)
-        self.assertEqual(response.cookies[settings.SESSION_COOKIE_NAME]["max-age"], 3600)
+        self.assertAlmostEqual(client.session.get_expiry_age(), 3600, delta=1)
+        self.assertAlmostEqual(response.cookies[settings.SESSION_COOKIE_NAME]["max-age"], 3600, delta=1)
+
+    def test_later_session_writes_do_not_extend_expiry(self):
+        client, response = self.complete_login("expires_in", 7200)
+        self.assertRedirects(response, "/accounts/profile/", fetch_redirect_response=False)
+        expiry_date = client.session.get_expiry_date()
+
+        # A later request that saves the session, such as starting another
+        # authentication, must not renew the configured maximum length.
+        begin_facebook_login(client)
+
+        self.assertIn("_auth_user_id", client.session)
+        self.assertEqual(client.session.get_expiry_date(), expiry_date)
+        later = timezone.now() + timedelta(seconds=1800)
+        self.assertAlmostEqual(client.session.get_expiry_age(modification=later), 1800, delta=1)
 
     @override_settings(SOCIAL_AUTH_SESSION_EXPIRATION=False)
     def test_disabled_expiration_ignores_invalid_provider_expiry(self):
@@ -614,7 +630,7 @@ class TestSessionExpiration(TestCase):
 
         self.assertRedirects(response, "/accounts/profile/", fetch_redirect_response=False)
         self.assertIn("_auth_user_id", client.session)
-        self.assertEqual(client.session.get_expiry_age(), 3600)
+        self.assertAlmostEqual(client.session.get_expiry_age(), 3600, delta=1)
 
 
 class TestGetSessionTimeout(TestCase):
