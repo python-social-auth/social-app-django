@@ -260,7 +260,16 @@ class DjangoUserMixin(UserMixin):
     def get_users_by_email(cls, email):
         user_model = cls.user_model()
         email_field = getattr(user_model, "EMAIL_FIELD", "email")
-        return cls.filter_active_users(**{f"{email_field}__iexact": email})
+        users = cls.filter_active_users(**{f"{email_field}__iexact": email})
+        # What iexact matches is up to the database (collation, UPPER(), LIKE),
+        # so compare again in Python and keep only the addresses that differ
+        # from the requested one in nothing but letter case.
+        matching = [
+            pk
+            for pk, value in users.values_list("pk", email_field)
+            if value.lower() == email.lower() and value.upper() == email.upper()
+        ]
+        return users.filter(pk__in=matching)
 
     @classmethod
     def get_social_auth(cls, provider, uid, id_key=None):

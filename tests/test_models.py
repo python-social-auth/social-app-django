@@ -249,6 +249,29 @@ class TestUserSocialAuth(TestCase):
             qs = UserSocialAuth.get_users_by_email(email=self.user.email)
             self.assertEqual(qs.count(), 1)
 
+    def test_get_users_by_email_ignores_case(self):
+        self.assertEqual(list(UserSocialAuth.get_users_by_email(email="User@EXAMPLE.com")), [self.user])
+
+    def test_get_users_by_email_rechecks_database_match(self):
+        # SQLite compiles iexact to LIKE, which stops reading its pattern at U+0000
+        self.assertEqual(list(UserSocialAuth.get_users_by_email(email="user@example.com\x00.evil.example")), [])
+        # PostgreSQL/Oracle uppercase both sides, MySQL follows the column collation
+        self.user.email = "kiss@example.com"
+        self.user.save()
+        loose_match = self.user_model._default_manager.all()
+        for email in (
+            "k\u0131ss@example.com",
+            "ki\u017fs@example.com",
+            "kiß@example.com",
+            "\u212aiss@example.com",  # KELVIN SIGN, which str.lower() maps to "k"
+            "kíss@example.com",
+        ):
+            with (
+                self.subTest(email=email),
+                mock.patch.object(UserSocialAuth, "filter_active_users", return_value=loose_match),
+            ):
+                self.assertEqual(list(UserSocialAuth.get_users_by_email(email=email)), [])
+
     def test_get_social_auth(self):
         usa = self.usa
         # Model
