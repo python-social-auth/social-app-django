@@ -91,14 +91,18 @@ if TYPE_CHECKING:
         """Manager whose querysets contain social-auth associations."""
 
 
-def _snapshot_value(value):
+def _snapshot_value(value, *, nested: bool = False):
     if isinstance(value, FieldFile):
         return value.name
     if isinstance(value, (bytearray, memoryview)):
         return bytes(value)
-    if isinstance(value, (dict, list)):
-        return copy.deepcopy(value)
-    return value
+    if isinstance(value, dict):
+        return {_snapshot_value(key, nested=True): _snapshot_value(item, nested=True) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_snapshot_value(item, nested=True) for item in value]
+    if isinstance(value, tuple):
+        return tuple(_snapshot_value(item, nested=True) for item in value)
+    return copy.deepcopy(value) if nested else value
 
 
 def _json_values_equal(left, right) -> bool:
