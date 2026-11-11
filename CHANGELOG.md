@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Security
 
+- Persist consumed callback state when the exception middleware renders a 5xx page.
 - Expire suspended partial pipelines when resumed; by default they follow the email verification lifetime.
 - Recheck email matches in Python before associating accounts under database collations.
 - Compare OpenID association server URLs and handles exactly before using
