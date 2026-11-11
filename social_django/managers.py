@@ -4,6 +4,8 @@ from typing import TypeVar
 
 from django.db import models
 
+from .storage import snapshot_user_fields
+
 _SocialAuthT_co = TypeVar("_SocialAuthT_co", bound=models.Model, covariant=True)
 
 
@@ -25,5 +27,6 @@ class UserSocialAuthManager(models.Manager[_SocialAuthT_co]):
                 and getattr(social, "uid", None) == uid
                 and (id_key is None or getattr(social, "id_key", None) == id_key)
             ):
+                snapshot_user_fields(social.user)
                 return social
         return None

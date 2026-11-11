@@ -167,6 +167,33 @@ class TestUserSocialAuth(TestCase):
             self.assertEqual(self.user.email, "new@example.com")
             self.assertFalse(self.user.is_active)
 
+    def test_manager_lookup_keeps_concurrent_deactivation(self):
+        user = UserSocialAuth.objects.get_social_auth("my-provider", "1234").user
+        self.user_model._default_manager.filter(pk=user.pk).update(is_active=False)
+        user.first_name = "Updated"
+
+        UserSocialAuth.changed(user)
+
+        user.refresh_from_db()
+        self.assertFalse(user.is_active)
+        self.assertEqual(user.first_name, "Updated")
+
+    @isolate_apps()
+    def test_changed_detects_in_place_file_name_change(self):
+        class Profile(models.Model):
+            avatar = models.FileField(upload_to="avatars")
+
+            class Meta:
+                app_label = "tests"
+
+        profile = Profile(avatar="old.png")
+        storage.snapshot_user_fields(profile)
+        profile.avatar.name = "new.png"
+        with mock.patch.object(profile, "save") as save:
+            UserSocialAuth.changed(profile)
+
+        self.assertIn("avatar", save.call_args.kwargs["update_fields"])
+
     @isolate_apps()
     def test_snapshot_keeps_original_json_value(self):
         class Profile(models.Model):

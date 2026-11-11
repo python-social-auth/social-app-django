@@ -15,6 +15,7 @@ from django.core.exceptions import FieldDoesNotExist
 from django.db import DatabaseError, router, transaction
 from django.db.backends.utils import names_digest
 from django.db.models import BigIntegerField, CharField, F, Field, Q, UniqueConstraint
+from django.db.models.fields.files import FieldFile
 from django.db.models.fields.json import KeyTextTransform
 from django.db.models.functions import Cast
 from django.db.utils import IntegrityError
@@ -81,6 +82,14 @@ if TYPE_CHECKING:
         """Manager whose querysets contain social-auth associations."""
 
 
+def _snapshot_value(value):
+    if isinstance(value, FieldFile):
+        return value.name
+    if isinstance(value, (dict, list)):
+        return copy.deepcopy(value)
+    return value
+
+
 def snapshot_user_fields(user) -> None:
     """Record the loaded field values of a user entering the pipeline.
 
@@ -91,11 +100,7 @@ def snapshot_user_fields(user) -> None:
     for field in user._meta.concrete_fields:
         if field.attname in deferred:
             continue
-        value = getattr(user, field.attname)
-        if isinstance(value, (dict, list)):
-            # JSON-like values may be updated in place rather than replaced.
-            value = copy.deepcopy(value)
-        snapshot[field.attname] = value
+        snapshot[field.attname] = _snapshot_value(getattr(user, field.attname))
     user._social_auth_snapshot = snapshot
 
 
@@ -132,7 +137,7 @@ class DjangoUserMixin(UserMixin):
                 and field.attname not in deferred
                 and (
                     field.attname not in snapshot
-                    or getattr(user, field.attname) != snapshot[field.attname]
+                    or _snapshot_value(getattr(user, field.attname)) != snapshot[field.attname]
                     or getattr(field, "auto_now", False)
                 )
             ]
