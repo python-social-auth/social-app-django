@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Security
+
+- Expire suspended partial pipelines when resumed; by default they follow the email verification lifetime.
+- Recheck email matches in Python before associating accounts under database collations.
+- Compare OpenID association server URLs and handles exactly before using
+  stored secrets, and reject new associations that collide under database collation.
+
 ### Fixed
 
 - Keep migration 0013 forward and reverse writes on the database alias being migrated.

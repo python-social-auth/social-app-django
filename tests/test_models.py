@@ -3,7 +3,7 @@ import sqlite3
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from typing import ClassVar
-from unittest import mock
+from unittest import mock, skipUnless
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
@@ -248,6 +248,29 @@ class TestUserSocialAuth(TestCase):
         with override_settings(SOCIAL_AUTH_ACTIVE_USERS_FILTER={}):
             qs = UserSocialAuth.get_users_by_email(email=self.user.email)
             self.assertEqual(qs.count(), 1)
+
+    def test_get_users_by_email_ignores_case(self):
+        self.assertEqual(list(UserSocialAuth.get_users_by_email(email="User@EXAMPLE.com")), [self.user])
+
+    def test_get_users_by_email_rechecks_database_match(self):
+        # SQLite compiles iexact to LIKE, which stops reading its pattern at U+0000
+        self.assertEqual(list(UserSocialAuth.get_users_by_email(email="user@example.com\x00.evil.example")), [])
+        # PostgreSQL/Oracle uppercase both sides, MySQL follows the column collation
+        self.user.email = "kiss@example.com"
+        self.user.save()
+        loose_match = self.user_model._default_manager.all()
+        for email in (
+            "k\u0131ss@example.com",
+            "ki\u017fs@example.com",
+            "kiß@example.com",
+            "\u212aiss@example.com",  # KELVIN SIGN, which str.lower() maps to "k"
+            "kíss@example.com",
+        ):
+            with (
+                self.subTest(email=email),
+                mock.patch.object(UserSocialAuth, "filter_active_users", return_value=loose_match),
+            ):
+                self.assertEqual(list(UserSocialAuth.get_users_by_email(email=email)), [])
 
     def test_get_social_auth(self):
         usa = self.usa
@@ -626,10 +649,126 @@ class TestAssociation(TestCase):
 
         qs = Association.get(handle="a")
         self.assertEqual(qs.count(), 1)
+        self.assertEqual(Association.get().count(), 1)
         self.assertEqual(qs[0].secret, "Yg==\n")
+
+        Association.store(
+            server_url="/",
+            association=mock.Mock(handle="a", secret=b"c", issued=3, lifetime=4, assoc_type="c"),
+        )
+        self.assertEqual(Association.get(server_url="/", handle="a").get().secret, "Yw==\n")
+        self.assertEqual(Association.objects.count(), 1)
 
         Association.remove(ids_to_delete=[qs.first().id])
         self.assertEqual(Association.objects.count(), 0)
+
+    def test_get_store_compare_exactly(self):
+        other = Association.objects.create(
+            server_url="https://lögin.example/openid",
+            handle="a",
+            secret="Yg==\n",  # ruff: ignore[hardcoded-password-func-arg]
+            issued=1,
+            lifetime=2,
+            assoc_type="c",
+        )
+        # Simulate a case- and accent-insensitive collation (MySQL/MariaDB)
+        everything = Association.objects.all
+        with mock.patch.object(Association.objects, "filter", side_effect=lambda *_args, **_kwargs: everything()):
+            self.assertFalse(Association.get(server_url="https://login.example/openid", handle="a").exists())
+            self.assertFalse(Association.get(server_url="https://lögin.example/openid", handle="A").exists())
+            self.assertEqual(Association.get(server_url="https://lögin.example/openid", handle="a").get(), other)
+            Association.store(
+                server_url="https://login.example/openid",
+                association=mock.Mock(handle="a", secret=b"x", issued=1, lifetime=2, assoc_type="c"),
+            )
+        other.refresh_from_db()
+        self.assertEqual(other.secret, "Yg==\n")
+        self.assertEqual(Association.objects.count(), 2)
+
+    @skipUnless(connection.vendor == "sqlite", "SQLite NOCASE index models a case-insensitive unique constraint")
+    def test_store_rejects_colliding_association_under_case_insensitive_constraint(self):
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "CREATE UNIQUE INDEX test_association_nocase ON social_auth_association "
+                "(server_url COLLATE NOCASE, handle COLLATE NOCASE)"
+            )
+        try:
+            previous = Association.objects.create(
+                server_url="https://LOGIN.example/openid",
+                handle="A",
+                secret="b2xk\n",  # ruff: ignore[hardcoded-password-func-arg]
+                issued=1,
+                lifetime=2,
+                assoc_type="HMAC-SHA1",
+            )
+            with self.assertRaises(AuthAssociationError) as caught:
+                Association.store(
+                    server_url="https://login.example/openid",
+                    association=mock.Mock(handle="a", secret=b"new", issued=3, lifetime=4, assoc_type="HMAC-SHA256"),
+                )
+            self.assertEqual(caught.exception.code, "openid_association_collision")
+            previous.refresh_from_db()
+            self.assertEqual(
+                (previous.server_url, previous.handle, previous.secret),
+                ("https://LOGIN.example/openid", "A", "b2xk\n"),
+            )
+            self.assertEqual(Association.get(server_url="https://LOGIN.example/openid", handle="A").get(), previous)
+            self.assertFalse(Association.get(server_url="https://login.example/openid", handle="a").exists())
+            self.assertEqual(Association.objects.count(), 1)
+        finally:
+            with connection.cursor() as cursor:
+                cursor.execute("DROP INDEX test_association_nocase")
+
+    def test_store_preserves_unrelated_integrity_error(self):
+        query = mock.Mock()
+        query.create.side_effect = IntegrityError("unrelated failure")
+        query.select_for_update.return_value.get.side_effect = Association.DoesNotExist
+        with (
+            mock.patch.object(Association.objects, "using", return_value=query),
+            self.assertRaisesRegex(IntegrityError, "unrelated failure"),
+        ):
+            Association.store(
+                server_url="https://login.example/openid",
+                association=mock.Mock(handle="a", secret=b"new", issued=3, lifetime=4, assoc_type="HMAC-SHA256"),
+            )
+
+    def test_store_retries_when_conflicting_row_is_removed(self):
+        error = IntegrityError("duplicate key")
+        error.__cause__ = sqlite3.IntegrityError("UNIQUE constraint failed: social_auth_association.server_url")
+        query = mock.Mock()
+        query.create.side_effect = [error, None]
+        query.select_for_update.return_value.get.side_effect = Association.DoesNotExist
+        with mock.patch.object(Association.objects, "using", return_value=query):
+            Association.store(
+                server_url="https://login.example/openid",
+                association=mock.Mock(handle="a", secret=b"new", issued=3, lifetime=4, assoc_type="HMAC-SHA256"),
+            )
+        self.assertEqual(query.create.call_count, 2)
+
+    def test_store_rejects_collation_match_after_unique_conflict(self):
+        previous = Association.objects.create(
+            server_url="https://lögin.example/openid",
+            handle="a",
+            secret="b2xk\n",  # ruff: ignore[hardcoded-password-func-arg]
+            issued=1,
+            lifetime=2,
+            assoc_type="HMAC-SHA1",
+        )
+        query = mock.Mock()
+        query.create.side_effect = IntegrityError("colliding key")
+        query.select_for_update.return_value.get.return_value = previous
+        with (
+            mock.patch.object(Association.objects, "using", return_value=query),
+            self.assertRaises(AuthAssociationError) as caught,
+        ):
+            Association.store(
+                server_url="https://login.example/openid",
+                association=mock.Mock(handle="a", secret=b"new", issued=3, lifetime=4, assoc_type="HMAC-SHA256"),
+            )
+        self.assertEqual(caught.exception.code, "openid_association_collision")
+        query.create.assert_called_once()
+        previous.refresh_from_db()
+        self.assertEqual(previous.secret, "b2xk\n")
 
 
 class TestCode(TestCase):
@@ -667,9 +806,81 @@ class TestPartial(TestCase):
         p = Partial.objects.create(token=token_value, backend="y", data={})
         self.assertEqual(Partial.load(token=token_value), p)
         self.assertIsNone(Partial.load(token="y"))  # ruff: ignore[hardcoded-password-func-arg]
+        self.assertIsNone(DjangoStrategy(DjangoStorage).partial_load("missing"))
 
         Partial.destroy(token=token_value)
         self.assertEqual(Partial.objects.count(), 0)
+
+    @staticmethod
+    def create_partial(age: timedelta, *, now: datetime | None = None) -> Partial:
+        partial = Partial.objects.create(
+            token="x",  # ruff: ignore[hardcoded-password-func-arg]
+            backend="y",
+            data={"args": [], "kwargs": {}},
+        )
+        timestamp = (now if now is not None else partial.timestamp) - age
+        if now is not None and not settings.USE_TZ:
+            timestamp = timestamp.replace(tzinfo=None)
+        Partial.objects.filter(pk=partial.pk).update(timestamp=timestamp)
+        partial.refresh_from_db()
+        return partial
+
+    @override_settings(TIME_ZONE="Europe/Prague")
+    def test_load_expired(self):
+        strategy = DjangoStrategy(DjangoStorage)
+        now = datetime(2026, 2, 1, 12, tzinfo=ZoneInfo("Europe/Prague"))
+        for use_tz in (True, False):
+            with self.subTest(use_tz=use_tz), override_settings(USE_TZ=use_tz):
+                clock = now if use_tz else now.replace(tzinfo=None)
+                partial = self.create_partial(timedelta(days=7) - timedelta(microseconds=1), now=now)
+                with mock.patch("social_django.storage.timezone.now", return_value=clock):
+                    self.assertEqual(strategy.partial_load(partial.token), partial)
+                Partial.destroy(partial.token)
+
+                partial = self.create_partial(timedelta(days=7), now=now)
+                with mock.patch("social_django.storage.timezone.now", return_value=clock):
+                    self.assertIsNone(strategy.partial_load(partial.token))
+                self.assertFalse(Partial.objects.exists())
+
+    def test_undated_partial_is_expired(self):
+        partial = self.create_partial(timedelta(0))
+        partial.timestamp = None
+        self.assertTrue(partial.is_expired(60))
+
+    def test_destroy_expired(self):
+        Partial.destroy(self.create_partial(timedelta(days=30)).token)
+        self.assertFalse(Partial.objects.exists())
+
+    @override_settings(SOCIAL_AUTH_EMAIL_VALIDATION_EXPIRED_THRESHOLD=60)
+    def test_expiry_follows_email_validation(self):
+        self.assertIsNone(DjangoStrategy(DjangoStorage).partial_load(self.create_partial(timedelta(seconds=61)).token))
+
+    @override_settings(
+        SOCIAL_AUTH_EMAIL_VALIDATION_EXPIRED_THRESHOLD=60,
+        SOCIAL_AUTH_PARTIAL_PIPELINE_EXPIRED_THRESHOLD=120,
+    )
+    def test_configured_expiry(self):
+        strategy = DjangoStrategy(DjangoStorage)
+        partial = self.create_partial(timedelta(seconds=61))
+        self.assertEqual(strategy.partial_load(partial.token), partial)
+        Partial.objects.filter(pk=partial.pk).update(timestamp=partial.timestamp - timedelta(seconds=121))
+        self.assertIsNone(strategy.partial_load(partial.token))
+
+    @override_settings(SOCIAL_AUTH_EMAIL_VALIDATION_EXPIRED_THRESHOLD=10 * 24 * 60 * 60)
+    def test_longer_effective_email_lifetime_is_honored(self):
+        partial = self.create_partial(timedelta(days=8))
+        self.assertEqual(DjangoStrategy(DjangoStorage).partial_load(partial.token), partial)
+        Partial.destroy(partial.token)
+
+    def test_disabled_expiry(self):
+        for threshold in (None, 0):
+            with (
+                self.subTest(threshold=threshold),
+                override_settings(SOCIAL_AUTH_PARTIAL_PIPELINE_EXPIRED_THRESHOLD=threshold),
+            ):
+                partial = self.create_partial(timedelta(days=30))
+                self.assertEqual(DjangoStrategy(DjangoStorage).partial_load(partial.token), partial)
+                Partial.destroy(partial.token)
 
 
 class TestDjangoStorage(TestCase):
