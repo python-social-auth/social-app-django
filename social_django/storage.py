@@ -405,49 +405,44 @@ class DjangoAssociationMixin(AssociationMixin):
             "lifetime": association.lifetime,
             "assoc_type": association.assoc_type,
         }
-        with transaction.atomic(using=using):
-            existing = (
-                cls.objects
-                .using(using)
-                .select_for_update()
-                .filter(server_url=server_url, handle=association.handle)
-                .first()
-            )
-            if existing is not None:
+        try:
+            # Write first. A read before the write makes concurrent stores fail
+            # while upgrading SQLite's deferred transaction to a write lock.
+            with transaction.atomic(using=using):
+                cls.objects.using(using).create(**values)
+        except IntegrityError as error:
+            with transaction.atomic(using=using):
+                try:
+                    existing = (
+                        cls.objects
+                        .using(using)
+                        .select_for_update()
+                        .get(server_url=server_url, handle=association.handle)
+                    )
+                except cls.DoesNotExist:
+                    # A uniqueness constraint may use a broader collation than
+                    # the exact lookup. Find that conflict before re-raising.
+                    try:
+                        existing = (
+                            cls.objects
+                            .using(using)
+                            .select_for_update()
+                            .get(server_url__iexact=server_url, handle__iexact=association.handle)
+                        )
+                    except cls.DoesNotExist:
+                        raise error from None
                 if existing.server_url != server_url or existing.handle != association.handle:
                     raise AuthAssociationError(
                         code="openid_association_collision",
                         source="storage",
                         stage="callback",
                         recovery="contact_administrator",
-                    )
+                    ) from error
                 for name, value in values.items():
                     setattr(existing, name, value)
                 existing.save(using=using, update_fields=values)
-                return
-            try:
-                with transaction.atomic(using=using):
-                    cls.objects.using(using).create(**values)
-            except IntegrityError as error:
-                # Some deployments have a uniqueness collation broader than
-                # their lookup collation. Check before translating the error.
-                colliding = (
-                    cls.objects
-                    .using(using)
-                    .select_for_update()
-                    .filter(server_url__iexact=server_url, handle__iexact=association.handle)
-                    .first()
-                )
-                if colliding is not None and (
-                    colliding.server_url != server_url or colliding.handle != association.handle
-                ):
-                    raise AuthAssociationError(
-                        code="openid_association_collision",
-                        source="storage",
-                        stage="callback",
-                        recovery="contact_administrator",
-                    ) from error
-                raise
+        else:
+            return
 
     @classmethod
     def get(cls, *args, **kwargs):

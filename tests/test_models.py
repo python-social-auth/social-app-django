@@ -699,7 +699,7 @@ class TestAssociation(TestCase):
     def test_store_preserves_unrelated_integrity_error(self):
         query = mock.Mock()
         query.create.side_effect = IntegrityError("unrelated failure")
-        query.select_for_update.return_value.filter.return_value.first.return_value = None
+        query.select_for_update.return_value.get.side_effect = Association.DoesNotExist
         with (
             mock.patch.object(Association.objects, "using", return_value=query),
             self.assertRaisesRegex(IntegrityError, "unrelated failure"),
@@ -709,7 +709,7 @@ class TestAssociation(TestCase):
                 association=mock.Mock(handle="a", secret=b"new", issued=3, lifetime=4, assoc_type="HMAC-SHA256"),
             )
 
-    def test_store_rejects_collation_match_before_writing(self):
+    def test_store_rejects_collation_match_after_unique_conflict(self):
         previous = Association.objects.create(
             server_url="https://lögin.example/openid",
             handle="a",
@@ -719,7 +719,8 @@ class TestAssociation(TestCase):
             assoc_type="HMAC-SHA1",
         )
         query = mock.Mock()
-        query.select_for_update.return_value.filter.return_value.first.return_value = previous
+        query.create.side_effect = IntegrityError("colliding key")
+        query.select_for_update.return_value.get.return_value = previous
         with (
             mock.patch.object(Association.objects, "using", return_value=query),
             self.assertRaises(AuthAssociationError) as caught,
@@ -729,7 +730,7 @@ class TestAssociation(TestCase):
                 association=mock.Mock(handle="a", secret=b"new", issued=3, lifetime=4, assoc_type="HMAC-SHA256"),
             )
         self.assertEqual(caught.exception.code, "openid_association_collision")
-        query.create.assert_not_called()
+        query.create.assert_called_once()
         previous.refresh_from_db()
         self.assertEqual(previous.secret, "b2xk\n")
 
