@@ -1,4 +1,5 @@
 import json
+from datetime import timedelta
 from unittest import mock
 
 from django.contrib.auth import authenticate as django_authenticate
@@ -7,14 +8,15 @@ from django.contrib.contenttypes.models import ContentType
 from django.contrib.sessions.middleware import SessionMiddleware
 from django.http import HttpResponse, QueryDict
 from django.test import RequestFactory, TestCase
+from django.utils import timezone
 from django.utils.translation import gettext_lazy
 from social_core.backends.base import BaseAuth
 from social_core.pipeline.partial import partial_step
 from social_core.pipeline.utils import partial_prepare
 from social_core.utils import PARTIAL_TOKEN_PENDING_CONFIRMATION_SESSION_NAME
 
-from social_django.models import Partial, UserSocialAuth
-from social_django.strategy import PARTIAL_PIPELINE_CONFIRMATION_NONCE_PARAMETER
+from social_django.models import DjangoStorage, Partial, UserSocialAuth
+from social_django.strategy import PARTIAL_PIPELINE_CONFIRMATION_NONCE_PARAMETER, DjangoStrategy
 from social_django.utils import load_backend, load_strategy
 
 
@@ -53,6 +55,31 @@ class TestStrategy(TestCase):
         self.assertEqual(self.strategy.session_get("k"), "v")
         self.assertEqual(self.strategy.session_setdefault("k", "x"), "v")
         self.assertEqual(self.strategy.session_pop("k"), "v")
+
+    def test_partial_expiry_uses_strategy_email_lifetime(self):
+        class CustomStrategy(DjangoStrategy):
+            def get_setting(self, name):
+                if name == "SOCIAL_AUTH_EMAIL_VALIDATION_EXPIRED_THRESHOLD":
+                    return 60
+                return super().get_setting(name)
+
+        partial = Partial.objects.create(token=Partial.generate_token(), backend="email", data={})
+        Partial.objects.filter(pk=partial.pk).update(timestamp=timezone.now() - timedelta(seconds=61))
+        strategy = CustomStrategy(DjangoStorage, self.request)
+        self.assertIsNone(strategy.partial_load(partial.token))
+        self.assertFalse(Partial.objects.filter(pk=partial.pk).exists())
+
+    def test_partial_expiry_uses_saved_backend_without_request(self):
+        partial = Partial.objects.create(
+            token=Partial.generate_token(),
+            backend="facebook",
+            data={"args": [], "kwargs": {}},
+        )
+        Partial.objects.filter(pk=partial.pk).update(timestamp=timezone.now() - timedelta(days=8))
+
+        with self.settings(SOCIAL_AUTH_FACEBOOK_PARTIAL_PIPELINE_EXPIRED_THRESHOLD=10 * 24 * 60 * 60):
+            strategy = DjangoStrategy(DjangoStorage)
+            self.assertEqual(strategy.partial_load(partial.token), partial)
 
     def test_random_string(self):
         rs1 = self.strategy.random_string()
