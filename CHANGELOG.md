@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Security
+
+- Persist consumed callback state when the exception middleware renders a 5xx page.
+
 ### Fixed
 
 - Keep migration 0013 forward and reverse writes on the database alias being migrated.
