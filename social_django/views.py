@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import timedelta
 from typing import TYPE_CHECKING
 
 from django.conf import settings
@@ -354,7 +355,14 @@ def _do_login(backend, user, social_user):
 
     try:
         # Set the session length to our previously determined expiry length.
-        backend.strategy.request.session.set_expiry(session_expiry)
+        # Django treats a number of seconds as an inactivity timeout that is
+        # renewed on every session save, which would let the session outlive
+        # the configured maximum; a timedelta instead fixes the end time.
+        # None (platform default) and 0 (expire on browser close) keep their
+        # Django meaning.
+        backend.strategy.request.session.set_expiry(
+            timedelta(seconds=session_expiry) if session_expiry else session_expiry
+        )
     except OverflowError:
         # The timestamp we used wasn't in the range of values supported by
         # Django for session length; use the platform default. We tried.
