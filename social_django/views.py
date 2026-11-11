@@ -16,7 +16,7 @@ from django.views.decorators.csrf import csrf_exempt, csrf_protect
 from django.views.decorators.http import require_GET, require_POST
 from social_core.actions import do_auth, do_complete, do_disconnect
 from social_core.backends.legacy import LegacyAuth
-from social_core.utils import setting_name, social_logger
+from social_core.utils import PARTIAL_TOKEN_SESSION_NAME, setting_name, social_logger
 
 from .constants import LaunchBridge, RedirectParamName
 from .utils import (
@@ -244,7 +244,35 @@ def app_launch(request, backend):
     return apply_framing_protection(response)
 
 
+def _discard_session_partial_of_other_user(request):
+    """
+    Forget the session's halted pipeline unless it was saved for the signed-in user.
+
+    ``login()`` keeps the data of an anonymous session, so the session may
+    still hold a pipeline halted before the user signed in, including one
+    planted there through an external resume link. Core resumes a pipeline
+    selected from the session as the user it is given, without confirmation,
+    which would bind that pipeline's identity to the signed-in user.
+    """
+    if not request.user.is_authenticated:
+        return
+    strategy = request.social_strategy
+    token = strategy.session_get(PARTIAL_TOKEN_SESSION_NAME)
+    partial = strategy.partial_load(token) if token else None
+    if partial is None:
+        return
+    # Newer social-core partials save the initiating ID even when a custom
+    # user's primary key cannot be serialized into partial.kwargs.
+    partial_user_id = partial.data.get("initiating_user_id")
+    if partial_user_id is None:
+        partial_user = partial.kwargs.get("user")
+        partial_user_id = None if partial_user is None else str(partial_user.pk)
+    if partial_user_id != str(request.user.pk):
+        strategy.clean_partial_pipeline(token)
+
+
 def _complete(request, backend, *args, **kwargs):
+    _discard_session_partial_of_other_user(request)
     kwargs.update(
         user=request.user,
         redirect_name=REDIRECT_FIELD_NAME,

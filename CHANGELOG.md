@@ -10,11 +10,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Security
 
 - Restrict pipeline saves to changed user and association fields so concurrent account changes are preserved.
+- Discard session-held partial flows whose saved user differs from the signed-in user.
 - Persist consumed callback state when the exception middleware renders a 5xx page.
 - Expire suspended partial pipelines when resumed; by default they follow the email verification lifetime.
 - Recheck email matches in Python before associating accounts under database collations.
 - Compare OpenID association server URLs and handles exactly before using
   stored secrets, and reject new associations that collide under database collation.
+
+### Breaking
+
+- Require social-auth-core 7.1.0 for partial-pipeline ownership binding with UUID user IDs.
 
 ### Fixed
 
