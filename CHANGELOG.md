@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Security
+
+- Recheck email matches in Python before associating accounts under database collations.
+
 ### Fixed
 
 - Keep migration 0013 forward and reverse writes on the database alias being migrated.
