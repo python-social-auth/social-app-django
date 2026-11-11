@@ -12,7 +12,7 @@ from django.contrib.auth import get_user_model
 from django.core.files.base import ContentFile
 from django.core.management import call_command
 from django.db import DatabaseError, IntegrityError, connection, models
-from django.test import TestCase, override_settings
+from django.test import TestCase, TransactionTestCase, override_settings
 from django.test.utils import isolate_apps
 from django.utils import timezone
 from social_core.backends.cognito import CognitoOAuth2
@@ -224,6 +224,22 @@ class TestUserSocialAuth(TestCase):
         profile.details["nested"]["name"] = "after"
 
         self.assertEqual(profile._social_auth_snapshot["details"], {"nested": {"name": "before"}})
+
+    @isolate_apps()
+    def test_changed_detects_nested_json_boolean_type_change(self):
+        class Profile(models.Model):
+            details = models.JSONField(default=dict)
+
+            class Meta:
+                app_label = "tests"
+
+        profile = Profile(details={"items": [{"verified": 1}]})
+        storage.snapshot_user_fields(profile)
+        profile.details["items"][0]["verified"] = True
+        with mock.patch.object(profile, "save") as save:
+            UserSocialAuth.changed(profile)
+
+        self.assertIn("details", save.call_args.kwargs["update_fields"])
 
     def test_changed_saves_deferred_fields_loaded_later(self):
         user = self.user_model._default_manager.defer("email").get(pk=self.user.pk)
@@ -687,6 +703,33 @@ class TestUserSocialAuth(TestCase):
                     result = get_username(strategy, details, backend)
                     self.assertEqual(result["username"], username)
                     self.assertEqual(field.to_python(result["username"]), identifier)
+
+
+class TestCustomAssociationStorage(TransactionTestCase):
+    @isolate_apps()
+    def test_extra_data_saves_without_default_timestamp_field(self):
+        class CustomAssociation(models.Model, storage.DjangoUserMixin):
+            extra_data = models.JSONField(default=dict)
+            refreshed = models.DateTimeField(auto_now=True)
+
+            class Meta:
+                app_label = "tests"
+
+        with connection.schema_editor() as editor:
+            editor.create_model(CustomAssociation)
+        try:
+            social = CustomAssociation.objects.create()
+            previous = timezone.now() - timedelta(days=1)
+            CustomAssociation.objects.filter(pk=social.pk).update(refreshed=previous)
+
+            social.set_extra_data({"token": "new"})
+
+            social.refresh_from_db()
+            self.assertEqual(social.extra_data, {"token": "new"})
+            self.assertGreater(social.refreshed, previous)
+        finally:
+            with connection.schema_editor() as editor:
+                editor.delete_model(CustomAssociation)
 
 
 class TestNonce(TestCase):

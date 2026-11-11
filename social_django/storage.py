@@ -7,6 +7,7 @@ import copy
 import re
 import sqlite3
 from datetime import UTC, timedelta
+from itertools import starmap
 from time import time as _time
 from typing import TYPE_CHECKING, Any, cast
 
@@ -14,7 +15,7 @@ from django.conf import settings
 from django.core.exceptions import FieldDoesNotExist
 from django.db import DatabaseError, router, transaction
 from django.db.backends.utils import names_digest
-from django.db.models import BigIntegerField, CharField, F, Field, Q, UniqueConstraint
+from django.db.models import BigIntegerField, CharField, F, Field, JSONField, Q, UniqueConstraint
 from django.db.models.fields.files import FieldFile
 from django.db.models.fields.json import KeyTextTransform
 from django.db.models.functions import Cast
@@ -98,11 +99,33 @@ def _snapshot_value(value):
     return value
 
 
+def _json_values_equal(left, right) -> bool:
+    if type(left) is not type(right):
+        return False
+    if isinstance(left, dict):
+        return len(left) == len(right) and all(
+            any(
+                type(key) is type(other_key) and key == other_key and _json_values_equal(value, other_value)
+                for other_key, other_value in right.items()
+            )
+            for key, value in left.items()
+        )
+    if isinstance(left, (list, tuple)):
+        return len(left) == len(right) and all(starmap(_json_values_equal, zip(left, right, strict=True)))
+    return left == right
+
+
 def _user_field_changed(user, field, snapshot) -> bool:
     current = getattr(user, field.attname)
+    previous = snapshot.get(field.attname)
+    different = (
+        not _json_values_equal(current, previous)
+        if isinstance(field, JSONField)
+        else _snapshot_value(current) != previous
+    )
     return (
         field.attname not in snapshot
-        or _snapshot_value(current) != snapshot[field.attname]
+        or different
         or (isinstance(current, FieldFile) and not cast("Any", current)._committed)
         or getattr(field, "auto_now", False)
     )
@@ -166,9 +189,12 @@ class DjangoUserMixin(UserMixin):
             social.save()
             return
         using = router.db_for_write(type(social), instance=social)
+        update_fields = ["extra_data"] + [
+            field.name for field in social._meta.concrete_fields if getattr(field, "auto_now", False)
+        ]
         try:
             with transaction.atomic(using=using):
-                social.save(using=using, update_fields=["extra_data", "modified"])
+                social.save(using=using, update_fields=update_fields)
         except DatabaseError as error:
             if type(social)._default_manager.using(using).filter(pk=social.pk).exists():
                 raise
