@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Compare OpenID association server URLs and handles exactly before using
   stored secrets, and reject new associations that collide under database collation.
 
+### Breaking
+
+- Require social-auth-core 7.1.0 for partial-pipeline ownership binding with UUID user IDs.
+
 ### Fixed
 
 - Keep migration 0013 forward and reverse writes on the database alias being migrated.
