@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TypeVar
+from typing import Any, TypeVar, cast
 
 from django.db import models
 
@@ -27,6 +27,6 @@ class UserSocialAuthManager(models.Manager[_SocialAuthT_co]):
                 and getattr(social, "uid", None) == uid
                 and (id_key is None or getattr(social, "id_key", None) == id_key)
             ):
-                snapshot_user_fields(social.user)
+                snapshot_user_fields(cast("Any", social).user)
                 return social
         return None
