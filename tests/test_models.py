@@ -646,9 +646,81 @@ class TestPartial(TestCase):
         p = Partial.objects.create(token=token_value, backend="y", data={})
         self.assertEqual(Partial.load(token=token_value), p)
         self.assertIsNone(Partial.load(token="y"))  # ruff: ignore[hardcoded-password-func-arg]
+        self.assertIsNone(DjangoStrategy(DjangoStorage).partial_load("missing"))
 
         Partial.destroy(token=token_value)
         self.assertEqual(Partial.objects.count(), 0)
+
+    @staticmethod
+    def create_partial(age: timedelta, *, now: datetime | None = None) -> Partial:
+        partial = Partial.objects.create(
+            token="x",  # ruff: ignore[hardcoded-password-func-arg]
+            backend="y",
+            data={"args": [], "kwargs": {}},
+        )
+        timestamp = (now if now is not None else partial.timestamp) - age
+        if now is not None and not settings.USE_TZ:
+            timestamp = timestamp.replace(tzinfo=None)
+        Partial.objects.filter(pk=partial.pk).update(timestamp=timestamp)
+        partial.refresh_from_db()
+        return partial
+
+    @override_settings(TIME_ZONE="Europe/Prague")
+    def test_load_expired(self):
+        strategy = DjangoStrategy(DjangoStorage)
+        now = datetime(2026, 2, 1, 12, tzinfo=ZoneInfo("Europe/Prague"))
+        for use_tz in (True, False):
+            with self.subTest(use_tz=use_tz), override_settings(USE_TZ=use_tz):
+                clock = now if use_tz else now.replace(tzinfo=None)
+                partial = self.create_partial(timedelta(days=7) - timedelta(microseconds=1), now=now)
+                with mock.patch("social_django.storage.timezone.now", return_value=clock):
+                    self.assertEqual(strategy.partial_load(partial.token), partial)
+                Partial.destroy(partial.token)
+
+                partial = self.create_partial(timedelta(days=7), now=now)
+                with mock.patch("social_django.storage.timezone.now", return_value=clock):
+                    self.assertIsNone(strategy.partial_load(partial.token))
+                self.assertFalse(Partial.objects.exists())
+
+    def test_undated_partial_is_expired(self):
+        partial = self.create_partial(timedelta(0))
+        partial.timestamp = None
+        self.assertTrue(partial.is_expired(60))
+
+    def test_destroy_expired(self):
+        Partial.destroy(self.create_partial(timedelta(days=30)).token)
+        self.assertFalse(Partial.objects.exists())
+
+    @override_settings(SOCIAL_AUTH_EMAIL_VALIDATION_EXPIRED_THRESHOLD=60)
+    def test_expiry_follows_email_validation(self):
+        self.assertIsNone(DjangoStrategy(DjangoStorage).partial_load(self.create_partial(timedelta(seconds=61)).token))
+
+    @override_settings(
+        SOCIAL_AUTH_EMAIL_VALIDATION_EXPIRED_THRESHOLD=60,
+        SOCIAL_AUTH_PARTIAL_PIPELINE_EXPIRED_THRESHOLD=120,
+    )
+    def test_configured_expiry(self):
+        strategy = DjangoStrategy(DjangoStorage)
+        partial = self.create_partial(timedelta(seconds=61))
+        self.assertEqual(strategy.partial_load(partial.token), partial)
+        Partial.objects.filter(pk=partial.pk).update(timestamp=partial.timestamp - timedelta(seconds=121))
+        self.assertIsNone(strategy.partial_load(partial.token))
+
+    @override_settings(SOCIAL_AUTH_EMAIL_VALIDATION_EXPIRED_THRESHOLD=10 * 24 * 60 * 60)
+    def test_longer_effective_email_lifetime_is_honored(self):
+        partial = self.create_partial(timedelta(days=8))
+        self.assertEqual(DjangoStrategy(DjangoStorage).partial_load(partial.token), partial)
+        Partial.destroy(partial.token)
+
+    def test_disabled_expiry(self):
+        for threshold in (None, 0):
+            with (
+                self.subTest(threshold=threshold),
+                override_settings(SOCIAL_AUTH_PARTIAL_PIPELINE_EXPIRED_THRESHOLD=threshold),
+            ):
+                partial = self.create_partial(timedelta(days=30))
+                self.assertEqual(DjangoStrategy(DjangoStorage).partial_load(partial.token), partial)
+                Partial.destroy(partial.token)
 
 
 class TestDjangoStorage(TestCase):

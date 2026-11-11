@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Security
+
+- Expire suspended partial pipelines when resumed; by default they follow the email verification lifetime.
+
 ### Fixed
 
 - Keep migration 0013 forward and reverse writes on the database alias being migrated.
