@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import copy
 import re
 import sqlite3
 from datetime import UTC, timedelta
@@ -11,7 +12,7 @@ from typing import TYPE_CHECKING, cast
 
 from django.conf import settings
 from django.core.exceptions import FieldDoesNotExist
-from django.db import router, transaction
+from django.db import DatabaseError, router, transaction
 from django.db.backends.utils import names_digest
 from django.db.models import BigIntegerField, CharField, F, Field, Q, UniqueConstraint
 from django.db.models.fields.json import KeyTextTransform
@@ -19,7 +20,7 @@ from django.db.models.functions import Cast
 from django.db.utils import IntegrityError
 from django.utils import timezone
 from social_core.backends.utils import load_backends
-from social_core.exceptions import AuthAssociationError
+from social_core.exceptions import AuthAssociationError, AuthCredentialError
 from social_core.identifiers import identifier_matches
 from social_core.storage import (
     AssociationMixin,
@@ -68,6 +69,7 @@ if TYPE_CHECKING:
         def __str__(self) -> str: ...
 
     class _DjangoSocialAuth(Model):
+        user: _DjangoUser
         provider: str
         uid: str
         id_key: str
@@ -77,6 +79,24 @@ if TYPE_CHECKING:
 
     class _DjangoSocialAuthManager(Manager[_DjangoSocialAuth]):
         """Manager whose querysets contain social-auth associations."""
+
+
+def snapshot_user_fields(user) -> None:
+    """Record the loaded field values of a user entering the pipeline.
+
+    DjangoUserMixin.changed() saves only the fields modified since then.
+    """
+    deferred = user.get_deferred_fields()
+    snapshot = {}
+    for field in user._meta.concrete_fields:
+        if field.attname in deferred:
+            continue
+        value = getattr(user, field.attname)
+        if isinstance(value, (dict, list)):
+            # JSON-like values may be updated in place rather than replaced.
+            value = copy.deepcopy(value)
+        snapshot[field.attname] = value
+    user._social_auth_snapshot = snapshot
 
 
 class DjangoUserMixin(UserMixin):
@@ -96,11 +116,44 @@ class DjangoUserMixin(UserMixin):
 
     @classmethod
     def changed(cls, user):
-        user.save()
+        snapshot = getattr(user, "_social_auth_snapshot", None)
+        if snapshot is None:
+            user.save()
+            return
+        # The instance can be much older than this call: a logged-in user is
+        # loaded before the provider is contacted. Saving every field would
+        # undo concurrent changes to the ones the pipeline did not touch.
+        deferred = user.get_deferred_fields()
+        user.save(
+            update_fields=[
+                field.name
+                for field in user._meta.concrete_fields
+                if not field.primary_key
+                and field.attname not in deferred
+                and (
+                    field.attname not in snapshot
+                    or getattr(user, field.attname) != snapshot[field.attname]
+                    or getattr(field, "auto_now", False)
+                )
+            ]
+        )
+        snapshot_user_fields(user)
 
     def set_extra_data(self, extra_data=None):
-        if super().set_extra_data(extra_data):
-            self.save()
+        if not super().set_extra_data(extra_data):
+            return
+        social = cast("_DjangoSocialAuth", self)
+        if social._state.adding:
+            social.save()
+            return
+        using = router.db_for_write(type(social), instance=social)
+        try:
+            with transaction.atomic(using=using):
+                social.save(using=using, update_fields=["extra_data", "modified"])
+        except DatabaseError as error:
+            if type(social)._default_manager.using(using).filter(pk=social.pk).exists():
+                raise
+            raise AuthCredentialError(code="reauthentication_required", stage="pipeline") from error
 
     @classmethod
     def allowed_to_disconnect(cls, user, backend_name, association_id=None):
@@ -264,11 +317,12 @@ class DjangoUserMixin(UserMixin):
     def get_social_auth(cls, provider, uid, id_key=None):
         if not isinstance(uid, str):
             uid = str(uid)
-        query = cls._manager().filter(provider=provider, uid=uid)
+        query = cls._manager().select_related("user").filter(provider=provider, uid=uid)
         if id_key is not None:
             query = query.filter(id_key=id_key)
         for social in query:
             if social.provider == provider and social.uid == uid and (id_key is None or social.id_key == id_key):
+                snapshot_user_fields(social.user)
                 return social
         return None
 

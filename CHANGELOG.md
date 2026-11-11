@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Security
+
+- Restrict pipeline saves to changed user and association fields so concurrent account changes are preserved.
+
 ### Fixed
 
 - Keep migration 0013 forward and reverse writes on the database alias being migrated.

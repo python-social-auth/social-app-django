@@ -10,12 +10,12 @@ from zoneinfo import ZoneInfo
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
-from django.db import IntegrityError, connection, models
+from django.db import DatabaseError, IntegrityError, connection, models
 from django.test import TestCase, override_settings
 from django.test.utils import isolate_apps
 from django.utils import timezone
 from social_core.backends.cognito import CognitoOAuth2
-from social_core.exceptions import AuthAssociationError
+from social_core.exceptions import AuthAssociationError, AuthCredentialError
 from social_core.pipeline.user import get_username
 
 from social_django import storage
@@ -154,11 +154,83 @@ class TestUserSocialAuth(TestCase):
         db_eml = self.user_model._default_manager.get(username=self.user.username).email
         self.assertEqual(db_eml, eml)
 
+    def test_changed_keeps_concurrent_changes(self):
+        user = UserSocialAuth.get_social_auth("my-provider", "1234").user
+        self.user_model._default_manager.filter(pk=user.pk).update(is_active=False, email="new@example.com")
+
+        for first_name in ("First", "Second"):
+            user.first_name = first_name
+            UserSocialAuth.changed(user)
+
+            self.user.refresh_from_db()
+            self.assertEqual(self.user.first_name, first_name)
+            self.assertEqual(self.user.email, "new@example.com")
+            self.assertFalse(self.user.is_active)
+
+    @isolate_apps()
+    def test_snapshot_keeps_original_json_value(self):
+        class Profile(models.Model):
+            details = models.JSONField(default=dict)
+
+            class Meta:
+                app_label = "tests"
+
+        profile = Profile(details={"nested": {"name": "before"}})
+        storage.snapshot_user_fields(profile)
+        profile.details["nested"]["name"] = "after"
+
+        self.assertEqual(profile._social_auth_snapshot["details"], {"nested": {"name": "before"}})
+
+    def test_changed_saves_deferred_fields_loaded_later(self):
+        user = self.user_model._default_manager.defer("email").get(pk=self.user.pk)
+        storage.snapshot_user_fields(user)
+        self.assertNotIn("email", user._social_auth_snapshot)
+
+        user.email = "deferred@example.com"
+        UserSocialAuth.changed(user)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.email, "deferred@example.com")
+
     def test_set_extra_data(self):
         self.usa.set_extra_data({"a": "b"})
         self.usa.refresh_from_db()
         db_data = UserSocialAuth.objects.get(id=self.usa.id).extra_data
         self.assertEqual(db_data, {"a": "b"})
+
+    def test_set_extra_data_saves_new_association(self):
+        social = UserSocialAuth(user=self.user, provider="another-provider", uid="5678")
+        social.set_extra_data({"a": "b"})
+        self.assertEqual(UserSocialAuth.objects.get(pk=social.pk).extra_data, {"a": "b"})
+
+    def test_set_extra_data_keeps_concurrent_changes(self):
+        UserSocialAuth.objects.filter(pk=self.usa.pk).update(uid="5678", id_key="sub")
+        self.usa.set_extra_data({"a": "b"})
+        self.usa.refresh_from_db()
+        self.assertEqual((self.usa.uid, self.usa.id_key, self.usa.extra_data), ("5678", "sub", {"a": "b"}))
+
+    def test_set_extra_data_uses_write_router_after_replica_read(self):
+        self.usa._state.db = "replica"
+
+        with mock.patch("social_django.storage.router.db_for_write", return_value="default") as db_for_write:
+            self.usa.set_extra_data({"a": "b"})
+
+        db_for_write.assert_called_once_with(UserSocialAuth, instance=self.usa)
+        self.assertEqual(UserSocialAuth.objects.get(pk=self.usa.pk).extra_data, {"a": "b"})
+
+    def test_set_extra_data_does_not_recreate_disconnected_association(self):
+        pk = self.usa.pk
+        UserSocialAuth.objects.filter(pk=pk).delete()
+        with self.assertRaises(AuthCredentialError) as error:
+            self.usa.set_extra_data({"access_token": "new"})
+        self.assertEqual(error.exception.code, "reauthentication_required")
+        self.assertFalse(UserSocialAuth.objects.filter(pk=pk).exists())
+
+    def test_set_extra_data_preserves_unrelated_database_error(self):
+        with (
+            mock.patch.object(self.usa, "save", side_effect=DatabaseError("write failed")),
+            self.assertRaisesRegex(DatabaseError, "write failed"),
+        ):
+            self.usa.set_extra_data({"a": "b"})
 
     def test_disconnect(self):
         m = mock.Mock()

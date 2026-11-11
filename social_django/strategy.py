@@ -22,6 +22,8 @@ from social_core.groups import group_sync_targets
 from social_core.strategy import BaseStrategy, BaseTemplateStrategy
 from social_core.utils import PARTIAL_TOKEN_PENDING_CONFIRMATION_SESSION_NAME
 
+from .storage import snapshot_user_fields
+
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
@@ -256,6 +258,8 @@ class DjangoStrategy(BaseStrategy[HttpResponse]):
         kwargs["storage"] = self.storage
         kwargs["backend"] = backend
         kwargs.pop("request", None)
+        if isinstance(kwargs.get("user"), Model):
+            snapshot_user_fields(kwargs["user"])
         # Django's annotations only describe users, but social backends can
         # also return a framework response to interrupt the pipeline.
         return cast("UserProtocol | _BackendResponseT | None", authenticate(self.request, **kwargs))
