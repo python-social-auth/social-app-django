@@ -4,7 +4,7 @@ import logging
 from collections.abc import Iterable
 from enum import StrEnum
 from http import HTTPStatus
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 from urllib.parse import parse_qsl, quote, urlencode, urlsplit, urlunsplit
 
 from asgiref.sync import iscoroutinefunction, markcoroutinefunction
@@ -12,6 +12,7 @@ from django.apps import apps
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.messages.api import MessageFailure
+from django.contrib.sessions.backends.base import SessionBase, UpdateError
 from django.shortcuts import redirect, render
 from django.utils.cache import add_never_cache_headers
 from django.utils.decorators import sync_and_async_middleware
@@ -105,7 +106,9 @@ class SocialAuthExceptionMiddleware:
 
         url = self.get_redirect_uri(request, exception)
         if not url:
-            return self.render_error(request, exception)
+            response = self.render_error(request, exception)
+            self._keep_session_changes(request, response)
+            return response
 
         status = self.get_error_status(request, exception)
         if status >= HTTPStatus.INTERNAL_SERVER_ERROR:
@@ -166,6 +169,38 @@ class SocialAuthExceptionMiddleware:
             exc_info=(type(exception), exception, exception.__traceback__)
             if status >= HTTPStatus.INTERNAL_SERVER_ERROR
             else None,
+        )
+
+    @staticmethod
+    def _keep_session_changes(request: HttpRequest, response: HttpResponse) -> None:
+        """Persist the failed request's session changes, as an error redirect would.
+
+        SessionMiddleware does not save sessions for 5xx responses, which would
+        bring back one-time flow values (state, request tokens) that the failed
+        callback has already consumed.
+        """
+        session = getattr(request, "session", None)
+        if (
+            response.status_code < HTTPStatus.INTERNAL_SERVER_ERROR
+            or not isinstance(session, SessionBase)
+            or not session.modified
+            or session.is_empty()
+        ):
+            return
+        try:
+            session.save()
+        except UpdateError:
+            # The session was deleted meanwhile, so there is nothing left to reuse.
+            return
+        response.set_cookie(
+            settings.SESSION_COOKIE_NAME,
+            cast("str", session.session_key),
+            max_age=None if session.get_expire_at_browser_close() else session.get_expiry_age(),
+            domain=settings.SESSION_COOKIE_DOMAIN,
+            path=settings.SESSION_COOKIE_PATH,
+            secure=settings.SESSION_COOKIE_SECURE,
+            httponly=settings.SESSION_COOKIE_HTTPONLY,
+            samesite=settings.SESSION_COOKIE_SAMESITE,
         )
 
     def render_error(self, request: HttpRequest, exception: SocialAuthBaseException) -> HttpResponse:

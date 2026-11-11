@@ -10,11 +10,17 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Security
 
 - Discard session-held partial flows whose saved user differs from the signed-in user.
+- Persist consumed callback state when the exception middleware renders a 5xx page.
+- Expire suspended partial pipelines when resumed; by default they follow the email verification lifetime.
+- Recheck email matches in Python before associating accounts under database collations.
+- Compare OpenID association server URLs and handles exactly before using
+  stored secrets, and reject new associations that collide under database collation.
 
 ### Fixed
 
 - Keep migration 0013 forward and reverse writes on the database alias being migrated.
 - Treat configured social login session limits as fixed end times rather than sliding inactivity timeouts.
+- Claim email verification codes atomically so simultaneous uses cannot both succeed.
 
 ## [8.0.0](https://github.com/python-social-auth/social-app-django/releases/tag/8.0.0) - 2026-11-09
 

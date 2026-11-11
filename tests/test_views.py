@@ -251,6 +251,28 @@ class TestEmailConfirmation(TestCase):
                     self.assertEqual(int(client.session["_auth_user_id"]), association.user_id)
                     self.assertTrue(Code.objects.get(pk=code.pk).verified)
 
+    def test_expired_partial_rejects_fresh_code(self):
+        url = reverse("social:complete", kwargs={"backend": "email"})
+        victim = get_user_model()._default_manager.create_user(username="victim")
+        email = "confirm@example.com"
+        with mock.patch("tests.test_views.send_validation") as send_email:
+            client, csrf_token = self.csrf_client()
+            client.force_login(victim)
+            client.post(url, {"email": email, "csrfmiddlewaretoken": csrf_token})
+            partial_token = send_email.call_args.args[3]
+            partial = Partial.objects.get(token=partial_token)
+            Partial.objects.filter(pk=partial.pk).update(timestamp=partial.timestamp - timedelta(days=7))
+
+            client, csrf_token = self.csrf_client()
+            client.post(url, {"email": email, "csrfmiddlewaretoken": csrf_token})
+            code = send_email.call_args.args[2]
+            response = client.get(url, {"verification_code": code.code, "partial_token": partial_token})
+        self.assertRedirects(response, "/error/", fetch_redirect_response=False)
+        self.assertFalse(Partial.objects.filter(token=partial_token).exists())
+        self.assertFalse(Code.objects.get(pk=code.pk).verified)
+        self.assertFalse(UserSocialAuth.objects.filter(provider="email", uid=email).exists())
+        self.assertNotIn("_auth_user_id", client.session)
+
     def test_login_form_requires_post(self):
         user = get_user_model()._default_manager.create_user(username="victim")
         self.client.force_login(user)

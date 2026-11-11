@@ -6,9 +6,11 @@ from urllib.parse import parse_qs, urlsplit
 from asgiref.sync import iscoroutinefunction
 from django.conf import settings
 from django.contrib.messages import MessageFailure
+from django.contrib.sessions.backends.base import UpdateError
+from django.contrib.sessions.backends.db import SessionStore
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import render as django_render
-from django.test import AsyncRequestFactory, RequestFactory, SimpleTestCase, TestCase, override_settings
+from django.test import AsyncRequestFactory, Client, RequestFactory, SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 from social_core.exceptions import (
     AuthAssociationError,
@@ -694,3 +696,48 @@ class ErrorFallbackTest(SimpleTestCase):
         self.assertTemplateUsed(response, "social_django/error.html")
         self.assertEqual(response.context["error_code"], "session_context_missing")
         provider_request.assert_not_called()
+
+
+@override_settings(SOCIAL_AUTH_RAISE_EXCEPTIONS=False, SOCIAL_AUTH_LOGIN_ERROR_URL=None)
+class RenderedErrorSessionTest(TestCase):
+    """Rendered 5xx pages keep the session changes made by the failed callback."""
+
+    SESSION_ENGINES = (
+        "django.contrib.sessions.backends.db",
+        "django.contrib.sessions.backends.signed_cookies",
+    )
+
+    def test_deleted_session_does_not_break_error_page(self):
+        request = RequestFactory().get("/")
+        request.session = SessionStore()
+        request.session["state"] = "consumed"
+        response = HttpResponse(status=HTTPStatus.SERVICE_UNAVAILABLE)
+
+        with mock.patch.object(request.session, "save", side_effect=UpdateError):
+            SocialAuthExceptionMiddleware._keep_session_changes(request, response)
+
+        self.assertNotIn(settings.SESSION_COOKIE_NAME, response.cookies)
+
+    def test_server_error_page_keeps_consumed_state(self):
+        for engine in self.SESSION_ENGINES:
+            with (
+                self.subTest(engine=engine),
+                self.settings(SESSION_ENGINE=engine),
+                mock.patch("social_core.backends.base.BaseAuth.request", side_effect=AuthProviderError()),
+                mock.patch("social_django.middleware.social_logger.log"),
+            ):
+                client = Client()
+                state = begin_facebook_login(client)
+                complete_url = reverse("social:complete", kwargs={"backend": "facebook"})
+                session_keys = client.session.keys()
+                self.assertTrue(any(state in key for key in session_keys))
+
+                response = client.get(complete_url, {"code": "2", "state": state})
+                self.assertEqual(response.status_code, HTTPStatus.BAD_GATEWAY)
+                self.assertTemplateUsed(response, "social_django/error.html")
+                session_keys = client.session.keys()
+                self.assertFalse(any(state in key for key in session_keys))
+
+                # The state was consumed by the failed callback and cannot be replayed.
+                response = client.get(complete_url, {"code": "3", "state": state})
+                self.assertEqual(response.status_code, HTTPStatus.FORBIDDEN)
