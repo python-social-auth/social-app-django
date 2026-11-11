@@ -242,6 +242,46 @@ class TestUserSocialAuth(TestCase):
         self.assertIn("details", save.call_args.kwargs["update_fields"])
 
     @isolate_apps()
+    def test_changed_distinguishes_json_object_and_array_changes(self):
+        class Profile(models.Model):
+            details = models.JSONField(default=dict)
+
+            class Meta:
+                app_label = "tests"
+
+        cases = (
+            ({"items": [1]}, {"items": [1, 2]}),
+            ({"first": 1}, {"first": 1, "second": 2}),
+            ({1: "value"}, {True: "value"}),
+        )
+        for before, after in cases:
+            with self.subTest(before=before, after=after):
+                profile = Profile(details=before)
+                storage.snapshot_user_fields(profile)
+                profile.details = after
+                with mock.patch.object(profile, "save") as save:
+                    UserSocialAuth.changed(profile)
+
+                self.assertIn("details", save.call_args.kwargs["update_fields"])
+
+    @isolate_apps()
+    def test_changed_leaves_unchanged_json_out_of_update(self):
+        class Profile(models.Model):
+            details = models.JSONField(default=dict)
+            display_name = models.CharField(max_length=50)
+
+            class Meta:
+                app_label = "tests"
+
+        profile = Profile(details={"items": [{"verified": True}]}, display_name="Before")
+        storage.snapshot_user_fields(profile)
+        profile.display_name = "After"
+        with mock.patch.object(profile, "save") as save:
+            UserSocialAuth.changed(profile)
+
+        self.assertEqual(save.call_args.kwargs["update_fields"], ["display_name"])
+
+    @isolate_apps()
     def test_changed_detects_in_place_binary_buffer_change(self):
         class Profile(models.Model):
             data = models.BinaryField()
