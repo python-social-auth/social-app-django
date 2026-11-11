@@ -241,6 +241,24 @@ class TestUserSocialAuth(TestCase):
 
         self.assertIn("details", save.call_args.kwargs["update_fields"])
 
+    @isolate_apps()
+    def test_changed_detects_in_place_binary_buffer_change(self):
+        class Profile(models.Model):
+            data = models.BinaryField()
+
+            class Meta:
+                app_label = "tests"
+
+        for binary in (bytearray(b"before"), memoryview(bytearray(b"before"))):
+            with self.subTest(buffer_type=type(binary).__name__):
+                profile = Profile(data=binary)
+                storage.snapshot_user_fields(profile)
+                binary[0] = ord("a")
+                with mock.patch.object(profile, "save") as save:
+                    UserSocialAuth.changed(profile)
+
+                self.assertIn("data", save.call_args.kwargs["update_fields"])
+
     def test_changed_saves_deferred_fields_loaded_later(self):
         user = self.user_model._default_manager.defer("email").get(pk=self.user.pk)
         storage.snapshot_user_fields(user)

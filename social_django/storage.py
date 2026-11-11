@@ -94,6 +94,8 @@ if TYPE_CHECKING:
 def _snapshot_value(value):
     if isinstance(value, FieldFile):
         return value.name
+    if isinstance(value, (bytearray, memoryview)):
+        return bytes(value)
     if isinstance(value, (dict, list)):
         return copy.deepcopy(value)
     return value
@@ -103,13 +105,14 @@ def _json_values_equal(left, right) -> bool:
     if type(left) is not type(right):
         return False
     if isinstance(left, dict):
-        return len(left) == len(right) and all(
-            any(
-                type(key) is type(other_key) and key == other_key and _json_values_equal(value, other_value)
-                for other_key, other_value in right.items()
-            )
-            for key, value in left.items()
-        )
+        if len(left) != len(right):
+            return False
+        right_values = {(type(key), key): value for key, value in right.items()}
+        for key, value in left.items():
+            typed_key = (type(key), key)
+            if typed_key not in right_values or not _json_values_equal(value, right_values[typed_key]):
+                return False
+        return True
     if isinstance(left, (list, tuple)):
         return len(left) == len(right) and all(starmap(_json_values_equal, zip(left, right, strict=True)))
     return left == right
