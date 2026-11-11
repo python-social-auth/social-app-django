@@ -19,7 +19,7 @@ from django.db.models.functions import Cast
 from django.db.utils import IntegrityError
 from django.utils import timezone
 from social_core.backends.utils import load_backends
-from social_core.exceptions import AuthAssociationError
+from social_core.exceptions import AuthAssociationError, AuthCredentialError
 from social_core.identifiers import identifier_matches
 from social_core.storage import (
     AssociationMixin,
@@ -519,6 +519,15 @@ class DjangoCodeMixin(CodeMixin):
     def is_expired(self, seconds: int) -> bool:
         """Check expiry using Django's timezone for naive database timestamps."""
         return _is_expired(self.timestamp, seconds)
+
+    def verify(self) -> None:
+        """Claim the code with a conditional update so that only one request can spend it."""
+        code = cast("Model", self)
+        using = router.db_for_write(type(code), instance=code)
+        claimed = type(self).objects.using(using).filter(pk=code.pk, verified=False).update(verified=True)
+        if not claimed:
+            raise AuthCredentialError(code="email_verification_rejected", stage="pipeline")
+        self.verified = True
 
     @classmethod
     def get_code(cls, code):
