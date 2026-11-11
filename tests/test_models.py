@@ -709,6 +709,19 @@ class TestAssociation(TestCase):
                 association=mock.Mock(handle="a", secret=b"new", issued=3, lifetime=4, assoc_type="HMAC-SHA256"),
             )
 
+    def test_store_retries_when_conflicting_row_is_removed(self):
+        error = IntegrityError("duplicate key")
+        error.__cause__ = sqlite3.IntegrityError("UNIQUE constraint failed: social_auth_association.server_url")
+        query = mock.Mock()
+        query.create.side_effect = [error, None]
+        query.select_for_update.return_value.get.side_effect = Association.DoesNotExist
+        with mock.patch.object(Association.objects, "using", return_value=query):
+            Association.store(
+                server_url="https://login.example/openid",
+                association=mock.Mock(handle="a", secret=b"new", issued=3, lifetime=4, assoc_type="HMAC-SHA256"),
+            )
+        self.assertEqual(query.create.call_count, 2)
+
     def test_store_rejects_collation_match_after_unique_conflict(self):
         previous = Association.objects.create(
             server_url="https://lögin.example/openid",
