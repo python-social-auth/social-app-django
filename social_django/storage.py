@@ -60,6 +60,8 @@ if TYPE_CHECKING:
         def __str__(self) -> str: ...
 
     class _DjangoAssociation(Model):
+        server_url: str
+        handle: str
         secret: str
         issued: int
         lifetime: int
@@ -392,24 +394,73 @@ class DjangoAssociationMixin(AssociationMixin):
 
     @classmethod
     def store(cls, server_url, association):
-        # Don't use get_or_create because issued cannot be null
-        try:
-            assoc = cls.objects.get(
-                server_url=server_url,
-                handle=association.handle,
+        # A collation may equate distinct URLs or handles under the database
+        # uniqueness constraint. Never overwrite the other provider's secret.
+        using = router.db_for_write(cls.objects.model)
+        values = {
+            "server_url": server_url,
+            "handle": association.handle,
+            "secret": base64.encodebytes(association.secret).decode(),
+            "issued": association.issued,
+            "lifetime": association.lifetime,
+            "assoc_type": association.assoc_type,
+        }
+        with transaction.atomic(using=using):
+            existing = (
+                cls.objects
+                .using(using)
+                .select_for_update()
+                .filter(server_url=server_url, handle=association.handle)
+                .first()
             )
-        except cls.DoesNotExist:
-            assoc = cls.objects.model(server_url=server_url, handle=association.handle)
-
-        assoc.secret = base64.encodebytes(association.secret).decode()
-        assoc.issued = association.issued
-        assoc.lifetime = association.lifetime
-        assoc.assoc_type = association.assoc_type
-        assoc.save()
+            if existing is not None:
+                if existing.server_url != server_url or existing.handle != association.handle:
+                    raise AuthAssociationError(
+                        code="openid_association_collision",
+                        source="storage",
+                        stage="callback",
+                        recovery="contact_administrator",
+                    )
+                for name, value in values.items():
+                    setattr(existing, name, value)
+                existing.save(using=using, update_fields=values)
+                return
+            try:
+                with transaction.atomic(using=using):
+                    cls.objects.using(using).create(**values)
+            except IntegrityError as error:
+                # Some deployments have a uniqueness collation broader than
+                # their lookup collation. Check before translating the error.
+                colliding = (
+                    cls.objects
+                    .using(using)
+                    .select_for_update()
+                    .filter(server_url__iexact=server_url, handle__iexact=association.handle)
+                    .first()
+                )
+                if colliding is not None and (
+                    colliding.server_url != server_url or colliding.handle != association.handle
+                ):
+                    raise AuthAssociationError(
+                        code="openid_association_collision",
+                        source="storage",
+                        stage="callback",
+                        recovery="contact_administrator",
+                    ) from error
+                raise
 
     @classmethod
     def get(cls, *args, **kwargs):
-        return cls.objects.filter(*args, **kwargs)
+        query = cls.objects.filter(*args, **kwargs)
+        # We need to compare to filter out case- and accent-insensitive
+        # lookups in some databases (MySQL/MariaDB): a secret negotiated
+        # with one server must never verify assertions for another.
+        exact = {name: kwargs[name] for name in ("server_url", "handle") if name in kwargs}
+        if not exact:
+            return query
+        return query.filter(
+            pk__in=[assoc.pk for assoc in query if all(getattr(assoc, name) == value for name, value in exact.items())]
+        )
 
     @classmethod
     def remove(cls, ids_to_delete):
