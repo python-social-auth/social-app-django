@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Security
 
 - Recheck email matches in Python before associating accounts under database collations.
+- Compare OpenID association server URLs and handles exactly before using
+  stored secrets, and reject new associations that collide under database collation.
 
 ### Fixed
 
