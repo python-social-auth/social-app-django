@@ -22,11 +22,11 @@ def migrate_json_field(apps, schema_editor):
         to_be_updated.append(auth)
 
         if len(to_be_updated) >= MAX_BATCH_SIZE:
-            UserSocialAuth.objects.bulk_update(to_be_updated, ["extra_data_new"])
+            UserSocialAuth.objects.using(db_alias).bulk_update(to_be_updated, ["extra_data_new"])
             to_be_updated.clear()
 
     if to_be_updated:
-        UserSocialAuth.objects.bulk_update(to_be_updated, ["extra_data_new"])
+        UserSocialAuth.objects.using(db_alias).bulk_update(to_be_updated, ["extra_data_new"])
         to_be_updated.clear()
 
     for auth in Partial.objects.using(db_alias).all():
@@ -35,7 +35,7 @@ def migrate_json_field(apps, schema_editor):
             with contextlib.suppress(json.JSONDecodeError):
                 old_value = json.loads(old_value)
         auth.data_new = old_value
-        auth.save(update_fields=["data_new"])
+        auth.save(using=db_alias, update_fields=["data_new"])
 
 
 def migrate_json_field_backwards(apps, schema_editor):
@@ -56,11 +56,11 @@ def migrate_json_field_backwards(apps, schema_editor):
         to_be_updated.append(auth)
 
         if len(to_be_updated) >= MAX_BATCH_SIZE:
-            UserSocialAuth.objects.bulk_update(to_be_updated, ["extra_data"])
+            UserSocialAuth.objects.using(db_alias).bulk_update(to_be_updated, ["extra_data"])
             to_be_updated.clear()
 
     if to_be_updated:
-        UserSocialAuth.objects.bulk_update(to_be_updated, ["extra_data"])
+        UserSocialAuth.objects.using(db_alias).bulk_update(to_be_updated, ["extra_data"])
         to_be_updated.clear()
 
     is_text_field = issubclass(
@@ -72,7 +72,7 @@ def migrate_json_field_backwards(apps, schema_editor):
         if is_text_field:
             new_value = json.dumps(new_value)
         auth.data = new_value
-        auth.save(update_fields=["data"])
+        auth.save(using=db_alias, update_fields=["data"])
 
 
 class Migration(migrations.Migration):

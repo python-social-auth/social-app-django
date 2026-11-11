@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+
+- Keep migration 0013 forward and reverse writes on the database alias being migrated.
+
 ## [8.0.0](https://github.com/python-social-auth/social-app-django/releases/tag/8.0.0) - 2026-11-09
 
 ### Security

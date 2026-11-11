@@ -2,10 +2,10 @@ from importlib import import_module
 from io import StringIO
 from types import SimpleNamespace
 from typing import ClassVar
-from unittest.mock import Mock, patch
+from unittest.mock import ANY, Mock, call, patch
 
 from django.core.management import call_command
-from django.db import connection
+from django.db import connection, connections
 from django.db.migrations.executor import MigrationExecutor
 from django.test import TestCase, TransactionTestCase, override_settings
 from django.urls import reverse
@@ -27,6 +27,81 @@ class PendingMigrationsTests(TestCase):
             )
         except SystemExit:  # pragma: no cover
             raise AssertionError("Pending migrations:\n" + out.getvalue()) from None
+
+
+class ExtraDataMigrationTests(TestCase):
+    def test_database_alias_for_forward_and_backward_writes(self):
+        migration = import_module("social_django.migrations.0013_migrate_extra_data")
+        schema_editor = SimpleNamespace(connection=SimpleNamespace(alias="other"))
+        for function, field, partial_field in (
+            (migration.migrate_json_field, "extra_data_new", "data_new"),
+            (migration.migrate_json_field_backwards, "extra_data", "data"),
+        ):
+            with self.subTest(function=function.__name__), patch.object(migration, "MAX_BATCH_SIZE", 2):
+                apps = Mock()
+                model = apps.get_model.return_value
+                queryset = model.objects.using.return_value
+                queryset.exclude.return_value = queryset
+                queryset.iterator.return_value = [Mock(), Mock(), Mock()]
+                partial = Mock()
+                queryset.all.return_value = [partial]
+                function(apps, schema_editor)
+                # Reads, both batched writes, and the Partial scan go through the migrated alias.
+                self.assertEqual(model.objects.using.call_args_list, [call("other")] * 4)
+                model.objects.bulk_update.assert_not_called()
+                self.assertEqual(queryset.bulk_update.call_args_list, [call(ANY, [field])] * 2)
+                partial.save.assert_called_once_with(using="other", update_fields=[partial_field])
+
+
+class PopulatedExtraDataMigrationTests(TransactionTestCase):
+    databases: ClassVar[set[str]] = {"default", "other"}
+
+    def test_forward_and_reverse_keep_each_database_isolated(self):
+        old_target = [("social_django", "0012_usersocialauth_extra_data_new")]
+        migration = import_module("social_django.migrations.0013_migrate_extra_data")
+        for alias in self.databases:
+            MigrationExecutor(connections[alias]).migrate(old_target)
+        try:
+            apps = MigrationExecutor(connection).loader.project_state(old_target).apps
+            user_model = apps.get_model("auth", "User")
+            social_model = apps.get_model("social_django", "UserSocialAuth")
+            partial_model = apps.get_model("social_django", "Partial")
+            for alias, marker in (("default", "default"), ("other", "other")):
+                user = user_model.objects.using(alias).create(username=marker)
+                social_model.objects.using(alias).create(
+                    pk=1,
+                    user_id=user.pk,
+                    provider="email",
+                    uid=marker,
+                    extra_data='{"source":"' + marker + '"}',
+                    extra_data_new={"source": "original"},
+                )
+                partial_model.objects.using(alias).create(
+                    pk=1,
+                    token=marker,
+                    backend="email",
+                    data='{"source":"' + marker + '"}',
+                    data_new={"source": "original"},
+                )
+
+            with connections["other"].schema_editor() as editor:
+                migration.migrate_json_field(apps, editor)
+            self.assertEqual(social_model.objects.using("default").get(pk=1).extra_data_new, {"source": "original"})
+            self.assertEqual(social_model.objects.using("other").get(pk=1).extra_data_new, {"source": "other"})
+            self.assertEqual(partial_model.objects.using("other").get(pk=1).data_new, {"source": "other"})
+
+            social_model.objects.using("other").filter(pk=1).update(extra_data='{"source":"stale"}')
+            partial_model.objects.using("other").filter(pk=1).update(data='{"source":"stale"}')
+            with connections["other"].schema_editor() as editor:
+                migration.migrate_json_field_backwards(apps, editor)
+            self.assertEqual(social_model.objects.using("default").get(pk=1).extra_data, '{"source":"default"}')
+            self.assertEqual(social_model.objects.using("other").get(pk=1).extra_data, '{"source": "other"}')
+            self.assertEqual(partial_model.objects.using("default").get(pk=1).data, '{"source":"default"}')
+            self.assertEqual(partial_model.objects.using("other").get(pk=1).data, '{"source": "other"}')
+        finally:
+            for alias in self.databases:
+                db = connections[alias]
+                MigrationExecutor(db).migrate(MigrationExecutor(db).loader.graph.leaf_nodes())
 
 
 class OidcNonceLifetimeMigrationTests(TransactionTestCase):
