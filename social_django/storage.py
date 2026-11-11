@@ -91,18 +91,18 @@ if TYPE_CHECKING:
         """Manager whose querysets contain social-auth associations."""
 
 
-def _snapshot_value(value, *, nested: bool = False):
+def _snapshot_value(value):
     if isinstance(value, FieldFile):
         return value.name
     if isinstance(value, (bytearray, memoryview)):
         return bytes(value)
     if isinstance(value, dict):
-        return {_snapshot_value(key, nested=True): _snapshot_value(item, nested=True) for key, item in value.items()}
+        return {_snapshot_value(key): _snapshot_value(item) for key, item in value.items()}
     if isinstance(value, list):
-        return [_snapshot_value(item, nested=True) for item in value]
+        return [_snapshot_value(item) for item in value]
     if isinstance(value, tuple):
-        return tuple(_snapshot_value(item, nested=True) for item in value)
-    return copy.deepcopy(value) if nested else value
+        return tuple(_snapshot_value(item) for item in value)
+    return copy.deepcopy(value)
 
 
 def _json_values_equal(left, right) -> bool:
@@ -122,12 +122,21 @@ def _json_values_equal(left, right) -> bool:
     return left == right
 
 
+def _field_contains_json(field: Field) -> bool:
+    current_field: Field | None = field
+    while current_field is not None:
+        if isinstance(current_field, JSONField):
+            return True
+        current_field = getattr(current_field, "base_field", None)
+    return False
+
+
 def _user_field_changed(user, field, snapshot) -> bool:
     current = getattr(user, field.attname)
     previous = snapshot.get(field.attname)
     different = (
         not _json_values_equal(current, previous)
-        if isinstance(field, JSONField)
+        if _field_contains_json(field)
         else _snapshot_value(current) != previous
     )
     return (

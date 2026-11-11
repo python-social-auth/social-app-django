@@ -242,6 +242,25 @@ class TestUserSocialAuth(TestCase):
         self.assertIn("details", save.call_args.kwargs["update_fields"])
 
     @isolate_apps()
+    def test_changed_detects_json_type_change_in_array_field(self):
+        class JsonArrayField(models.Field):
+            base_field = models.JSONField()
+
+        class Profile(models.Model):
+            details = JsonArrayField()
+
+            class Meta:
+                app_label = "tests"
+
+        profile = Profile(details=[{"verified": 1}])
+        storage.snapshot_user_fields(profile)
+        profile.details[0]["verified"] = True
+        with mock.patch.object(profile, "save") as save:
+            UserSocialAuth.changed(profile)
+
+        self.assertIn("details", save.call_args.kwargs["update_fields"])
+
+    @isolate_apps()
     def test_changed_distinguishes_json_object_and_array_changes(self):
         class Profile(models.Model):
             details = models.JSONField(default=dict)
@@ -316,6 +335,34 @@ class TestUserSocialAuth(TestCase):
             UserSocialAuth.changed(profile)
 
         self.assertIn("data", save.call_args.kwargs["update_fields"])
+
+    @isolate_apps()
+    def test_changed_detects_mutable_scalar_field_change(self):
+        class Point:
+            __hash__ = None
+
+            def __init__(self, x):
+                self.x = x
+
+            def __eq__(self, other):
+                return isinstance(other, Point) and self.x == other.x
+
+        class Profile(models.Model):
+            location = models.Field()
+
+            class Meta:
+                app_label = "tests"
+
+        profile = Profile(location=Point(1))
+        storage.snapshot_user_fields(profile)
+        with mock.patch.object(profile, "save") as save:
+            UserSocialAuth.changed(profile)
+        self.assertEqual(save.call_args.kwargs["update_fields"], [])
+
+        profile.location.x = 2
+        with mock.patch.object(profile, "save") as save:
+            UserSocialAuth.changed(profile)
+        self.assertIn("location", save.call_args.kwargs["update_fields"])
 
     def test_changed_saves_deferred_fields_loaded_later(self):
         user = self.user_model._default_manager.defer("email").get(pk=self.user.pk)
