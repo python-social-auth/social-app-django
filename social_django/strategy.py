@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from importlib import import_module
-from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from django.conf import settings
@@ -67,6 +66,7 @@ def create_session(session_key: str | None = None) -> SessionBase:
 
 class DjangoStrategy(BaseStrategy[HttpResponse]):
     DEFAULT_TEMPLATE_STRATEGY = DjangoTemplateStrategy
+    EXPIRE_PARTIAL_PIPELINES_ON_LOAD = True
     _session: SessionBase
 
     def __init__(self, storage, request: HttpRequest | None = None, tpl=None):
@@ -265,23 +265,6 @@ class DjangoStrategy(BaseStrategy[HttpResponse]):
         # pipelines don't want a positional request argument
         kwargs.pop("request", None)
         return args, kwargs
-
-    def partial_load(self, token: str) -> PartialMixin | None:
-        partial = super().partial_load(token)
-        if partial is None:
-            return None
-        # A requestless strategy has no request.backend, and a request may be
-        # handling a different backend. The saved partial selects the policy.
-        backend = cast("BaseAuth[object]", SimpleNamespace(name=partial.backend))
-        expiry = self.setting(
-            "PARTIAL_PIPELINE_EXPIRED_THRESHOLD",
-            self.setting("EMAIL_VALIDATION_EXPIRED_THRESHOLD", 7 * 24 * 60 * 60, backend=backend),
-            backend=backend,
-        )
-        if expiry and getattr(partial, "is_expired", lambda _seconds: False)(expiry):
-            self.clean_partial_pipeline(token)
-            return None
-        return partial
 
     def session_get(self, name, default=None):
         return self.session.get(name, default)
