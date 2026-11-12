@@ -225,6 +225,17 @@ class TestUserSocialAuth(TestCase):
         self.user.refresh_from_db()
         self.assertEqual(self.user.first_name, "Updated")
 
+    def test_changed_fields_calls_static_changed_hook(self):
+        called = []
+
+        class CustomStorage(storage.DjangoUserMixin):
+            @staticmethod
+            def changed(user):
+                called.append(user)
+
+        CustomStorage.changed_fields(self.user, {"first_name"})
+        self.assertEqual(called, [self.user])
+
     @isolate_apps()
     def test_changed_fields_saves_image_dimensions(self):
         class Profile(models.Model):
