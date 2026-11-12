@@ -928,7 +928,7 @@ class TestLaunchViews(TestCase):
         self.assertIn('name="csrfmiddlewaretoken"', content)
         self.assertIn('name="iss" value="https://idp.example.com"', content)
         self.assertIn("autoLoginForm", content)
-        self.assertIn("form.submit()", content)
+        self.assertIn("HTMLFormElement.prototype.submit.call(form)", content)
 
     def test_idp_launch_whitelists_allowed_params(self):
         url = reverse("social:idp_launch", kwargs={"backend": "mock-oidc"})
@@ -1062,7 +1062,7 @@ class TestLaunchViews(TestCase):
         content = response.content.decode()
         self.assertIn("Click below to continue signing in.", content)
         self.assertIn('<button type="submit">Next</button>', content)
-        self.assertNotIn("form.submit()", content)
+        self.assertNotIn("HTMLFormElement.prototype.submit.call(form)", content)
 
     def test_idp_launch_authenticated_user_redirects(self):
         user_model = get_user_model()
@@ -1094,7 +1094,7 @@ class TestLaunchViews(TestCase):
         self.assertIn('name="next" value="/dashboard"', content)
         self.assertNotIn("/ignored", content)
         self.assertIn("autoLoginForm", content)
-        self.assertIn("form.submit()", content)
+        self.assertIn("HTMLFormElement.prototype.submit.call(form)", content)
 
     @override_settings(SOCIAL_AUTH_ALLOWED_REDIRECT_HOSTS=["frontend.example.com"])
     def test_app_launch_with_allowed_redirect_host(self):
@@ -1251,6 +1251,19 @@ class TestLaunchViews(TestCase):
                 forwarded.pop("iss", None)
                 self.assertEqual(forwarded, expected)
 
+    @override_settings(SOCIAL_AUTH_APP_LAUNCH_FORWARDED_PARAMS=["items", "keys", "submit", "action"])
+    def test_app_launch_forwards_fields_named_like_attributes(self):
+        url = reverse("social:app_launch", kwargs={"backend": "facebook"})
+        params = {"items": "xy", "keys": "k", "submit": "s", "action": "https://evil.example/"}
+        response = self.client.get(url, params, headers={"sec-fetch-site": "same-origin"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["fields"], list(params.items()))
+        for name, value in params.items():
+            self.assertContains(response, f'<input type="hidden" name="{name}" value="{value}">', count=1)
+        # The form still posts to social:begin and submits through the prototype method
+        self.assertContains(response, 'action="/login/facebook/"')
+        self.assertContains(response, "HTMLFormElement.prototype.submit.call(form)")
+
     def test_app_launch_forwards_no_params_by_default(self):
         url = reverse("social:app_launch", kwargs={"backend": "facebook"})
         response = self.client.get(
@@ -1273,7 +1286,7 @@ class TestLaunchViews(TestCase):
         url = reverse("social:app_launch", kwargs={"backend": "mock-oidc"})
         response = self.client.get(url, headers={"sec-fetch-site": "none"})
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "form.submit()")
+        self.assertContains(response, "HTMLFormElement.prototype.submit.call(form)")
 
     @override_settings(
         SOCIAL_AUTH_APP_LAUNCH_ALLOWED_ORIGINS=["https://*.tenants.example"],

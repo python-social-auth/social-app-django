@@ -133,6 +133,8 @@ def idp_launch(request, backend):
         {
             "action_url": reverse(f"{NAMESPACE}:begin", args=[backend]),
             "params": params,
+            # Pairs avoid template lookups such as `params.items` resolving forwarded fields
+            "fields": list(params.items()),
             "auto_submit": auto_submit,
         },
     )
@@ -246,6 +248,8 @@ def app_launch(request, backend):
         {
             "action_url": reverse(f"{NAMESPACE}:begin", args=[backend]),
             "params": params,
+            # Pairs avoid template lookups such as `params.items` resolving forwarded fields
+            "fields": list(params.items()),
             "auto_submit": auto_submit,
         },
     )
