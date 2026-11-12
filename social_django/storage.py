@@ -13,7 +13,7 @@ from django.conf import settings
 from django.core.exceptions import FieldDoesNotExist
 from django.db import DatabaseError, router, transaction
 from django.db.backends.utils import names_digest
-from django.db.models import BigIntegerField, CharField, F, Field, Q, UniqueConstraint
+from django.db.models import BigIntegerField, CharField, F, Field, ImageField, Q, UniqueConstraint
 from django.db.models.fields.json import KeyTextTransform
 from django.db.models.functions import Cast
 from django.db.utils import IntegrityError
@@ -109,6 +109,10 @@ class DjangoUserMixin(UserMixin):
 
     @classmethod
     def changed_fields(cls, user, fields: set[str]) -> None:
+        if cls.changed.__func__ is not DjangoUserMixin.changed.__func__:
+            # Custom storage classes may use changed() for additional work.
+            cls.changed(user)
+            return
         concrete = {
             name: field
             for field in user._meta.concrete_fields
@@ -121,6 +125,10 @@ class DjangoUserMixin(UserMixin):
             cls.changed(user)
             return
         update_fields = {concrete[name].name for name in fields}
+        for name in fields:
+            field = concrete[name]
+            if isinstance(field, ImageField):
+                update_fields.update(name for name in (field.width_field, field.height_field) if name)
         update_fields.update(field.name for field in user._meta.concrete_fields if getattr(field, "auto_now", False))
         user.save(update_fields=update_fields)
 

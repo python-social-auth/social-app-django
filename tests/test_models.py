@@ -209,6 +209,37 @@ class TestUserSocialAuth(TestCase):
             UserSocialAuth.changed_fields(profile, {"display_name"})
         save.assert_called_once_with()
 
+    def test_changed_fields_calls_custom_changed_hook(self):
+        called = []
+
+        class CustomStorage(storage.DjangoUserMixin):
+            @classmethod
+            def changed(cls, user):
+                called.append(user)
+                user.save(update_fields=["first_name"])
+
+        self.user.first_name = "Updated"
+        CustomStorage.changed_fields(self.user, {"first_name"})
+
+        self.assertEqual(called, [self.user])
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.first_name, "Updated")
+
+    @isolate_apps()
+    def test_changed_fields_saves_image_dimensions(self):
+        class Profile(models.Model):
+            image = models.ImageField(width_field="width", height_field="height")
+            width = models.PositiveIntegerField(default=0)
+            height = models.PositiveIntegerField(default=0)
+
+            class Meta:
+                app_label = "tests"
+
+        profile = Profile()
+        with mock.patch.object(profile, "save") as save:
+            UserSocialAuth.changed_fields(profile, {"image"})
+        self.assertEqual(save.call_args.kwargs["update_fields"], {"image", "width", "height"})
+
     def test_set_extra_data(self):
         self.usa.set_extra_data({"a": "b"})
         self.usa.refresh_from_db()
