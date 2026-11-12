@@ -27,6 +27,15 @@
         "pypi"
       ],
       "matchPackageNames": [
+        "social-auth-core"
+      ],
+      "rangeStrategy": "bump"
+    },
+    {
+      "matchDatasources": [
+        "pypi"
+      ],
+      "matchPackageNames": [
         "django-stubs",
         "django-stubs-ext"
       ],
