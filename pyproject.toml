@@ -54,7 +54,7 @@ license-files = ["LICENSE"]
 name = "social-auth-app-django"
 readme = "README.md"
 requires-python = ">=3.11"
-version = "8.0.0"
+version = "8.1.0"
 
 [project.optional-dependencies]
 # This is present until pip implements supports for PEP 735
