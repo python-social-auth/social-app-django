@@ -17,7 +17,6 @@ from .storage import (
     DjangoNonceMixin,
     DjangoPartialMixin,
     DjangoUserMixin,
-    snapshot_user_fields,
 )
 
 if TYPE_CHECKING:
@@ -65,7 +64,6 @@ class AbstractUserSocialAuth(models.Model, DjangoUserMixin):
             # We need to compare to filter out case-insensitive lookups in
             # some databases (MySQL/MariaDB)
             if social.provider == provider and social.uid == uid and (id_key is None or social.id_key == id_key):
-                snapshot_user_fields(social.user)
                 return social
         return None
 

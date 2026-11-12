@@ -3,20 +3,17 @@
 from __future__ import annotations
 
 import base64
-import copy
 import re
 import sqlite3
 from datetime import UTC, timedelta
-from itertools import starmap
 from time import time as _time
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, cast
 
 from django.conf import settings
 from django.core.exceptions import FieldDoesNotExist
 from django.db import DatabaseError, router, transaction
 from django.db.backends.utils import names_digest
-from django.db.models import BigIntegerField, CharField, F, Field, JSONField, Q, UniqueConstraint
-from django.db.models.fields.files import FieldFile
+from django.db.models import BigIntegerField, CharField, F, Field, Q, UniqueConstraint
 from django.db.models.fields.json import KeyTextTransform
 from django.db.models.functions import Cast
 from django.db.utils import IntegrityError
@@ -91,76 +88,6 @@ if TYPE_CHECKING:
         """Manager whose querysets contain social-auth associations."""
 
 
-def _snapshot_value(value):
-    if isinstance(value, FieldFile):
-        return value.name
-    if isinstance(value, (bytearray, memoryview)):
-        return bytes(value)
-    if isinstance(value, dict):
-        return {_snapshot_value(key): _snapshot_value(item) for key, item in value.items()}
-    if isinstance(value, list):
-        return [_snapshot_value(item) for item in value]
-    if isinstance(value, tuple):
-        return tuple(_snapshot_value(item) for item in value)
-    return copy.deepcopy(value)
-
-
-def _json_values_equal(left, right) -> bool:
-    if type(left) is not type(right):
-        return False
-    if isinstance(left, dict):
-        if len(left) != len(right):
-            return False
-        right_values = {(type(key), key): value for key, value in right.items()}
-        for key, value in left.items():
-            typed_key = (type(key), key)
-            if typed_key not in right_values or not _json_values_equal(value, right_values[typed_key]):
-                return False
-        return True
-    if isinstance(left, (list, tuple)):
-        return len(left) == len(right) and all(starmap(_json_values_equal, zip(left, right, strict=True)))
-    return left == right
-
-
-def _field_contains_json(field: Field) -> bool:
-    current_field: Field | None = field
-    while current_field is not None:
-        if isinstance(current_field, JSONField):
-            return True
-        current_field = getattr(current_field, "base_field", None)
-    return False
-
-
-def _user_field_changed(user, field, snapshot) -> bool:
-    current = getattr(user, field.attname)
-    previous = snapshot.get(field.attname)
-    different = (
-        not _json_values_equal(current, previous)
-        if _field_contains_json(field)
-        else _snapshot_value(current) != previous
-    )
-    return (
-        field.attname not in snapshot
-        or different
-        or (isinstance(current, FieldFile) and not cast("Any", current)._committed)
-        or getattr(field, "auto_now", False)
-    )
-
-
-def snapshot_user_fields(user) -> None:
-    """Record the loaded field values of a user entering the pipeline.
-
-    DjangoUserMixin.changed() saves only the fields modified since then.
-    """
-    deferred = user.get_deferred_fields()
-    snapshot = {}
-    for field in user._meta.concrete_fields:
-        if field.attname in deferred:
-            continue
-        snapshot[field.attname] = _snapshot_value(getattr(user, field.attname))
-    user._social_auth_snapshot = snapshot
-
-
 class DjangoUserMixin(UserMixin):
     """Social Auth association model"""
 
@@ -178,24 +105,24 @@ class DjangoUserMixin(UserMixin):
 
     @classmethod
     def changed(cls, user):
-        snapshot = getattr(user, "_social_auth_snapshot", None)
-        if snapshot is None:
-            user.save()
+        user.save()
+
+    @classmethod
+    def changed_fields(cls, user, fields: set[str]) -> None:
+        concrete = {
+            name: field
+            for field in user._meta.concrete_fields
+            if not field.primary_key
+            for name in (field.name, field.attname)
+        }
+        if not fields <= concrete.keys():
+            # Properties can update arbitrary model fields; preserve the
+            # existing storage contract when the assigned field is not known.
+            cls.changed(user)
             return
-        # The instance can be much older than this call: a logged-in user is
-        # loaded before the provider is contacted. Saving every field would
-        # undo concurrent changes to the ones the pipeline did not touch.
-        deferred = user.get_deferred_fields()
-        user.save(
-            update_fields=[
-                field.name
-                for field in user._meta.concrete_fields
-                if not field.primary_key
-                and field.attname not in deferred
-                and _user_field_changed(user, field, snapshot)
-            ]
-        )
-        snapshot_user_fields(user)
+        update_fields = {concrete[name].name for name in fields}
+        update_fields.update(field.name for field in user._meta.concrete_fields if getattr(field, "auto_now", False))
+        user.save(update_fields=update_fields)
 
     def set_extra_data(self, extra_data=None):
         if not super().set_extra_data(extra_data):
@@ -392,7 +319,6 @@ class DjangoUserMixin(UserMixin):
             query = query.filter(id_key=id_key)
         for social in query:
             if social.provider == provider and social.uid == uid and (id_key is None or social.id_key == id_key):
-                snapshot_user_fields(social.user)
                 return social
         return None
 

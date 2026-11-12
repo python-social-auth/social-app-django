@@ -9,7 +9,6 @@ from zoneinfo import ZoneInfo
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.core.files.base import ContentFile
 from django.core.management import call_command
 from django.db import DatabaseError, IntegrityError, connection, models
 from django.test import TestCase, TransactionTestCase, override_settings
@@ -155,224 +154,60 @@ class TestUserSocialAuth(TestCase):
         db_eml = self.user_model._default_manager.get(username=self.user.username).email
         self.assertEqual(db_eml, eml)
 
-    def test_changed_keeps_concurrent_changes(self):
+    def test_changed_fields_keeps_concurrent_changes(self):
         user = UserSocialAuth.get_social_auth("my-provider", "1234").user
         self.user_model._default_manager.filter(pk=user.pk).update(is_active=False, email="new@example.com")
 
         for first_name in ("First", "Second"):
             user.first_name = first_name
-            UserSocialAuth.changed(user)
+            UserSocialAuth.changed_fields(user, {"first_name"})
 
-            self.user.refresh_from_db()
-            self.assertEqual(self.user.first_name, first_name)
-            self.assertEqual(self.user.email, "new@example.com")
-            self.assertFalse(self.user.is_active)
+            user.refresh_from_db()
+            self.assertEqual(user.first_name, first_name)
+            self.assertEqual(user.email, "new@example.com")
+            self.assertFalse(user.is_active)
 
-    def test_manager_lookup_keeps_concurrent_deactivation(self):
-        user = UserSocialAuth.objects.get_social_auth("my-provider", "1234").user
-        self.user_model._default_manager.filter(pk=user.pk).update(is_active=False)
-        user.first_name = "Updated"
-
-        UserSocialAuth.changed(user)
-
-        user.refresh_from_db()
-        self.assertFalse(user.is_active)
-        self.assertEqual(user.first_name, "Updated")
-
-    @isolate_apps()
-    def test_changed_detects_in_place_file_name_change(self):
-        class Profile(models.Model):
-            avatar = models.FileField(upload_to="avatars")
-
-            class Meta:
-                app_label = "tests"
-
-        profile = Profile(avatar="old.png")
-        storage.snapshot_user_fields(profile)
-        profile.avatar.name = "new.png"
-        with mock.patch.object(profile, "save") as save:
-            UserSocialAuth.changed(profile)
-
-        self.assertIn("avatar", save.call_args.kwargs["update_fields"])
-
-    @isolate_apps()
-    def test_changed_detects_uncommitted_file_with_same_name(self):
-        class Profile(models.Model):
-            avatar = models.FileField(upload_to="")
-
-            class Meta:
-                app_label = "tests"
-
-        profile = Profile(avatar="avatar.png")
-        storage.snapshot_user_fields(profile)
-        profile.avatar = ContentFile(b"replacement", name="avatar.png")
-        with mock.patch.object(profile, "save") as save:
-            UserSocialAuth.changed(profile)
-
-        self.assertIn("avatar", save.call_args.kwargs["update_fields"])
-
-    @isolate_apps()
-    def test_snapshot_keeps_original_json_value(self):
-        class Profile(models.Model):
-            details = models.JSONField(default=dict)
-
-            class Meta:
-                app_label = "tests"
-
-        profile = Profile(details={"nested": {"name": "before"}})
-        storage.snapshot_user_fields(profile)
-        profile.details["nested"]["name"] = "after"
-
-        self.assertEqual(profile._social_auth_snapshot["details"], {"nested": {"name": "before"}})
-
-    @isolate_apps()
-    def test_changed_detects_nested_json_boolean_type_change(self):
-        class Profile(models.Model):
-            details = models.JSONField(default=dict)
-
-            class Meta:
-                app_label = "tests"
-
-        profile = Profile(details={"items": [{"verified": 1}]})
-        storage.snapshot_user_fields(profile)
-        profile.details["items"][0]["verified"] = True
-        with mock.patch.object(profile, "save") as save:
-            UserSocialAuth.changed(profile)
-
-        self.assertIn("details", save.call_args.kwargs["update_fields"])
-
-    @isolate_apps()
-    def test_changed_detects_json_type_change_in_array_field(self):
-        class JsonArrayField(models.Field):
-            base_field = models.JSONField()
-
-        class Profile(models.Model):
-            details = JsonArrayField()
-
-            class Meta:
-                app_label = "tests"
-
-        profile = Profile(details=[{"verified": 1}])
-        storage.snapshot_user_fields(profile)
-        profile.details[0]["verified"] = True
-        with mock.patch.object(profile, "save") as save:
-            UserSocialAuth.changed(profile)
-
-        self.assertIn("details", save.call_args.kwargs["update_fields"])
-
-    @isolate_apps()
-    def test_changed_distinguishes_json_object_and_array_changes(self):
-        class Profile(models.Model):
-            details = models.JSONField(default=dict)
-
-            class Meta:
-                app_label = "tests"
-
-        cases = (
-            ({"items": [1]}, {"items": [1, 2]}),
-            ({"first": 1}, {"first": 1, "second": 2}),
-            ({1: "value"}, {True: "value"}),
-        )
-        for before, after in cases:
-            with self.subTest(before=before, after=after):
-                profile = Profile(details=before)
-                storage.snapshot_user_fields(profile)
-                profile.details = after
-                with mock.patch.object(profile, "save") as save:
-                    UserSocialAuth.changed(profile)
-
-                self.assertIn("details", save.call_args.kwargs["update_fields"])
-
-    @isolate_apps()
-    def test_changed_leaves_unchanged_json_out_of_update(self):
-        class Profile(models.Model):
-            details = models.JSONField(default=dict)
-            display_name = models.CharField(max_length=50)
-
-            class Meta:
-                app_label = "tests"
-
-        profile = Profile(details={"items": [{"verified": True}]}, display_name="Before")
-        storage.snapshot_user_fields(profile)
-        profile.display_name = "After"
-        with mock.patch.object(profile, "save") as save:
-            UserSocialAuth.changed(profile)
-
-        self.assertEqual(save.call_args.kwargs["update_fields"], ["display_name"])
-
-    @isolate_apps()
-    def test_changed_detects_in_place_binary_buffer_change(self):
-        class Profile(models.Model):
-            data = models.BinaryField()
-
-            class Meta:
-                app_label = "tests"
-
-        for binary in (bytearray(b"before"), memoryview(bytearray(b"before"))):
-            with self.subTest(buffer_type=type(binary).__name__):
-                profile = Profile(data=binary)
-                storage.snapshot_user_fields(profile)
-                binary[0] = ord("a")
-                with mock.patch.object(profile, "save") as save:
-                    UserSocialAuth.changed(profile)
-
-                self.assertIn("data", save.call_args.kwargs["update_fields"])
-
-    @isolate_apps()
-    def test_changed_detects_nested_binary_buffer_change(self):
-        class Profile(models.Model):
-            data = models.Field()
-
-            class Meta:
-                app_label = "tests"
-
-        binary = bytearray(b"before")
-        profile = Profile(data=[memoryview(binary)])
-        storage.snapshot_user_fields(profile)
-        self.assertEqual(profile._social_auth_snapshot["data"], [b"before"])
-        binary[0] = ord("a")
-        with mock.patch.object(profile, "save") as save:
-            UserSocialAuth.changed(profile)
-
-        self.assertIn("data", save.call_args.kwargs["update_fields"])
-
-    @isolate_apps()
-    def test_changed_detects_mutable_scalar_field_change(self):
-        class Point:
-            __hash__ = None
-
-            def __init__(self, x):
-                self.x = x
-
-            def __eq__(self, other):
-                return isinstance(other, Point) and self.x == other.x
-
-        class Profile(models.Model):
-            location = models.Field()
-
-            class Meta:
-                app_label = "tests"
-
-        profile = Profile(location=Point(1))
-        storage.snapshot_user_fields(profile)
-        with mock.patch.object(profile, "save") as save:
-            UserSocialAuth.changed(profile)
-        self.assertEqual(save.call_args.kwargs["update_fields"], [])
-
-        profile.location.x = 2
-        with mock.patch.object(profile, "save") as save:
-            UserSocialAuth.changed(profile)
-        self.assertIn("location", save.call_args.kwargs["update_fields"])
-
-    def test_changed_saves_deferred_fields_loaded_later(self):
+    def test_changed_fields_saves_deferred_field(self):
         user = self.user_model._default_manager.defer("email").get(pk=self.user.pk)
-        storage.snapshot_user_fields(user)
-        self.assertNotIn("email", user._social_auth_snapshot)
-
         user.email = "deferred@example.com"
-        UserSocialAuth.changed(user)
+        UserSocialAuth.changed_fields(user, {"email"})
         self.user.refresh_from_db()
         self.assertEqual(self.user.email, "deferred@example.com")
+
+    @isolate_apps()
+    def test_changed_fields_preserves_auto_now(self):
+        class Profile(models.Model):
+            name = models.CharField(max_length=50)
+            modified = models.DateTimeField(auto_now=True)
+
+            class Meta:
+                app_label = "tests"
+
+        profile = Profile(name="after")
+        with mock.patch.object(profile, "save") as save:
+            UserSocialAuth.changed_fields(profile, {"name"})
+        self.assertEqual(save.call_args.kwargs["update_fields"], {"name", "modified"})
+
+    @isolate_apps()
+    def test_changed_fields_falls_back_for_property(self):
+        class Profile(models.Model):
+            first_name = models.CharField(max_length=50)
+
+            class Meta:
+                app_label = "tests"
+
+            @property
+            def display_name(self):
+                return self.first_name
+
+            @display_name.setter
+            def display_name(self, value):
+                self.first_name = value
+
+        profile = Profile(first_name="after")
+        with mock.patch.object(profile, "save") as save:
+            UserSocialAuth.changed_fields(profile, {"display_name"})
+        save.assert_called_once_with()
 
     def test_set_extra_data(self):
         self.usa.set_extra_data({"a": "b"})

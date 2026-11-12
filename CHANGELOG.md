@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Security
 
-- Restrict pipeline saves to changed user and association fields so concurrent account changes are preserved.
+- Restrict default user-details pipeline saves and association data saves to
+  changed fields so concurrent account changes are preserved.
 - Discard session-held partial flows whose saved user differs from the signed-in user.
 - Persist consumed callback state when the exception middleware renders a 5xx page.
 - Expire suspended partial pipelines when resumed; by default they follow the email verification lifetime.
