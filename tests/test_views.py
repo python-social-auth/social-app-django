@@ -561,6 +561,32 @@ class TestViews(TestCase):
             self.assertEqual(response.url, "/accounts/profile/")
 
     @mock.patch("social_core.backends.base.BaseAuth.request")
+    def test_complete_keeps_user_changes_made_during_provider_requests(self, mock_request):
+        user_model = get_user_model()
+        user = user_model._default_manager.create_user(username="test", first_name="Old", is_staff=True)
+        UserSocialAuth.objects.create(user=user, provider="facebook", uid="facebook-user-123", id_key="id")
+        self.client.force_login(user)
+        state = begin_facebook_login(self.client)
+
+        def administrator_acts(*args, **kwargs):
+            user_model._default_manager.filter(pk=user.pk).update(is_active=False, is_staff=False)
+            return mock.DEFAULT
+
+        mock_request.side_effect = administrator_acts
+        mock_request.return_value.json.side_effect = [
+            {"access_token": "123"},
+            {"id": "facebook-user-123", "first_name": "New"},
+        ]
+        url = reverse("social:complete", kwargs={"backend": "facebook"})
+        response = self.client.get(f"{url}?code=2&state={state}")
+
+        self.assertEqual(response.status_code, 302)
+        user.refresh_from_db()
+        self.assertEqual(user.first_name, "New")
+        self.assertFalse(user.is_active)
+        self.assertFalse(user.is_staff)
+
+    @mock.patch("social_core.backends.base.BaseAuth.request")
     def test_disconnect(self, _mock_request):
         user_model = get_user_model()
         user = user_model._default_manager.create_user(

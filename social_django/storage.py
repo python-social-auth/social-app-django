@@ -11,9 +11,9 @@ from typing import TYPE_CHECKING, cast
 
 from django.conf import settings
 from django.core.exceptions import FieldDoesNotExist
-from django.db import router, transaction
+from django.db import DatabaseError, router, transaction
 from django.db.backends.utils import names_digest
-from django.db.models import BigIntegerField, CharField, F, Field, Q, UniqueConstraint
+from django.db.models import BigIntegerField, CharField, F, Field, ImageField, Q, UniqueConstraint
 from django.db.models.fields.json import KeyTextTransform
 from django.db.models.functions import Cast
 from django.db.utils import IntegrityError
@@ -76,6 +76,7 @@ if TYPE_CHECKING:
         def is_expired(self, seconds: int) -> bool: ...
 
     class _DjangoSocialAuth(Model):
+        user: _DjangoUser
         provider: str
         uid: str
         id_key: str
@@ -106,9 +107,52 @@ class DjangoUserMixin(UserMixin):
     def changed(cls, user):
         user.save()
 
+    @classmethod
+    def changed_fields(cls, user, fields: set[str]) -> None:
+        if getattr(cls.changed, "__func__", cls.changed) is not getattr(
+            DjangoUserMixin.changed, "__func__", DjangoUserMixin.changed
+        ):
+            # Custom storage classes may use changed() for additional work.
+            cls.changed(user)
+            return
+        concrete = {
+            name: field
+            for field in user._meta.concrete_fields
+            if not field.primary_key
+            for name in (field.name, field.attname)
+        }
+        if not fields <= concrete.keys():
+            # Properties can update arbitrary model fields; preserve the
+            # existing storage contract when the assigned field is not known.
+            cls.changed(user)
+            return
+        update_fields = {concrete[name].name for name in fields}
+        for name in fields:
+            field = concrete[name]
+            if isinstance(field, ImageField):
+                dimensions = (getattr(field, "width_field", None), getattr(field, "height_field", None))
+                update_fields.update(name for name in dimensions if name)
+        update_fields.update(field.name for field in user._meta.concrete_fields if getattr(field, "auto_now", False))
+        user.save(update_fields=update_fields)
+
     def set_extra_data(self, extra_data=None):
-        if super().set_extra_data(extra_data):
-            self.save()
+        if not super().set_extra_data(extra_data):
+            return
+        social = cast("_DjangoSocialAuth", self)
+        if social._state.adding:
+            social.save()
+            return
+        using = router.db_for_write(type(social), instance=social)
+        update_fields = ["extra_data"] + [
+            field.name for field in social._meta.concrete_fields if getattr(field, "auto_now", False)
+        ]
+        try:
+            with transaction.atomic(using=using):
+                social.save(using=using, update_fields=update_fields)
+        except DatabaseError as error:
+            if type(social)._default_manager.using(using).filter(pk=social.pk).exists():
+                raise
+            raise AuthCredentialError(code="reauthentication_required", stage="pipeline") from error
 
     @classmethod
     def allowed_to_disconnect(cls, user, backend_name, association_id=None):

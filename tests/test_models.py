@@ -10,8 +10,8 @@ from zoneinfo import ZoneInfo
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
-from django.db import IntegrityError, connection, models
-from django.test import TestCase, override_settings
+from django.db import DatabaseError, IntegrityError, connection, models
+from django.test import TestCase, TransactionTestCase, override_settings
 from django.test.utils import isolate_apps
 from django.utils import timezone
 from social_core.backends.cognito import CognitoOAuth2
@@ -154,11 +154,143 @@ class TestUserSocialAuth(TestCase):
         db_eml = self.user_model._default_manager.get(username=self.user.username).email
         self.assertEqual(db_eml, eml)
 
+    def test_changed_fields_keeps_concurrent_changes(self):
+        user = UserSocialAuth.get_social_auth("my-provider", "1234").user
+        self.user_model._default_manager.filter(pk=user.pk).update(is_active=False, email="new@example.com")
+
+        for first_name in ("First", "Second"):
+            user.first_name = first_name
+            UserSocialAuth.changed_fields(user, {"first_name"})
+
+            user.refresh_from_db()
+            self.assertEqual(user.first_name, first_name)
+            self.assertEqual(user.email, "new@example.com")
+            self.assertFalse(user.is_active)
+
+    def test_changed_fields_saves_deferred_field(self):
+        user = self.user_model._default_manager.defer("email").get(pk=self.user.pk)
+        user.email = "deferred@example.com"
+        UserSocialAuth.changed_fields(user, {"email"})
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.email, "deferred@example.com")
+
+    @isolate_apps()
+    def test_changed_fields_preserves_auto_now(self):
+        class Profile(models.Model):
+            name = models.CharField(max_length=50)
+            modified = models.DateTimeField(auto_now=True)
+
+            class Meta:
+                app_label = "tests"
+
+        profile = Profile(name="after")
+        with mock.patch.object(profile, "save") as save:
+            UserSocialAuth.changed_fields(profile, {"name"})
+        self.assertEqual(save.call_args.kwargs["update_fields"], {"name", "modified"})
+
+    @isolate_apps()
+    def test_changed_fields_falls_back_for_property(self):
+        class Profile(models.Model):
+            first_name = models.CharField(max_length=50)
+
+            class Meta:
+                app_label = "tests"
+
+            @property
+            def display_name(self):
+                return self.first_name
+
+            @display_name.setter
+            def display_name(self, value):
+                self.first_name = value
+
+        profile = Profile(first_name="after")
+        with mock.patch.object(profile, "save") as save:
+            UserSocialAuth.changed_fields(profile, {"display_name"})
+        save.assert_called_once_with()
+
+    def test_changed_fields_calls_custom_changed_hook(self):
+        called = []
+
+        class CustomStorage(storage.DjangoUserMixin):
+            @classmethod
+            def changed(cls, user):
+                called.append(user)
+                user.save(update_fields=["first_name"])
+
+        self.user.first_name = "Updated"
+        CustomStorage.changed_fields(self.user, {"first_name"})
+
+        self.assertEqual(called, [self.user])
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.first_name, "Updated")
+
+    def test_changed_fields_calls_static_changed_hook(self):
+        called = []
+
+        class CustomStorage(storage.DjangoUserMixin):
+            @staticmethod
+            def changed(user):
+                called.append(user)
+
+        CustomStorage.changed_fields(self.user, {"first_name"})
+        self.assertEqual(called, [self.user])
+
+    @isolate_apps()
+    def test_changed_fields_saves_image_dimensions(self):
+        class Profile(models.Model):
+            image = models.ImageField(width_field="width", height_field="height")
+            width = models.PositiveIntegerField(default=0)
+            height = models.PositiveIntegerField(default=0)
+
+            class Meta:
+                app_label = "tests"
+
+        profile = Profile()
+        with mock.patch.object(profile, "save") as save:
+            UserSocialAuth.changed_fields(profile, {"image"})
+        self.assertEqual(save.call_args.kwargs["update_fields"], {"image", "width", "height"})
+
     def test_set_extra_data(self):
         self.usa.set_extra_data({"a": "b"})
         self.usa.refresh_from_db()
         db_data = UserSocialAuth.objects.get(id=self.usa.id).extra_data
         self.assertEqual(db_data, {"a": "b"})
+
+    def test_set_extra_data_saves_new_association(self):
+        social = UserSocialAuth(user=self.user, provider="another-provider", uid="5678")
+        social.set_extra_data({"a": "b"})
+        self.assertEqual(UserSocialAuth.objects.get(pk=social.pk).extra_data, {"a": "b"})
+
+    def test_set_extra_data_keeps_concurrent_changes(self):
+        UserSocialAuth.objects.filter(pk=self.usa.pk).update(uid="5678", id_key="sub")
+        self.usa.set_extra_data({"a": "b"})
+        self.usa.refresh_from_db()
+        self.assertEqual((self.usa.uid, self.usa.id_key, self.usa.extra_data), ("5678", "sub", {"a": "b"}))
+
+    def test_set_extra_data_uses_write_router_after_replica_read(self):
+        self.usa._state.db = "replica"
+
+        with mock.patch("social_django.storage.router.db_for_write", return_value="default") as db_for_write:
+            self.usa.set_extra_data({"a": "b"})
+
+        db_for_write.assert_called_once_with(UserSocialAuth, instance=self.usa)
+        self.assertEqual(UserSocialAuth.objects.get(pk=self.usa.pk).extra_data, {"a": "b"})
+
+    def test_set_extra_data_does_not_recreate_disconnected_association(self):
+        pk = self.usa.pk
+        UserSocialAuth.objects.filter(pk=pk).delete()
+        with self.assertRaises(AuthCredentialError) as error:
+            self.usa.set_extra_data({"access_token": "new"})
+        self.assertEqual(error.exception.code, "reauthentication_required")
+        self.assertFalse(UserSocialAuth.objects.filter(pk=pk).exists())
+
+    def test_set_extra_data_preserves_unrelated_database_error(self):
+        with (
+            mock.patch.object(self.usa, "save", side_effect=DatabaseError("write failed")),
+            self.assertRaisesRegex(DatabaseError, "write failed"),
+        ):
+            self.usa.set_extra_data({"a": "b"})
 
     def test_disconnect(self):
         m = mock.Mock()
@@ -335,6 +467,12 @@ class TestUserSocialAuth(TestCase):
                     id_key="ID",
                 )
             )
+
+    def test_mixin_lookup_preserves_deferred_user(self):
+        manager = UserSocialAuth.objects.defer("user")
+        with mock.patch.object(UserSocialAuth, "_manager", return_value=manager):
+            social = storage.DjangoUserMixin.get_social_auth.__func__(UserSocialAuth, "my-provider", "1234")
+        self.assertEqual(social.pk, self.usa.pk)
 
     def test_manager_rejects_case_insensitive_id_key_match(self):
         self.usa.id_key = "id"
@@ -571,6 +709,33 @@ class TestUserSocialAuth(TestCase):
                     result = get_username(strategy, details, backend)
                     self.assertEqual(result["username"], username)
                     self.assertEqual(field.to_python(result["username"]), identifier)
+
+
+class TestCustomAssociationStorage(TransactionTestCase):
+    @isolate_apps()
+    def test_extra_data_saves_without_default_timestamp_field(self):
+        class CustomAssociation(models.Model, storage.DjangoUserMixin):
+            extra_data = models.JSONField(default=dict)
+            refreshed = models.DateTimeField(auto_now=True)
+
+            class Meta:
+                app_label = "tests"
+
+        with connection.schema_editor() as editor:
+            editor.create_model(CustomAssociation)
+        try:
+            social = CustomAssociation.objects.create()
+            previous = timezone.now() - timedelta(days=1)
+            CustomAssociation.objects.filter(pk=social.pk).update(refreshed=previous)
+
+            social.set_extra_data({"token": "new"})
+
+            social.refresh_from_db()
+            self.assertEqual(social.extra_data, {"token": "new"})
+            self.assertGreater(social.refreshed, previous)
+        finally:
+            with connection.schema_editor() as editor:
+                editor.delete_model(CustomAssociation)
 
 
 class TestNonce(TestCase):
