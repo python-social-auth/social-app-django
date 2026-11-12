@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
-## [Unreleased]
+## [8.1.0](https://github.com/python-social-auth/social-app-django/releases/tag/8.1.0) - 2026-11-12
 
 ### Security
 
@@ -20,7 +20,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Breaking
 
-- Require social-auth-core 7.1.0 for partial-pipeline ownership binding with UUID user IDs.
+- Require social-auth-core 7.2.0 for partial-pipeline ownership binding with UUID
+  user IDs and shared partial-pipeline expiry policy.
 
 ### Fixed
 
