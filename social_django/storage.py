@@ -109,7 +109,9 @@ class DjangoUserMixin(UserMixin):
 
     @classmethod
     def changed_fields(cls, user, fields: set[str]) -> None:
-        if cls.changed.__func__ is not DjangoUserMixin.changed.__func__:
+        if getattr(cls.changed, "__func__", cls.changed) is not getattr(
+            DjangoUserMixin.changed, "__func__", DjangoUserMixin.changed
+        ):
             # Custom storage classes may use changed() for additional work.
             cls.changed(user)
             return
@@ -128,7 +130,8 @@ class DjangoUserMixin(UserMixin):
         for name in fields:
             field = concrete[name]
             if isinstance(field, ImageField):
-                update_fields.update(name for name in (field.width_field, field.height_field) if name)
+                dimensions = (getattr(field, "width_field", None), getattr(field, "height_field", None))
+                update_fields.update(name for name in dimensions if name)
         update_fields.update(field.name for field in user._meta.concrete_fields if getattr(field, "auto_now", False))
         user.save(update_fields=update_fields)
 
