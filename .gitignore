@@ -27,7 +27,6 @@ pip-log.txt
 .tox
 coverage.xml
 htmlcov/
-uv.lock
 
 # Translations
 *.mo

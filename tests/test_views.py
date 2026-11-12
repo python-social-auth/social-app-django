@@ -1,8 +1,11 @@
 import hmac
+import unittest
 from base64 import urlsafe_b64decode, urlsafe_b64encode
+from datetime import timedelta
 from hashlib import sha256
 from unittest import mock
 from urllib.parse import parse_qs, urlencode, urlsplit
+from uuid import uuid4
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -12,13 +15,82 @@ from django.http import HttpRequest, HttpResponse
 from django.middleware.csrf import get_token
 from django.test import Client, TestCase, override_settings
 from django.urls import include, path, reverse
+from django.utils import timezone
 from social_core.backends.open_id_connect import OpenIdConnectAuth
 from social_core.utils import PARTIAL_TOKEN_PENDING_REQUEST_SESSION_NAME
 
+from social_django import views
 from social_django.models import Code, Nonce, Partial, UserSocialAuth
 from social_django.utils import LaunchBridge
 from social_django.views import get_session_timeout
 from tests.helpers import begin_facebook_login
+
+try:
+    from social_core.backends.saml import SAMLAuth
+
+    SAML_AVAILABLE = SAMLAuth is not None
+except ImportError:
+    SAML_AVAILABLE = False
+
+
+@unittest.skipUnless(SAML_AVAILABLE, "Requires the SAML extra")
+@override_settings(AUTHENTICATION_BACKENDS=("social_core.backends.saml.SAMLAuth",))
+class TestSAMLBrowserReturn(TestCase):
+    def test_cookie_less_post_returns_core_form_and_repost_uses_browser_session(self):
+        url = reverse("social:complete", args=["saml"])
+        victim = Client()
+        session = victim.session
+        session["saml_idp_authn_request_id"] = "victim-request"
+        session.save()
+
+        posted = {"SAMLResponse": 'value"><script>alert(1)</script>', "RelayState": '{"idp":"idp"}'}
+        initial = Client().post(url, posted)
+        self.assertEqual(initial.status_code, 200)
+        self.assertContains(initial, "&lt;script&gt;alert(1)&lt;/script&gt;")
+        self.assertNotContains(initial, "<script>alert(1)</script>")
+        self.assertEqual(initial["X-Frame-Options"], "DENY")
+        self.assertEqual(initial["Referrer-Policy"], "no-referrer")
+        self.assertIn("no-store", initial["Cache-Control"])
+        self.assertIn("form-action 'self'", initial["Content-Security-Policy"])
+        self.assertNotIn(settings.SESSION_COOKIE_NAME, initial.cookies)
+
+        seen = []
+
+        def complete(backend, *args, **kwargs):
+            seen.append(backend.strategy.session_get("saml_idp_authn_request_id"))
+            return HttpResponse("completed")
+
+        with mock.patch.object(SAMLAuth, "auth_complete", autospec=True, side_effect=complete):
+            response = victim.post(
+                url,
+                {**posted, SAMLAuth.BROWSER_RETURN_FIELD: "1"},
+            )
+        self.assertEqual(response.content, b"completed")
+        self.assertEqual(seen, ["victim-request"])
+
+    def test_return_marker_without_browser_session_reaches_core(self):
+        url = reverse("social:complete", args=["saml"])
+        with mock.patch.object(
+            SAMLAuth, "auth_complete", autospec=True, return_value=HttpResponse("checked")
+        ) as complete:
+            response = Client().post(
+                url,
+                {"SAMLResponse": "irrelevant", SAMLAuth.BROWSER_RETURN_FIELD: "1"},
+            )
+        self.assertEqual(response.content, b"checked")
+        complete.assert_called_once()
+
+    def test_relay_state_in_query_is_preserved_on_browser_return(self):
+        url = reverse("social:complete", args=["saml"])
+        response = Client().post(
+            f"{url}?RelayState=%7B%22idp%22%3A%22idp%22%7D",
+            {"SAMLResponse": "irrelevant"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(
+            'name="RelayState" value="{&quot;idp&quot;:&quot;idp&quot;}"',
+            response.content.decode(),
+        )
 
 
 class MockOIDCBackend(OpenIdConnectAuth):
@@ -61,6 +133,33 @@ def send_validation(strategy, backend, code, partial_token):
     SOCIAL_AUTH_LOGIN_ERROR_URL="/error/",
 )
 class TestEmailConfirmation(TestCase):
+    def test_uuid_user_keeps_own_session_partial(self):
+        user_id = uuid4()
+        request = mock.Mock()
+        request.user.is_authenticated = True
+        request.user.pk = user_id
+        request.social_strategy.session_get.return_value = "session-token"
+        request.social_strategy.partial_load.return_value = mock.Mock(
+            data={"initiating_user_id": str(user_id)}, kwargs={}
+        )
+
+        views._discard_session_partial_of_other_user(request)
+
+        request.social_strategy.clean_partial_pipeline.assert_not_called()
+
+    def test_uuid_user_discards_other_users_session_partial(self):
+        request = mock.Mock()
+        request.user.is_authenticated = True
+        request.user.pk = uuid4()
+        request.social_strategy.session_get.return_value = "session-token"
+        request.social_strategy.partial_load.return_value = mock.Mock(
+            data={"initiating_user_id": str(uuid4())}, kwargs={}
+        )
+
+        views._discard_session_partial_of_other_user(request)
+
+        request.social_strategy.clean_partial_pipeline.assert_called_once_with("session-token")
+
     @staticmethod
     def csrf_client() -> tuple[Client, str]:
         request = HttpRequest()
@@ -151,6 +250,28 @@ class TestEmailConfirmation(TestCase):
                     self.assertNotEqual(association.user_id, target.pk)
                     self.assertEqual(int(client.session["_auth_user_id"]), association.user_id)
                     self.assertTrue(Code.objects.get(pk=code.pk).verified)
+
+    def test_expired_partial_rejects_fresh_code(self):
+        url = reverse("social:complete", kwargs={"backend": "email"})
+        victim = get_user_model()._default_manager.create_user(username="victim")
+        email = "confirm@example.com"
+        with mock.patch("tests.test_views.send_validation") as send_email:
+            client, csrf_token = self.csrf_client()
+            client.force_login(victim)
+            client.post(url, {"email": email, "csrfmiddlewaretoken": csrf_token})
+            partial_token = send_email.call_args.args[3]
+            partial = Partial.objects.get(token=partial_token)
+            Partial.objects.filter(pk=partial.pk).update(timestamp=partial.timestamp - timedelta(days=7))
+
+            client, csrf_token = self.csrf_client()
+            client.post(url, {"email": email, "csrfmiddlewaretoken": csrf_token})
+            code = send_email.call_args.args[2]
+            response = client.get(url, {"verification_code": code.code, "partial_token": partial_token})
+        self.assertRedirects(response, "/error/", fetch_redirect_response=False)
+        self.assertFalse(Partial.objects.filter(token=partial_token).exists())
+        self.assertFalse(Code.objects.get(pk=code.pk).verified)
+        self.assertFalse(UserSocialAuth.objects.filter(provider="email", uid=email).exists())
+        self.assertNotIn("_auth_user_id", client.session)
 
     def test_login_form_requires_post(self):
         user = get_user_model()._default_manager.create_user(username="victim")
@@ -287,6 +408,51 @@ class TestEmailConfirmation(TestCase):
             self.assertTrue(get_user_model().objects.filter(email=code.email).exists())
             self.assertFalse(Partial.objects.filter(token=token).exists())
             send_email.assert_called_once()
+
+    def test_flow_kept_in_session_across_login_is_not_adopted(self):
+        victim = get_user_model()._default_manager.create_user(username="victim")
+        url = reverse("social:complete", kwargs={"backend": "email"})
+        attacker, csrf_token = self.csrf_client()
+        with mock.patch("tests.test_views.send_validation") as send_email:
+            attacker.post(url, {"email": "attacker@example.com", "csrfmiddlewaretoken": csrf_token})
+            browser = Client(enforce_csrf_checks=True)
+            # Confirming the link without its code halts the flow again, in
+            # the session that resumed it.
+            context = browser.get(url, {"partial_token": send_email.call_args.args[3]}).context
+            response = browser.post(
+                context["action_url"],
+                {
+                    context["confirmation_parameter"]: context["confirmation_value"],
+                    context["confirmation_nonce_parameter"]: context["confirmation_nonce"],
+                },
+            )
+            self.assertRedirects(response, "/email-sent/", fetch_redirect_response=False)
+            self.assertEqual(send_email.call_count, 2)
+            # login() keeps the data of the anonymous session.
+            browser.force_login(victim)
+            self.assertIn("partial_pipeline_token", browser.session)
+            self.assertEqual(int(browser.session["_auth_user_id"]), victim.pk)
+            response = browser.get(url)
+            self.assertRedirects(response, "/error/", fetch_redirect_response=False)
+            self.assertEqual(send_email.call_count, 2)
+        self.assertNotIn("partial_pipeline_token", browser.session)
+        self.assertFalse(Partial.objects.exists())
+        self.assertFalse(UserSocialAuth.objects.filter(user=victim).exists())
+
+    def test_flow_saved_for_signed_in_user_survives_resume(self):
+        user = get_user_model()._default_manager.create_user(username="existing")
+        client, csrf_token = self.csrf_client()
+        client.force_login(user)
+        url = reverse("social:complete", kwargs={"backend": "email"})
+        with mock.patch("tests.test_views.send_validation") as send_email:
+            client.post(url, {"email": "linked@example.com", "csrfmiddlewaretoken": csrf_token})
+            token = send_email.call_args.args[3]
+            self.assertEqual(client.session["partial_pipeline_token"], token)
+            response = client.get(url)
+            self.assertRedirects(response, "/email-sent/", fetch_redirect_response=False)
+        self.assertEqual(send_email.call_count, 2)
+        self.assertFalse(Partial.objects.filter(token=token).exists())
+        self.assertEqual(client.session["partial_pipeline_token"], send_email.call_args.args[3])
 
     def test_invalid_confirmation_nonce_does_not_verify_code(self):
         url = reverse("social:complete", kwargs={"backend": "email"})
@@ -537,8 +703,22 @@ class TestSessionExpiration(TestCase):
 
         self.assertRedirects(response, "/accounts/profile/", fetch_redirect_response=False)
         self.assertIn("_auth_user_id", client.session)
-        self.assertEqual(client.session.get_expiry_age(), 3600)
-        self.assertEqual(response.cookies[settings.SESSION_COOKIE_NAME]["max-age"], 3600)
+        self.assertAlmostEqual(client.session.get_expiry_age(), 3600, delta=1)
+        self.assertAlmostEqual(response.cookies[settings.SESSION_COOKIE_NAME]["max-age"], 3600, delta=1)
+
+    def test_later_session_writes_do_not_extend_expiry(self):
+        client, response = self.complete_login("expires_in", 7200)
+        self.assertRedirects(response, "/accounts/profile/", fetch_redirect_response=False)
+        expiry_date = client.session.get_expiry_date()
+
+        # A later request that saves the session, such as starting another
+        # authentication, must not renew the configured maximum length.
+        begin_facebook_login(client)
+
+        self.assertIn("_auth_user_id", client.session)
+        self.assertEqual(client.session.get_expiry_date(), expiry_date)
+        later = timezone.now() + timedelta(seconds=1800)
+        self.assertAlmostEqual(client.session.get_expiry_age(modification=later), 1800, delta=1)
 
     @override_settings(SOCIAL_AUTH_SESSION_EXPIRATION=False)
     def test_disabled_expiration_ignores_invalid_provider_expiry(self):
@@ -546,7 +726,7 @@ class TestSessionExpiration(TestCase):
 
         self.assertRedirects(response, "/accounts/profile/", fetch_redirect_response=False)
         self.assertIn("_auth_user_id", client.session)
-        self.assertEqual(client.session.get_expiry_age(), 3600)
+        self.assertAlmostEqual(client.session.get_expiry_age(), 3600, delta=1)
 
 
 class TestGetSessionTimeout(TestCase):

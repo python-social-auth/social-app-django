@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## [Unreleased]
 
 ### Added
 
@@ -18,15 +18,56 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Changed
 
-- Clarify manager, lazy dictionary, template rendering, and session timeout type
-  annotations for compatibility with type checkers.
-- Make the `get_session_timeout()` options keyword-only.
 - Support `app_launch` with backends that have no ID token issuer, such as
   OAuth2 and SAML backends. These launches omit `iss` and reject a requested
   `iss`; invalid issuer configuration is still rejected.
 - Accept `app_launch` navigations with `Sec-Fetch-Site: none`, which browsers
   send for user-initiated navigations such as links opened from native apps.
   Missing Fetch Metadata still requires a trusted `Referer`.
+
+### Security
+
+- Discard session-held partial flows whose saved user differs from the signed-in user.
+- Persist consumed callback state when the exception middleware renders a 5xx page.
+- Expire suspended partial pipelines when resumed; by default they follow the email verification lifetime.
+- Recheck email matches in Python before associating accounts under database collations.
+- Compare OpenID association server URLs and handles exactly before using
+  stored secrets, and reject new associations that collide under database collation.
+
+### Breaking
+
+- Require social-auth-core 7.1.0 for partial-pipeline ownership binding with UUID user IDs.
+
+### Fixed
+
+- Keep migration 0013 forward and reverse writes on the database alias being migrated.
+- Treat configured social login session limits as fixed end times rather than sliding inactivity timeouts.
+- Claim email verification codes atomically so simultaneous uses cannot both succeed.
+
+## [8.0.0](https://github.com/python-social-auth/social-app-django/releases/tag/8.0.0) - 2026-11-09
+
+### Security
+
+- Support social-auth-core's SAML browser return page and its security headers,
+  allowing callbacks to use the initiating browser's SameSite=Lax session for
+  AuthnRequest correlation in service-provider-initiated flows.
+
+### Breaking
+
+- Drop Python 3.10 support; Python 3.11 or later is required.
+- Require social-auth-core 7.x.
+- Remove `DjangoStrategy.get_session_id()` and `DjangoStrategy.restore_session()`.
+  Custom strategies and backends using these methods must migrate to
+  browser-bound callback correlation.
+- Make `get_session_timeout()` options keyword-only. Pass
+  `enable_session_expiration` and `max_session_length` by name in custom callers.
+
+### Fixed
+
+- Preserve Django response types through strategies, backends, authentication
+  actions, and decorated partial pipeline steps.
+- Improve type annotations for social authentication managers, lazy dictionaries,
+  template rendering, session timeouts, and bundled icon storage.
 
 ## [7.2.0](https://github.com/python-social-auth/social-app-django/releases/tag/7.2.0) - 2026-10-20
 

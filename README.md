@@ -24,6 +24,8 @@ Project documentation is available at <https://python-social-auth.readthedocs.io
 
 ## Setup
 
+Requires Python 3.11 or later, Django 5.2 or later, and social-auth-core 7.1.0 or later (before 8.0).
+
 ```shell
 pip install social-auth-app-django
 ```
@@ -39,6 +41,18 @@ See the [CONTRIBUTING.md](https://github.com/python-social-auth/.github/blob/mai
 ## Versioning
 
 This project follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
+
+## Releasing
+
+Update the package version and add a matching version section to `CHANGELOG.md`,
+then push the version tag. CI builds and checks the distributions, publishes to
+PyPI, and creates the GitHub release with its release notes and assets. Do not
+publish an empty GitHub release before CI runs.
+
+GitHub releases are created as drafts and published only after all assets are
+uploaded. Existing releases, including drafts, cause the GitHub release job to
+fail rather than overwrite assets. Inspect and remove an incomplete draft before
+retrying. Asset corrections to a published immutable release require a new version.
 
 ## Security
 

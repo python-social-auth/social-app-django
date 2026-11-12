@@ -1,9 +1,17 @@
 """Expose social-core's bundled authentication icons to Django staticfiles."""
 
+from __future__ import annotations
+
 from importlib.resources import files
 
 from django.contrib.staticfiles.finders import FileSystemFinder
 from django.core.files.storage import FileSystemStorage
+
+
+class _IconStorage(FileSystemStorage):
+    """Declare the prefix used by collectstatic for bundled icons."""
+
+    prefix: str = "social_auth/icons"
 
 
 class SocialAuthIconFinder(FileSystemFinder):
@@ -11,14 +19,11 @@ class SocialAuthIconFinder(FileSystemFinder):
 
     def __init__(self, *args, **kwargs):
         location = str(files("social_core").joinpath("static", "social_auth", "icons"))
-        prefix = "social_auth/icons"
-        self.locations = [(prefix, location)]
-        storage = FileSystemStorage(location=location)
-        # FileSystemFinder adds this attribute dynamically for collectstatic.
-        storage.prefix = prefix  # type: ignore[attr-defined]
+        storage = _IconStorage(location=location)
+        self.locations = [(storage.prefix, location)]
         self.storages = {location: storage}
 
-    def find_location(self, root, path, prefix=None):
+    def find_location(self, root: str, path: str, prefix: str | None = None) -> str | None:
         # Static URLs use forward slashes even when the filesystem uses backslashes.
         path = path.replace("\\", "/")
         if prefix:

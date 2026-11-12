@@ -1,19 +1,22 @@
 import json
+from datetime import timedelta
 from unittest import mock
 
 from django.contrib.auth import authenticate as django_authenticate
-from django.contrib.auth import get_user_model, login
+from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.sessions.middleware import SessionMiddleware
 from django.http import HttpResponse, QueryDict
 from django.test import RequestFactory, TestCase
+from django.utils import timezone
 from django.utils.translation import gettext_lazy
-from social_core.exceptions import AuthSessionError
+from social_core.backends.base import BaseAuth
+from social_core.pipeline.partial import partial_step
 from social_core.pipeline.utils import partial_prepare
 from social_core.utils import PARTIAL_TOKEN_PENDING_CONFIRMATION_SESSION_NAME
 
-from social_django.models import Partial, UserSocialAuth
-from social_django.strategy import PARTIAL_PIPELINE_CONFIRMATION_NONCE_PARAMETER
+from social_django.models import DjangoStorage, Partial, UserSocialAuth
+from social_django.strategy import PARTIAL_PIPELINE_CONFIRMATION_NONCE_PARAMETER, DjangoStrategy
 from social_django.utils import load_backend, load_strategy
 
 
@@ -53,136 +56,30 @@ class TestStrategy(TestCase):
         self.assertEqual(self.strategy.session_setdefault("k", "x"), "v")
         self.assertEqual(self.strategy.session_pop("k"), "v")
 
-    def test_get_session_id_creates_session(self):
-        self.assertIsNone(self.strategy.session.session_key)
+    def test_partial_expiry_uses_strategy_email_lifetime(self):
+        class CustomStrategy(DjangoStrategy):
+            def get_setting(self, name):
+                if name == "SOCIAL_AUTH_EMAIL_VALIDATION_EXPIRED_THRESHOLD":
+                    return 60
+                return super().get_setting(name)
 
-        session_id = self.strategy.get_session_id()
+        partial = Partial.objects.create(token=Partial.generate_token(), backend="email", data={})
+        Partial.objects.filter(pk=partial.pk).update(timestamp=timezone.now() - timedelta(seconds=61))
+        strategy = CustomStrategy(DjangoStorage, self.request)
+        self.assertIsNone(strategy.partial_load(partial.token))
+        self.assertFalse(Partial.objects.filter(pk=partial.pk).exists())
 
-        self.assertIsNotNone(session_id)
-        self.assertTrue(self.strategy.session.exists(session_id))
+    def test_partial_expiry_uses_saved_backend_without_request(self):
+        partial = Partial.objects.create(
+            token=Partial.generate_token(),
+            backend="facebook",
+            data={"args": [], "kwargs": {}},
+        )
+        Partial.objects.filter(pk=partial.pk).update(timestamp=timezone.now() - timedelta(days=8))
 
-    def test_get_session_id_reuses_existing_session(self):
-        self.strategy.session.create()
-        session_id = self.strategy.session.session_key
-
-        self.assertEqual(self.strategy.get_session_id(), session_id)
-
-    def test_new_session_can_be_restored_without_cookie(self):
-        session_id = self.strategy.get_session_id()
-        if session_id is None:
-            self.fail("session ID was not created")
-        self.strategy.session_set("saml_authn_request_id", "TEST_ID")
-        self.strategy.session.save()
-
-        callback_request = self.request_factory.post("/")
-        SessionMiddleware(lambda _request: HttpResponse()).process_request(callback_request)
-        callback_strategy = load_strategy(request=callback_request)
-        callback_strategy.restore_session(session_id, {})
-
-        self.assertEqual(callback_strategy.session_get("saml_authn_request_id"), "TEST_ID")
-        self.assertNotEqual(callback_strategy.get_session_id(), session_id)
-
-    def test_restore_session_uses_restored_session_user(self):
-        user_model = get_user_model()
-        user = user_model._default_manager.create_user(username="test")
-        login(self.request, user, backend="django.contrib.auth.backends.ModelBackend")
-        session_id = self.strategy.get_session_id()
-        self.strategy.session.save()
-
-        callback_request = self.request_factory.post("/")
-        SessionMiddleware(lambda _request: HttpResponse()).process_request(callback_request)
-        callback_strategy = load_strategy(request=callback_request)
-        kwargs = {"user": None}
-        callback_strategy.restore_session(session_id, kwargs)
-
-        self.assertEqual(kwargs["user"], user)
-        self.assertEqual(callback_request.user, user)
-
-    def test_restore_anonymous_session_uses_none(self):
-        session_id = self.strategy.get_session_id()
-        self.strategy.session.save()
-
-        callback_request = self.request_factory.post("/")
-        SessionMiddleware(lambda _request: HttpResponse()).process_request(callback_request)
-        callback_strategy = load_strategy(request=callback_request)
-        kwargs = {"user": None}
-        callback_strategy.restore_session(session_id, kwargs)
-
-        self.assertIsNone(kwargs["user"])
-        self.assertFalse(callback_request.user.is_authenticated)
-
-    def test_restore_anonymous_session_rejects_authenticated_user(self):
-        user_model = get_user_model()
-        victim = user_model._default_manager.create_user(username="victim")
-        restored_session_id = self.strategy.get_session_id()
-        self.strategy.session.save()
-
-        callback_request = self.request_factory.post("/")
-        SessionMiddleware(lambda _request: HttpResponse()).process_request(callback_request)
-        login(callback_request, victim, backend="django.contrib.auth.backends.ModelBackend")
-        callback_request.user = victim
-        callback_request.session.save()
-        original_session_id = callback_request.session.session_key
-        callback_strategy = load_strategy(request=callback_request)
-        kwargs = {"user": victim}
-
-        with self.assertRaises(AuthSessionError) as caught:
-            callback_strategy.restore_session(restored_session_id, kwargs)
-
-        self.assertEqual(caught.exception.code, "user_mismatch")
-        self.assertEqual(caught.exception.stage, "callback")
-        self.assertEqual(kwargs["user"], victim)
-        self.assertEqual(callback_request.user, victim)
-        self.assertEqual(callback_strategy.get_session_id(), original_session_id)
-        self.assertTrue(self.strategy.session.exists(restored_session_id))
-
-    def test_restore_session_rejects_different_authenticated_user(self):
-        user_model = get_user_model()
-        initiator = user_model._default_manager.create_user(username="initiator")
-        victim = user_model._default_manager.create_user(username="victim")
-        login(self.request, initiator, backend="django.contrib.auth.backends.ModelBackend")
-        restored_session_id = self.strategy.get_session_id()
-        self.strategy.session.save()
-
-        callback_request = self.request_factory.post("/")
-        SessionMiddleware(lambda _request: HttpResponse()).process_request(callback_request)
-        login(callback_request, victim, backend="django.contrib.auth.backends.ModelBackend")
-        callback_request.user = victim
-        callback_request.session.save()
-        original_session_id = callback_request.session.session_key
-        callback_strategy = load_strategy(request=callback_request)
-        kwargs = {"user": victim}
-
-        with self.assertRaises(AuthSessionError) as caught:
-            callback_strategy.restore_session(restored_session_id, kwargs)
-
-        self.assertEqual(caught.exception.code, "user_mismatch")
-        self.assertEqual(kwargs["user"], victim)
-        self.assertEqual(callback_request.user, victim)
-        self.assertEqual(callback_strategy.get_session_id(), original_session_id)
-
-    def test_restore_session_accepts_same_user_from_different_session(self):
-        user_model = get_user_model()
-        user = user_model._default_manager.create_user(username="test")
-        login(self.request, user, backend="django.contrib.auth.backends.ModelBackend")
-        restored_session_id = self.strategy.get_session_id()
-        self.strategy.session.save()
-
-        callback_request = self.request_factory.post("/")
-        SessionMiddleware(lambda _request: HttpResponse()).process_request(callback_request)
-        login(callback_request, user, backend="django.contrib.auth.backends.ModelBackend")
-        callback_request.user = user
-        callback_request.session.save()
-        original_session_id = callback_request.session.session_key
-        callback_strategy = load_strategy(request=callback_request)
-        kwargs = {"user": user}
-
-        callback_strategy.restore_session(restored_session_id, kwargs)
-
-        self.assertEqual(kwargs["user"], user)
-        self.assertEqual(callback_request.user, user)
-        self.assertNotEqual(callback_strategy.get_session_id(), restored_session_id)
-        self.assertNotEqual(callback_strategy.get_session_id(), original_session_id)
+        with self.settings(SOCIAL_AUTH_FACEBOOK_PARTIAL_PIPELINE_EXPIRED_THRESHOLD=10 * 24 * 60 * 60):
+            strategy = DjangoStrategy(DjangoStorage)
+            self.assertEqual(strategy.partial_load(partial.token), partial)
 
     def test_random_string(self):
         rs1 = self.strategy.random_string()
@@ -400,9 +297,26 @@ class TestStrategy(TestCase):
         result = self.strategy.tpl.render_string(html="xoxo", context=ctx)
         self.assertEqual(result, "xoxo")
 
+    def test_partial_pipeline_returns_html_response(self):
+        @partial_step(save_to_session=False)
+        def render_page(strategy, **kwargs):
+            return strategy.html("<form></form>")
+
+        backend = BaseAuth(self.strategy)
+        response = render_page(self.strategy, backend, 0)
+
+        self.assertIsInstance(response, HttpResponse)
+        self.assertEqual(response.content, b"<form></form>")
+        self.assertFalse(hasattr(response, "url"))
+
     def test_html_missing_template_falls_back_to_string(self):
         result = self.strategy.render_html(tpl="missing.html", html="Hello {{ name }}", context={"name": "world"})
         self.assertEqual(result, "Hello world")
+
+    def test_html_with_headers(self):
+        result = self.strategy.html_with_headers("xoxo", {"Cache-Control": "no-store"})
+        self.assertEqual(result.content, b"xoxo")
+        self.assertEqual(result["Cache-Control"], "no-store")
 
     def test_html_template_type_error_falls_back_to_string(self):
         with mock.patch("social_django.strategy.loader.get_template", side_effect=TypeError):
@@ -552,6 +466,15 @@ class TestStrategy(TestCase):
             result = self.strategy.authenticate(backend=backend, response=mock.Mock())
             self.assertEqual(result, user)
             self.assertEqual(result.backend, "social_core.backends.facebook.FacebookOAuth2")
+
+    def test_authenticate_returns_html_response(self):
+        backend = load_backend(strategy=self.strategy, name="facebook", redirect_uri="/")
+        response = self.strategy.html("<form></form>")
+        with mock.patch("social_core.backends.base.BaseAuth.pipeline", return_value=response):
+            result = self.strategy.authenticate(backend=backend, response={})
+
+        self.assertIs(result, response)
+        self.assertFalse(hasattr(result, "url"))
 
     def test_authenticate_uses_strategy_request_without_forwarding_it(self):
         backend = load_backend(strategy=self.strategy, name="facebook", redirect_uri="/")

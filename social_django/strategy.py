@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from importlib import import_module
-from typing import TYPE_CHECKING, Any, cast
+from types import SimpleNamespace
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from django.conf import settings
-from django.contrib.auth import authenticate, get_user
+from django.contrib.auth import authenticate
 from django.contrib.auth.models import Group
 from django.contrib.contenttypes.models import ContentType
 from django.db import router, transaction
@@ -17,15 +18,20 @@ from django.utils.datastructures import MultiValueDict
 from django.utils.encoding import force_str
 from django.utils.functional import Promise
 from django.utils.translation import get_language
-from social_core.exceptions import AuthConfigurationError, AuthSessionError
+from social_core.exceptions import AuthConfigurationError
 from social_core.groups import group_sync_targets
 from social_core.strategy import BaseStrategy, BaseTemplateStrategy
-from social_core.utils import PARTIAL_TOKEN_PENDING_CONFIRMATION_SESSION_NAME, user_is_authenticated
+from social_core.utils import PARTIAL_TOKEN_PENDING_CONFIRMATION_SESSION_NAME
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from django.contrib.sessions.backends.base import SessionBase
     from social_core.backends.base import BaseAuth
-    from social_core.storage import PartialMixin
+    from social_core.storage import PartialMixin, UserProtocol
+
+
+_BackendResponseT = TypeVar("_BackendResponseT")
 
 
 PARTIAL_PIPELINE_CONFIRMATION_NONCE_PARAMETER = "partial_pipeline_confirm_nonce"
@@ -59,7 +65,7 @@ def create_session(session_key: str | None = None) -> SessionBase:
     return engine.SessionStore(session_key)
 
 
-class DjangoStrategy(BaseStrategy):
+class DjangoStrategy(BaseStrategy[HttpResponse]):
     DEFAULT_TEMPLATE_STRATEGY = DjangoTemplateStrategy
     _session: SessionBase
 
@@ -167,15 +173,21 @@ class DjangoStrategy(BaseStrategy):
         """Request POST data"""
         return self._require_request().POST.copy()
 
-    def redirect(self, url):
+    def redirect(self, url: str) -> HttpResponse:
         return redirect(url)
 
-    def html(self, content):
+    def html(self, content: str) -> HttpResponse:
         return HttpResponse(content, content_type="text/html;charset=UTF-8")
 
-    def partial_pipeline_external_resume_confirmation(  # type: ignore[override]
+    def html_with_headers(self, content: str, headers: Mapping[str, str]) -> HttpResponse:
+        response = self.html(content)
+        for name, value in headers.items():
+            response[name] = value
+        return response
+
+    def partial_pipeline_external_resume_confirmation(
         self,
-        backend: BaseAuth,
+        backend: BaseAuth[object],
         partial: PartialMixin,
         request_data: dict[str, Any],
     ) -> HttpResponse | None:
@@ -205,7 +217,7 @@ class DjangoStrategy(BaseStrategy):
 
     def partial_pipeline_external_resume_confirmed(
         self,
-        backend: BaseAuth,
+        backend: BaseAuth[object],
         request_data: dict[str, Any],
     ) -> bool:
         if not self.request or self.request.method != "POST":
@@ -240,17 +252,36 @@ class DjangoStrategy(BaseStrategy):
         except (TypeError, TemplateDoesNotExist):
             return render_template_string(self.request, html, context)
 
-    def authenticate(self, backend, **kwargs):
+    def authenticate(self, backend: BaseAuth[_BackendResponseT], **kwargs) -> UserProtocol | _BackendResponseT | None:
         kwargs["strategy"] = self
         kwargs["storage"] = self.storage
         kwargs["backend"] = backend
         kwargs.pop("request", None)
-        return authenticate(self.request, **kwargs)
+        # Django's annotations only describe users, but social backends can
+        # also return a framework response to interrupt the pipeline.
+        return cast("UserProtocol | _BackendResponseT | None", authenticate(self.request, **kwargs))
 
     def clean_authenticate_args(self, request, *args, **kwargs):
         # pipelines don't want a positional request argument
         kwargs.pop("request", None)
         return args, kwargs
+
+    def partial_load(self, token: str) -> PartialMixin | None:
+        partial = super().partial_load(token)
+        if partial is None:
+            return None
+        # A requestless strategy has no request.backend, and a request may be
+        # handling a different backend. The saved partial selects the policy.
+        backend = cast("BaseAuth[object]", SimpleNamespace(name=partial.backend))
+        expiry = self.setting(
+            "PARTIAL_PIPELINE_EXPIRED_THRESHOLD",
+            self.setting("EMAIL_VALIDATION_EXPIRED_THRESHOLD", 7 * 24 * 60 * 60, backend=backend),
+            backend=backend,
+        )
+        if expiry and getattr(partial, "is_expired", lambda _seconds: False)(expiry):
+            self.clean_partial_pipeline(token)
+            return None
+        return partial
 
     def session_get(self, name, default=None):
         return self.session.get(name, default)
@@ -317,27 +348,3 @@ class DjangoStrategy(BaseStrategy):
     def get_language(self):
         """Return current language"""
         return get_language()
-
-    def get_session_id(self) -> str | None:
-        if self.session.session_key is None:
-            self.session.create()
-        return self.session.session_key
-
-    def restore_session(self, session_id: str, kwargs: dict[str, Any]) -> None:
-        request = self._require_request()
-        restored_session = create_session(session_id)
-        restored_request = HttpRequest()
-        restored_request.session = restored_session
-        restored_user = get_user(restored_request)
-        incoming_user = kwargs.get("user")
-        if user_is_authenticated(incoming_user) and (
-            not restored_user.is_authenticated or incoming_user != restored_user
-        ):
-            raise AuthSessionError(code="user_mismatch", stage="callback")
-
-        request.session = self.session = restored_session
-        request.user = restored_user
-        if "user" in kwargs:
-            kwargs["user"] = restored_user if restored_user.is_authenticated else None
-        # Rotate session key to avoid reuse
-        self.session.cycle_key()
