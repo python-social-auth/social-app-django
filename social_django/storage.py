@@ -325,7 +325,7 @@ class DjangoUserMixin(UserMixin):
     def get_social_auth(cls, provider, uid, id_key=None):
         if not isinstance(uid, str):
             uid = str(uid)
-        query = cls._manager().select_related("user").filter(provider=provider, uid=uid)
+        query = cls._manager().filter(provider=provider, uid=uid)
         if id_key is not None:
             query = query.filter(id_key=id_key)
         for social in query:

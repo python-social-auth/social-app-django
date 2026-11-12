@@ -468,6 +468,12 @@ class TestUserSocialAuth(TestCase):
                 )
             )
 
+    def test_mixin_lookup_preserves_deferred_user(self):
+        manager = UserSocialAuth.objects.defer("user")
+        with mock.patch.object(UserSocialAuth, "_manager", return_value=manager):
+            social = storage.DjangoUserMixin.get_social_auth.__func__(UserSocialAuth, "my-provider", "1234")
+        self.assertEqual(social.pk, self.usa.pk)
+
     def test_manager_rejects_case_insensitive_id_key_match(self):
         self.usa.id_key = "id"
         filtered = mock.Mock()
