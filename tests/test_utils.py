@@ -9,7 +9,10 @@ from social_django.utils import (
     apply_framing_protection,
     check_fetch_metadata,
     get_allowed_redirect_hosts,
+    get_app_launch_forwarded_params,
     get_backend_issuer,
+    get_setting_list,
+    is_allowed_launch_origin,
     is_launch_bridge_enabled,
     is_safe_url,
     is_valid_https_url,
@@ -243,7 +246,102 @@ class TestUtils(TestCase):
         )
         is_valid, error = validate_app_launch_origin(request)
         self.assertFalse(is_valid)
-        self.assertIn("Cross-site launch rejected", error)
+        self.assertIn("Untrusted Referer origin rejected", error)
+
+    def test_app_launch_fetch_site_none(self):
+        # User-initiated navigation (address bar, bookmark, external app) accepted
+        request = self.factory.get("/", headers={"Sec-Fetch-Site": "none"})
+        self.assertEqual(validate_app_launch_origin(request), (True, None))
+
+        # An untrusted Referer is still rejected
+        request = self.factory.get("/", headers={"Sec-Fetch-Site": "none", "Referer": "https://evil.example/"})
+        is_valid, error = validate_app_launch_origin(request)
+        self.assertFalse(is_valid)
+        self.assertIn("Untrusted Referer origin rejected", error)
+
+        # Missing Fetch Metadata does not count as `none`
+        request = self.factory.get("/")
+        is_valid, error = validate_app_launch_origin(request)
+        self.assertFalse(is_valid)
+        self.assertIn("Missing same-origin indicator", error)
+
+    @override_settings(
+        SOCIAL_AUTH_APP_LAUNCH_ALLOWED_ORIGINS=["https://chat.example.org", "https://*.tenants.example"],
+    )
+    def test_app_launch_allowed_origins(self):
+        cases = [
+            ("same-site", "https://org.tenants.example/login", True),
+            ("same-site", "https://tenants.example/", True),
+            ("cross-site", "https://chat.example.org/login", True),
+            (None, "https://chat.example.org/", True),
+            ("same-site", None, False),
+            ("cross-site", None, False),
+            # The request host is trusted only for same-origin navigations
+            ("same-site", "https://testserver/", False),
+            ("cross-site", "http://chat.example.org/", False),
+            ("cross-site", "https://chat.example.org:8443/", False),
+            ("cross-site", "https://user@chat.example.org/", False),
+            ("cross-site", "https://evil.example/", False),
+            ("same-site", "https://user@org.tenants.example/", False),
+            ("same-site", "https://org.tenants.example:8443/", False),
+            ("same-site", "https://org.tenants.example.evil/", False),
+            ("same-site", "https://eviltenants.example/", False),
+            ("same-site", "https://org.tenants.example\\@evil.example/", False),
+        ]
+        for sec_fetch_site, referer, expected in cases:
+            with self.subTest(sec_fetch_site=sec_fetch_site, referer=referer):
+                headers = {}
+                if sec_fetch_site:
+                    headers["Sec-Fetch-Site"] = sec_fetch_site
+                if referer:
+                    headers["Referer"] = referer
+                request = self.factory.get("/", secure=True, headers=headers)
+                is_valid, error = validate_app_launch_origin(request)
+                self.assertEqual(is_valid, expected)
+                if expected:
+                    self.assertIsNone(error)
+                else:
+                    self.assertIsNotNone(error)
+
+        # Backend settings replace the global setting when a backend is given
+        backend = mock.MagicMock()
+        backend.setting.return_value = ["https://backend.example"]
+        for referer, expected in (("https://backend.example/", True), ("https://chat.example.org/", False)):
+            with self.subTest(backend_referer=referer):
+                request = self.factory.get("/", headers={"Sec-Fetch-Site": "cross-site", "Referer": referer})
+                is_valid, _ = validate_app_launch_origin(request, backend=backend)
+                self.assertEqual(is_valid, expected)
+        backend.setting.assert_called_with("APP_LAUNCH_ALLOWED_ORIGINS", None)
+
+    def test_app_launch_cross_site_rejected_without_allowed_origins(self):
+        for sec_fetch_site in ("same-site", "cross-site", "unexpected"):
+            with self.subTest(sec_fetch_site=sec_fetch_site):
+                request = self.factory.get(
+                    "/",
+                    headers={"Sec-Fetch-Site": sec_fetch_site, "Referer": "http://testserver/home"},
+                )
+                is_valid, error = validate_app_launch_origin(request)
+                self.assertFalse(is_valid)
+                self.assertIn("Cross-site launch rejected", error)
+
+    def test_is_allowed_launch_origin(self):
+        allowed = [
+            "https://*.example.com",
+            "http://plain.example.org:8080",
+            "not a url",
+            "https://[invalid",
+            "*.bare.example",
+        ]
+        self.assertTrue(is_allowed_launch_origin("https://a.b.example.com/path?q", allowed))
+        self.assertFalse(is_allowed_launch_origin("https://A.EXAMPLE.com/", allowed))
+        self.assertTrue(is_allowed_launch_origin("http://plain.example.org:8080/", allowed))
+        self.assertFalse(is_allowed_launch_origin("http://a.example.com/", allowed))
+        self.assertFalse(is_allowed_launch_origin("http://plain.example.org/", allowed))
+        self.assertFalse(is_allowed_launch_origin("https://x.bare.example/", allowed))
+        self.assertFalse(is_allowed_launch_origin("javascript://a.example.com/", allowed))
+        self.assertFalse(is_allowed_launch_origin("/relative", allowed))
+        self.assertFalse(is_allowed_launch_origin("https://[invalid/", allowed))
+        self.assertFalse(is_allowed_launch_origin("https://a.example.com/", []))
 
     def test_get_backend_issuer(self):
         backend = mock.MagicMock()
@@ -292,6 +390,69 @@ class TestUtils(TestCase):
         self.assertIsNone(issuers)
         assert error is not None  # ruff: ignore[assert]
         self.assertIn("is not a valid RFC-compliant HTTPS URL", error)
+
+    def test_get_setting_list(self):
+        with override_settings(SOCIAL_AUTH_APP_LAUNCH_ALLOWED_ORIGINS="https://chat.example.org"):
+            self.assertEqual(get_setting_list(None, "APP_LAUNCH_ALLOWED_ORIGINS"), ["https://chat.example.org"])
+        with override_settings(SOCIAL_AUTH_APP_LAUNCH_ALLOWED_ORIGINS=("https://chat.example.org", 123)):
+            self.assertEqual(get_setting_list(None, "APP_LAUNCH_ALLOWED_ORIGINS"), ["https://chat.example.org"])
+        for value in (None, 123):
+            with self.subTest(value=value), override_settings(SOCIAL_AUTH_APP_LAUNCH_ALLOWED_ORIGINS=value):
+                self.assertEqual(get_setting_list(None, "APP_LAUNCH_ALLOWED_ORIGINS"), [])
+
+        backend = mock.MagicMock()
+        backend.setting.return_value = "idp"
+        self.assertEqual(get_setting_list(backend, "APP_LAUNCH_FORWARDED_PARAMS"), ["idp"])
+        backend.setting.assert_called_once_with("APP_LAUNCH_FORWARDED_PARAMS", None)
+
+    @override_settings(SOCIAL_AUTH_APP_LAUNCH_FORWARDED_PARAMS=["subdomain", "next"])
+    def test_get_app_launch_forwarded_params(self):
+        query = {"subdomain": "example", "idp": "corporate", "next": "/dashboard"}
+
+        # Without a backend, the global setting is used
+        request = self.factory.get("/", query)
+        self.assertEqual(get_app_launch_forwarded_params(request), {"subdomain": "example"})
+
+        # The backend attached by @psa() is used by default
+        request = self.factory.get("/", query)
+        request.backend = mock.MagicMock()
+        request.backend.setting.return_value = ["idp"]
+        self.assertEqual(get_app_launch_forwarded_params(request), {"idp": "corporate"})
+
+    def test_get_backend_issuer_optional(self):
+        # Backends without an issuer are accepted when the issuer is optional
+        backends = [mock.MagicMock(spec=[])]
+        for raw_issuer in (None, "", [], (), set()):
+            backend = mock.MagicMock()
+            backend.id_token_issuer.return_value = raw_issuer
+            backends.append(backend)
+        for backend in backends:
+            with self.subTest(backend=backend):
+                self.assertEqual(get_backend_issuer(backend, "mock-backend", required=False), ([], None))
+
+        # Configured issuers are still returned
+        backend = mock.MagicMock()
+        backend.id_token_issuer.return_value = "https://idp.example.com"
+        self.assertEqual(
+            get_backend_issuer(backend, "mock-backend", required=False),
+            (["https://idp.example.com"], None),
+        )
+
+        # Invalid issuer configuration is still rejected, including falsy values of invalid types
+        for raw_issuer in (
+            123,
+            False,
+            0,
+            {},
+            b"",
+            "http://insecure.example.com",
+            ["https://idp.example.com", "not a url"],
+        ):
+            with self.subTest(raw_issuer=raw_issuer):
+                backend.id_token_issuer.return_value = raw_issuer
+                issuers, error = get_backend_issuer(backend, "mock-backend", required=False)
+                self.assertIsNone(issuers)
+                self.assertIsNotNone(error)
 
     def test_validate_idp_issuer(self):
         backend = mock.MagicMock()

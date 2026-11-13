@@ -9,12 +9,15 @@ from django.core.exceptions import ValidationError
 from django.core.validators import URLValidator
 from django.http import Http404, HttpRequest, HttpResponse
 from django.urls import reverse
+from django.utils.http import is_same_domain
 from social_core.exceptions import AuthConfigurationError
 from social_core.utils import get_strategy, module_member, setting_name, social_logger
 
 from .constants import (
+    APP_LAUNCH_RESERVED_PARAMS,
     BLOCKED_SEC_FETCH_MODES,
     SEC_FETCH_DEST_DOCUMENT,
+    SEC_FETCH_SITE_NONE,
     SEC_FETCH_SITE_SAME_ORIGIN,
     LaunchBridge,
     RedirectParamName,
@@ -167,7 +170,12 @@ def is_valid_https_url(url: str | None) -> bool:
         return True
 
 
-def get_backend_issuer(backend_obj: Any, backend_name: str) -> tuple[list[str] | None, str | None]:
+def get_backend_issuer(
+    backend_obj: Any,
+    backend_name: str,
+    *,
+    required: bool = True,
+) -> tuple[list[str] | None, str | None]:
     """
     Retrieves and validates the configured ID token issuer(s) for an OpenID Connect backend.
 
@@ -177,6 +185,8 @@ def get_backend_issuer(backend_obj: Any, backend_name: str) -> tuple[list[str] |
     Args:
         backend_obj: Instantiated backend instance.
         backend_name: Name of the backend.
+        required: If False, a backend without a configured issuer returns an empty
+            list instead of an error. Invalid issuer configuration is always an error.
 
     Returns:
         A tuple of (list_of_valid_issuers, error_message).
@@ -187,18 +197,18 @@ def get_backend_issuer(backend_obj: Any, backend_name: str) -> tuple[list[str] |
     elif hasattr(backend_obj, "setting"):
         raw_issuer = backend_obj.setting("ID_TOKEN_ISSUER", None)
 
-    if not raw_issuer:
-        return None, f"Backend `{backend_name}` does not support ID token issuer validation"
-
-    if isinstance(raw_issuer, str):
-        issuers = [raw_issuer]
+    # Only None, an empty string, or an empty sequence means no issuer is configured
+    if raw_issuer is None or isinstance(raw_issuer, str):
+        issuers: list[str] = [raw_issuer] if raw_issuer else []
     elif isinstance(raw_issuer, (list, tuple, set)):
         issuers = list(raw_issuer)
     else:
         return None, f"Configured ID token issuer for backend `{backend_name}` must be a string or list of strings"
 
     if not issuers:
-        return None, f"Backend `{backend_name}` does not support ID token issuer validation"
+        if required:
+            return None, f"Backend `{backend_name}` does not support ID token issuer validation"
+        return [], None
 
     for issuer in issuers:
         if not is_valid_https_url(issuer):
@@ -365,30 +375,97 @@ def check_fetch_metadata(request: HttpRequest, view_name: str) -> tuple[bool, li
     return auto_submit, warnings
 
 
-def validate_app_launch_origin(request: HttpRequest) -> tuple[bool, str | None]:
+def get_setting_list(backend: Any, name: str) -> list[str]:
+    """
+    Returns a string or list setting as a list, preferring backend-specific settings.
+    """
+    value = backend.setting(name, None) if backend is not None else getattr(settings, setting_name(name), None)
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, (list, tuple, set, frozenset)):
+        return [item for item in value if isinstance(item, str)]
+    return []
+
+
+def is_allowed_launch_origin(url: str, allowed_origins: list[str]) -> bool:
+    """
+    Checks whether the origin of `url` matches an entry of `allowed_origins`.
+
+    Entries use the `CSRF_TRUSTED_ORIGINS` syntax: a scheme and authority such as
+    `https://chat.example.com`, or `https://*.example.com` to also allow subdomains.
+    Schemes and authorities, including any explicit port, must match exactly.
+    """
+    if "\\" in url:
+        return False
+    try:
+        parsed = urlsplit(url)
+    except ValueError:
+        return False
+    if parsed.scheme not in ("http", "https") or not parsed.netloc or "@" in parsed.netloc:
+        return False
+
+    for origin in allowed_origins:
+        try:
+            allowed = urlsplit(origin)
+        except ValueError:
+            continue
+        if allowed.scheme != parsed.scheme or not allowed.netloc:
+            continue
+        if allowed.netloc.startswith("*."):
+            if is_same_domain(parsed.netloc, allowed.netloc[1:]):
+                return True
+        elif allowed.netloc == parsed.netloc:
+            return True
+    return False
+
+
+def validate_app_launch_origin(request: HttpRequest, backend: Any = None) -> tuple[bool, str | None]:
     """
     Validates origin indicators (Sec-Fetch-Site and Referer) for application-initiated launch.
 
+    Same-origin and user-initiated (`Sec-Fetch-Site: none`) navigations are accepted.
+    Same-site and cross-site navigations, and requests without Fetch Metadata, are
+    accepted only with a Referer from a trusted origin. The request's own host is
+    trusted for requests without Fetch Metadata; otherwise only origins listed in the
+    `SOCIAL_AUTH_APP_LAUNCH_ALLOWED_ORIGINS` setting are trusted.
+
     Args:
         request: The incoming HttpRequest.
+        backend: Optional backend instance for backend-specific settings.
 
     Returns:
         A tuple of (is_valid, error_message).
     """
-    # Guard 1: Reject cross-site launches based on Sec-Fetch-Site header
-    sec_fetch_site: str | None = request.headers.get("Sec-Fetch-Site")
-    if sec_fetch_site and sec_fetch_site != SEC_FETCH_SITE_SAME_ORIGIN:
-        return False, f"app_launch: Cross-site launch rejected (Sec-Fetch-Site: {sec_fetch_site})"
+    if backend is None:
+        backend = getattr(request, "backend", None)
 
-    # Guard 2: Reject untrusted Referer origins if provided
+    sec_fetch_site: str | None = request.headers.get("Sec-Fetch-Site")
     referer: str | None = request.headers.get("Referer")
+
+    # Guard 1: Reject untrusted Referer origins if provided
+    referer_allowed_origin = False
     if referer:
-        allowed_hosts = {request.get_host()}
-        if not is_safe_url(referer, allowed_hosts=allowed_hosts, require_https=request.is_secure()):
+        referer_allowed_origin = is_allowed_launch_origin(
+            referer, get_setting_list(backend, "APP_LAUNCH_ALLOWED_ORIGINS")
+        )
+        referer_same_origin = is_safe_url(
+            referer, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+        )
+        if not referer_allowed_origin and not referer_same_origin:
             return False, f"app_launch: Untrusted Referer origin rejected: {referer}"
 
-    # Guard 3: Require at least one same-origin indicator (Sec-Fetch-Site or Referer)
-    if not sec_fetch_site and not referer:
+    # Guard 2: Accept navigations that no other site initiated
+    if sec_fetch_site in (SEC_FETCH_SITE_SAME_ORIGIN, SEC_FETCH_SITE_NONE):
+        return True, None
+
+    # Guard 3: Reject other sites unless the Referer identifies an explicitly trusted origin
+    if sec_fetch_site:
+        if not referer_allowed_origin:
+            return False, f"app_launch: Cross-site launch rejected (Sec-Fetch-Site: {sec_fetch_site})"
+        return True, None
+
+    # Guard 4: Without Fetch Metadata, require a trusted Referer
+    if not referer:
         return (
             False,
             "app_launch: Missing same-origin indicator (neither Sec-Fetch-Site nor Referer header provided)",
@@ -396,6 +473,34 @@ def validate_app_launch_origin(request: HttpRequest) -> tuple[bool, str | None]:
 
     # Validation passed
     return True, None
+
+
+def get_app_launch_forwarded_params(request: HttpRequest, backend: Any = None) -> dict[str, str]:
+    """
+    Returns query parameters that app_launch forwards to `social:begin`.
+
+    Only parameters named in the `SOCIAL_AUTH_APP_LAUNCH_FORWARDED_PARAMS` setting are
+    forwarded. Parameters set by app_launch itself (`iss`, `next`, and the CSRF token)
+    are never forwarded from the query string.
+
+    Args:
+        request: The incoming HttpRequest.
+        backend: Optional backend instance for backend-specific settings.
+
+    Returns:
+        A dictionary of forwarded parameter names and values.
+    """
+    if backend is None:
+        backend = getattr(request, "backend", None)
+
+    params: dict[str, str] = {}
+    for name in get_setting_list(backend, "APP_LAUNCH_FORWARDED_PARAMS"):
+        if name in APP_LAUNCH_RESERVED_PARAMS:
+            continue
+        value = request.GET.get(name)
+        if value is not None:
+            params[name] = value
+    return params
 
 
 def apply_framing_protection(response: HttpResponse) -> HttpResponse:
