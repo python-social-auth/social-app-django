@@ -159,20 +159,21 @@ def app_launch(request, backend):
     3. Framing protection: Applies X-Frame-Options: DENY and CSP frame-ancestors 'none'.
     4. Open redirect prevention: Validates next parameter using `is_safe_url`; forwards only `iss`
        and parameters listed in `SOCIAL_AUTH_APP_LAUNCH_FORWARDED_PARAMS`.
-    5. Authenticated session bypass: Immediately redirects authenticated users to
-       `safe_next_url` or `settings.LOGIN_REDIRECT_URL`, skipping the backend roundtrip.
-    6. Fetch Metadata validation: Inspects `Sec-Fetch-*` headers to detect embedding or non-document requests.
-    7. Manual confirmation fallback: Disables automatic JavaScript submission if Fetch Metadata indicates
+    5. Fetch Metadata validation: Inspects `Sec-Fetch-*` headers to detect embedding or non-document requests.
+    6. Manual confirmation fallback: Disables automatic JavaScript submission if Fetch Metadata indicates
        a framed or non-top-level navigation context.
-    8. CSRF protection: Form POSTs to `social:begin` with a valid Django CSRF token.
+    7. CSRF protection: Form POSTs to `social:begin` with a valid Django CSRF token.
+
+    Authenticated users also launch through `social:begin`, as from a login form, so the
+    flow can link accounts or reauthenticate. Applications that want to skip redundant
+    launches must check before redirecting to this view.
 
     Args:
         request: The HttpRequest object.
         backend: The social backend to initiate authentication for.
 
     Returns:
-        An HttpResponse rendering the launch form template with appropriate security headers, or
-        redirecting authenticated users.
+        An HttpResponse rendering the launch form template with appropriate security headers.
 
     Raises:
         Http404: If the App launch bridge is not enabled.
@@ -206,19 +207,7 @@ def app_launch(request, backend):
         backend=backend_obj,
     )
 
-    # Layer 5: Authenticated session bypass — Skip authentication roundtrip if session is already authenticated
-    user = getattr(request, "user", None)
-    if user and user.is_authenticated:
-        # Request targets are literal URLs; only the configured fallback may be a URL name.
-        redirect_to = safe_next_url or resolve_url(settings.LOGIN_REDIRECT_URL)
-        social_logger.info(
-            "app_launch: User `%s` already authenticated, redirecting to `%s`",
-            user,
-            redirect_to,
-        )
-        return HttpResponseRedirect(redirect_to)
-
-    # Layers 6 & 7: Fetch Metadata validation & Manual confirmation fallback — Inspect Sec-Fetch-* headers
+    # Layers 5 & 6: Fetch Metadata validation & Manual confirmation fallback — Inspect Sec-Fetch-* headers
     auto_submit, _ = check_fetch_metadata(request, "app_launch")
 
     # Whitelist parameters passed to social:begin
@@ -241,7 +230,7 @@ def app_launch(request, backend):
     if safe_next_url:
         params[REDIRECT_FIELD_NAME] = safe_next_url
 
-    # Layer 8: CSRF protection — Render launch template targeting social:begin with CSRF token
+    # Layer 7: CSRF protection — Render launch template targeting social:begin with CSRF token
     response = render(
         request,
         "social_django/launch.html",

@@ -561,6 +561,32 @@ class TestViews(TestCase):
             self.assertEqual(response.url, "/accounts/profile/")
 
     @mock.patch("social_core.backends.base.BaseAuth.request")
+    def test_complete_keeps_user_changes_made_during_provider_requests(self, mock_request):
+        user_model = get_user_model()
+        user = user_model._default_manager.create_user(username="test", first_name="Old", is_staff=True)
+        UserSocialAuth.objects.create(user=user, provider="facebook", uid="facebook-user-123", id_key="id")
+        self.client.force_login(user)
+        state = begin_facebook_login(self.client)
+
+        def administrator_acts(*args, **kwargs):
+            user_model._default_manager.filter(pk=user.pk).update(is_active=False, is_staff=False)
+            return mock.DEFAULT
+
+        mock_request.side_effect = administrator_acts
+        mock_request.return_value.json.side_effect = [
+            {"access_token": "123"},
+            {"id": "facebook-user-123", "first_name": "New"},
+        ]
+        url = reverse("social:complete", kwargs={"backend": "facebook"})
+        response = self.client.get(f"{url}?code=2&state={state}")
+
+        self.assertEqual(response.status_code, 302)
+        user.refresh_from_db()
+        self.assertEqual(user.first_name, "New")
+        self.assertFalse(user.is_active)
+        self.assertFalse(user.is_staff)
+
+    @mock.patch("social_core.backends.base.BaseAuth.request")
     def test_disconnect(self, _mock_request):
         user_model = get_user_model()
         user = user_model._default_manager.create_user(
@@ -846,7 +872,7 @@ class TestLaunchViews(TestCase):
                             secure=True,
                             headers=headers,
                         )
-                        if authenticated:
+                        if authenticated and bridge == "idp_launch":
                             self.assertEqual(response.status_code, 302)
                             self.assertEqual(response["Location"], target if accepted else "/welcome/")
                         else:
@@ -860,32 +886,26 @@ class TestLaunchViews(TestCase):
         user = get_user_model()._default_manager.create_user(username="literal_target")
         self.client.force_login(user, backend="django.contrib.auth.backends.ModelBackend")
         self.assertEqual(reverse("dashboard"), "/welcome/")
-        for bridge, parameter in (("idp_launch", "target_link_uri"), ("app_launch", "next")):
-            url = reverse(f"social:{bridge}", kwargs={"backend": "mock-oidc"})
-            for target in ("unknown", "dashboard", "?tab=x", "#top", "/dashboard"):
-                with self.subTest(bridge=bridge, target=target):
-                    response = self.client.get(
-                        url,
-                        {"iss": "https://idp.example.com", parameter: target},
-                        headers={"sec-fetch-site": "same-origin"},
-                    )
-                    self.assertEqual(response.status_code, 302)
-                    self.assertEqual(response["Location"], target)
+        url = reverse("social:idp_launch", kwargs={"backend": "mock-oidc"})
+        for target in ("unknown", "dashboard", "?tab=x", "#top", "/dashboard"):
+            with self.subTest(target=target):
+                response = self.client.get(url, {"iss": "https://idp.example.com", "target_link_uri": target})
+                self.assertEqual(response.status_code, 302)
+                self.assertEqual(response["Location"], target)
 
     @override_settings(LOGIN_REDIRECT_URL="admin:index")
     def test_authenticated_launch_fallback_resolves_url_name(self):
         user = get_user_model()._default_manager.create_user(username="named_fallback")
         self.client.force_login(user, backend="django.contrib.auth.backends.ModelBackend")
-        for bridge, parameter in (("idp_launch", "target_link_uri"), ("app_launch", "next")):
-            url = reverse(f"social:{bridge}", kwargs={"backend": "mock-oidc"})
-            for target in (None, "", "https://evil.example/phishing"):
-                with self.subTest(bridge=bridge, target=target):
-                    params = {"iss": "https://idp.example.com"}
-                    if target is not None:
-                        params[parameter] = target
-                    response = self.client.get(url, params, headers={"sec-fetch-site": "same-origin"})
-                    self.assertEqual(response.status_code, 302)
-                    self.assertEqual(response["Location"], "/admin/")
+        url = reverse("social:idp_launch", kwargs={"backend": "mock-oidc"})
+        for target in (None, "", "https://evil.example/phishing"):
+            with self.subTest(target=target):
+                params = {"iss": "https://idp.example.com"}
+                if target is not None:
+                    params["target_link_uri"] = target
+                response = self.client.get(url, params)
+                self.assertEqual(response.status_code, 302)
+                self.assertEqual(response["Location"], "/admin/")
 
     @override_settings(
         LOGIN_REDIRECT_URL="nonexistent-route",
@@ -894,17 +914,12 @@ class TestLaunchViews(TestCase):
     def test_authenticated_launch_explicit_target_skips_fallback_resolution(self):
         user = get_user_model()._default_manager.create_user(username="explicit_target")
         self.client.force_login(user, backend="django.contrib.auth.backends.ModelBackend")
-        for bridge, parameter in (("idp_launch", "target_link_uri"), ("app_launch", "next")):
-            url = reverse(f"social:{bridge}", kwargs={"backend": "mock-oidc"})
-            for target in ("dashboard", "https://frontend.example.com/portal"):
-                with self.subTest(bridge=bridge, target=target):
-                    response = self.client.get(
-                        url,
-                        {"iss": "https://idp.example.com", parameter: target},
-                        headers={"sec-fetch-site": "same-origin"},
-                    )
-                    self.assertEqual(response.status_code, 302)
-                    self.assertEqual(response["Location"], target)
+        url = reverse("social:idp_launch", kwargs={"backend": "mock-oidc"})
+        for target in ("dashboard", "https://frontend.example.com/portal"):
+            with self.subTest(target=target):
+                response = self.client.get(url, {"iss": "https://idp.example.com", "target_link_uri": target})
+                self.assertEqual(response.status_code, 302)
+                self.assertEqual(response["Location"], target)
 
     def test_anonymous_launch_preserves_relative_target(self):
         for bridge, parameter in (("idp_launch", "target_link_uri"), ("app_launch", "next")):
@@ -1316,19 +1331,33 @@ class TestLaunchViews(TestCase):
         response = self.client.get(url, headers={"sec-fetch-site": "same-site", "referer": "http://testserver/"})
         self.assertEqual(response.status_code, 400)
 
-    def test_app_launch_authenticated_user_redirects(self):
+    @override_settings(LOGIN_REDIRECT_URL="nonexistent-route")
+    def test_app_launch_authenticated_user_launches(self):
         user_model = get_user_model()
-        user_model._default_manager.create_user(username="app_tester", password="pwd")  # ruff: ignore[hardcoded-password-func-arg]
+        user = user_model._default_manager.create_user(username="app_tester", password="pwd")  # ruff: ignore[hardcoded-password-func-arg]
         self.client.login(username="app_tester", password="pwd")  # ruff: ignore[hardcoded-password-func-arg]
 
         url = reverse("social:app_launch", kwargs={"backend": "mock-oidc"})
-        response = self.client.get(
-            url,
-            {"next": "/my-dashboard"},
-            headers={"sec-fetch-site": "same-origin"},
-        )
-        self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, "/my-dashboard")
+        for target in ("/my-dashboard", None):
+            with self.subTest(target=target):
+                response = self.client.get(
+                    url,
+                    {"next": target} if target else {},
+                    headers={"sec-fetch-site": "same-origin"},
+                )
+                self.assertEqual(response.status_code, 200)
+                expected = {"iss": "https://idp.example.com"}
+                if target:
+                    expected["next"] = target
+                self.assertEqual(response.context["params"], expected)
+                self.assertContains(response, "form.submit()")
+
+        # The launch form starts the flow for the signed-in user, allowing account linking
+        with mock.patch("social_django.views.do_auth", return_value=HttpResponse()) as do_auth:
+            response = self.client.post(response.context["action_url"], response.context["params"])
+        self.assertEqual(response.status_code, 200)
+        do_auth.assert_called_once()
+        self.assertEqual(do_auth.call_args.kwargs["user"], user)
 
     @override_settings(SOCIAL_AUTH_ENABLE_LAUNCH_BRIDGES=None)
     def test_launch_bridges_disabled_by_default(self):

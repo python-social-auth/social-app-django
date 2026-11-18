@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
-## [Unreleased]
+## [8.1.0](https://github.com/python-social-auth/social-app-django/releases/tag/8.1.0) - 2026-11-12
 
 ### Added
 
@@ -27,6 +27,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Security
 
+- Restrict default user-details pipeline saves and association data saves to
+  changed fields so concurrent account changes are preserved.
 - Discard session-held partial flows whose saved user differs from the signed-in user.
 - Persist consumed callback state when the exception middleware renders a 5xx page.
 - Expire suspended partial pipelines when resumed; by default they follow the email verification lifetime.
@@ -36,13 +38,19 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Breaking
 
-- Require social-auth-core 7.1.0 for partial-pipeline ownership binding with UUID user IDs.
+- Require social-auth-core 7.2.0 for partial-pipeline ownership binding with UUID
+  user IDs and shared partial-pipeline expiry policy.
 
 ### Fixed
 
 - Keep migration 0013 forward and reverse writes on the database alias being migrated.
 - Treat configured social login session limits as fixed end times rather than sliding inactivity timeouts.
 - Claim email verification codes atomically so simultaneous uses cannot both succeed.
+- Launch authentication for signed-in users in `app_launch` instead of
+  redirecting them to `next` or `LOGIN_REDIRECT_URL`, so the bridge can link
+  accounts and reauthenticate like a login form. Applications that relied on
+  the redirect should check authentication before sending users to the bridge.
+  `idp_launch` still redirects signed-in users.
 
 ## [8.0.0](https://github.com/python-social-auth/social-app-django/releases/tag/8.0.0) - 2026-11-09
 
