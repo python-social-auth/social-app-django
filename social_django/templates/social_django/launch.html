@@ -7,7 +7,7 @@
   <body>
     <form id="autoLoginForm" method="post" action="{{ action_url }}">
       {% csrf_token %}
-      {% for key, value in params.items %}
+      {% for key, value in fields %}
         <input type="hidden" name="{{ key }}" value="{{ value }}">
       {% endfor %}
       {% if auto_submit %}
@@ -22,7 +22,8 @@
         window.addEventListener('load', function () {
           var form = document.getElementById('autoLoginForm');
           if (form) {
-            form.submit();
+            // A field named `submit` would shadow form.submit()
+            HTMLFormElement.prototype.submit.call(form);
           }
         });
       </script>
