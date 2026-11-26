@@ -49,7 +49,9 @@ at <https://python-social-auth.readthedocs.io/>.
 - Keep sync and async middleware behavior aligned.
 - Write commit messages using Conventional Commits, such as
   `fix(auth): reject mismatched provider identifiers` or
-  `docs(security): clarify redirect responsibility`.
+  `docs(security): clarify redirect responsibility`. Add a concise commit body
+  explaining why the change is needed. For scanner fixes, include applicable
+  finding IDs in the body when available.
 
 ## Documentation expectations
 
@@ -124,5 +126,10 @@ at <https://python-social-auth.readthedocs.io/>.
 - Add focused regression tests for every behavior change, including both
   accepted and rejected security-sensitive inputs. Prefer Django's test client,
   `override_settings`, and mocks for provider or network behavior.
-- Run `uv run --all-extras mypy social_django tests/typecheck.py` when changing
-  typed interfaces or Django model/manager behavior.
+- Run `uv run --all-extras mypy social_django tests/typecheck.py` on the final
+  head of every Django pull request branch, even when the change does not alter
+  type annotations.
+- After amending or rebasing a review branch, rerun checks affected by the
+  change. Before calling a pushed branch ready, inspect CI for its latest head
+  and report local results separately from CI results. Identify queued, failed,
+  or blocked checks explicitly; do not describe them as passed.
