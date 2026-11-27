@@ -7,7 +7,7 @@ from social_django.models import Association, Code, Nonce, Partial
 
 
 class Command(BaseCommand):
-    help = "removes unused verification codes, old partials, and expired associations"
+    help = "removes old verification codes and nonces, expired partials and associations"
 
     def add_arguments(self, parser):
         super().add_arguments(parser)
@@ -17,7 +17,7 @@ class Command(BaseCommand):
             type=int,
             dest="age",
             default=14,
-            help="how long to keep unused data (in days, defaults to 14)",
+            help="how long to keep unused codes and nonces (in days, defaults to 14)",
         )
 
     def handle(self, *args, **options):
@@ -26,8 +26,8 @@ class Command(BaseCommand):
         # Delete old not verified codes
         Code.objects.filter(verified=False, timestamp__lt=age).delete()
 
-        # Delete old partial data
-        Partial.objects.filter(timestamp__lt=age).delete()
+        # Match the expiry policy used when a partial resumes.
+        Partial.cleanup_expired()
 
         # All nonce timestamps are Unix timestamps, regardless of scope.
         Nonce.objects.filter(timestamp__lt=int(age.timestamp())).delete()

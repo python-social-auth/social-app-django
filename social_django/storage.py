@@ -71,6 +71,8 @@ if TYPE_CHECKING:
         def __str__(self) -> str: ...
 
     class _DjangoPartial(Model):
+        backend: str
+
         def __str__(self) -> str: ...
 
         def is_expired(self, seconds: int) -> bool: ...
@@ -589,7 +591,48 @@ class DjangoPartialMixin(PartialMixin):
 
     def is_expired(self, seconds: int) -> bool:
         """Return whether the partial has reached its lifetime, or has no timestamp."""
-        return _is_expired(self.timestamp, seconds)
+        if "partial_pipeline_timestamp" in self.kwargs:
+            return super().is_expired(seconds)
+        if _is_expired(self.timestamp, seconds):
+            return True
+        # Legacy rows only have the model timestamp. Carry it into a new
+        # partial when the resumed pipeline halts again.
+        timestamp = cast("datetime", self.timestamp)
+        if timezone.is_naive(timestamp):
+            timestamp = timezone.make_aware(timestamp, timezone.get_default_timezone())
+        self.data.setdefault("kwargs", {})["partial_pipeline_timestamp"] = int(timestamp.timestamp())
+        return False
+
+    @classmethod
+    def cleanup_expired(cls) -> int:
+        """Delete partials expired by the saved backend's resume policy."""
+        from social_django.utils import load_strategy  # ruff: ignore[import-outside-top-level]
+
+        strategy = load_strategy()
+        if not strategy.EXPIRE_PARTIAL_PIPELINES_ON_LOAD:
+            return 0
+        deleted = 0
+        last_pk = None
+        while True:
+            query = cls.objects.order_by("pk")
+            if last_pk is not None:
+                query = query.filter(pk__gt=last_pk)
+            partials = list(query[:500])
+            if not partials:
+                return deleted
+            last_pk = partials[-1].pk
+            expired = []
+            for partial in partials:
+                expiry = strategy.setting(
+                    "PARTIAL_PIPELINE_EXPIRED_THRESHOLD",
+                    7 * 24 * 60 * 60,
+                    backend=partial.backend,
+                )
+                if expiry and partial.is_expired(expiry):
+                    expired.append(partial.pk)
+            if expired:
+                count, _ = cls.objects.filter(pk__in=expired).delete()
+                deleted += count
 
     @classmethod
     def load(cls, token):

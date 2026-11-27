@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [Unreleased]
+
+### Changed
+
+- Partial pipelines use a separate configurable lifetime. Both the previous
+  email-code default and the new partial default are seven days, but a shorter
+  configured email-code lifetime no longer shortens partials.
+
+### Breaking
+
+- Require social-auth-core 7.3.0 for partial-pipeline expiry and initiator binding.
+- `clearsocial --age` no longer limits partial retention. Partial cleanup now
+  follows the configured per-backend or global expiry policy, including disabled expiry.
+
+### Security
+
+- Preserve the original expiry time when a legacy Django partial resumes and
+  halts again.
+
 ## [8.1.0](https://github.com/python-social-auth/social-app-django/releases/tag/8.1.0) - 2026-11-12
 
 ### Added
