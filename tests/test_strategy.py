@@ -56,18 +56,14 @@ class TestStrategy(TestCase):
         self.assertEqual(self.strategy.session_setdefault("k", "x"), "v")
         self.assertEqual(self.strategy.session_pop("k"), "v")
 
-    def test_partial_expiry_uses_strategy_email_lifetime(self):
-        class CustomStrategy(DjangoStrategy):
-            def get_setting(self, name):
-                if name == "SOCIAL_AUTH_EMAIL_VALIDATION_EXPIRED_THRESHOLD":
-                    return 60
-                return super().get_setting(name)
-
-        partial = Partial.objects.create(token=Partial.generate_token(), backend="email", data={})
+    def test_partial_expiry_is_independent_of_email_lifetime(self):
+        partial = Partial.objects.create(
+            token=Partial.generate_token(), backend="email", data={"args": [], "kwargs": {}}
+        )
         Partial.objects.filter(pk=partial.pk).update(timestamp=timezone.now() - timedelta(seconds=61))
-        strategy = CustomStrategy(DjangoStorage, self.request)
-        self.assertIsNone(strategy.partial_load(partial.token))
-        self.assertFalse(Partial.objects.filter(pk=partial.pk).exists())
+        with self.settings(SOCIAL_AUTH_EMAIL_VALIDATION_EXPIRED_THRESHOLD=60):
+            self.assertEqual(self.strategy.partial_load(partial.token), partial)
+        self.assertTrue(Partial.objects.filter(pk=partial.pk).exists())
 
     def test_partial_expiry_uses_saved_backend_without_request(self):
         partial = Partial.objects.create(
@@ -80,6 +76,30 @@ class TestStrategy(TestCase):
         with self.settings(SOCIAL_AUTH_FACEBOOK_PARTIAL_PIPELINE_EXPIRED_THRESHOLD=10 * 24 * 60 * 60):
             strategy = DjangoStrategy(DjangoStorage)
             self.assertEqual(strategy.partial_load(partial.token), partial)
+
+    def test_partial_expiry_uses_original_time_after_rehalt(self):
+        partial = Partial.objects.create(
+            token=Partial.generate_token(),
+            backend="email",
+            data={
+                "args": [],
+                "kwargs": {"partial_pipeline_timestamp": int(timezone.now().timestamp()) - 8 * 24 * 60 * 60},
+            },
+        )
+        self.assertIsNone(DjangoStrategy(DjangoStorage).partial_load(partial.token))
+
+    def test_legacy_partial_keeps_original_time_after_rehalt(self):
+        original = timezone.now() - timedelta(days=6)
+        partial = Partial.objects.create(token=Partial.generate_token(), backend="email", data={"args": []})
+        Partial.objects.filter(pk=partial.pk).update(timestamp=original)
+
+        loaded = DjangoStrategy(DjangoStorage).partial_load(partial.token)
+        self.assertIsNotNone(loaded)
+        self.assertEqual(loaded.kwargs["partial_pipeline_timestamp"], int(original.timestamp()))
+        renewed = Partial.prepare("email", 0, loaded.data)
+        self.assertEqual(renewed.kwargs["partial_pipeline_timestamp"], int(original.timestamp()))
+        self.assertFalse(renewed.is_expired(7 * 24 * 60 * 60))
+        self.assertTrue(renewed.is_expired(6 * 24 * 60 * 60))
 
     def test_random_string(self):
         rs1 = self.strategy.random_string()
@@ -228,6 +248,7 @@ class TestStrategy(TestCase):
                         "social": {"provider": social.provider, "uid": social.uid},
                         "response": probe,
                     },
+                    "initiating_user_id": str(user.pk),
                 }
                 if legacy_request:
                     data["kwargs"]["request"] = probe
@@ -245,6 +266,24 @@ class TestStrategy(TestCase):
                 self.assertEqual(loaded.kwargs["response"], probe)
                 self.assertEqual(loaded.request_data, probe)
                 self.assertNotIn("request", loaded.kwargs)
+
+    def test_partial_load_rejects_legacy_association_without_initiator(self):
+        user = get_user_model().objects.create_user(username="test")
+        social = UserSocialAuth.objects.create(user=user, provider="facebook", uid="test")
+        partial = Partial.objects.create(
+            token=Partial.generate_token(),
+            backend="facebook",
+            next_step=0,
+            data={
+                "args": [],
+                "kwargs": {
+                    "user": user.pk,
+                    "social": {"provider": social.provider, "uid": social.uid},
+                },
+            },
+        )
+
+        self.assertIsNone(self.strategy.partial_load(partial.token))
 
     def test_session_value_flattens_request_data(self):
         request = self.request_factory.get(

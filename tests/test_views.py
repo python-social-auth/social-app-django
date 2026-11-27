@@ -261,7 +261,8 @@ class TestEmailConfirmation(TestCase):
             client.post(url, {"email": email, "csrfmiddlewaretoken": csrf_token})
             partial_token = send_email.call_args.args[3]
             partial = Partial.objects.get(token=partial_token)
-            Partial.objects.filter(pk=partial.pk).update(timestamp=partial.timestamp - timedelta(days=7))
+            partial.data["kwargs"]["partial_pipeline_timestamp"] -= 7 * 24 * 60 * 60
+            partial.save(update_fields=["data"])
 
             client, csrf_token = self.csrf_client()
             client.post(url, {"email": email, "csrfmiddlewaretoken": csrf_token})

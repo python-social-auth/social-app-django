@@ -33,6 +33,17 @@ from social_django.storage import SQLITE_PRIMARY_KEY_ERROR_CODE, SQLITE_UNIQUE_E
 from social_django.strategy import DjangoStrategy
 
 
+class ExtendedPartialCleanupStrategy(DjangoStrategy):
+    def get_setting(self, name):
+        if name == "SOCIAL_AUTH_PARTIAL_PIPELINE_EXPIRED_THRESHOLD":
+            return 30 * 24 * 60 * 60
+        return super().get_setting(name)
+
+
+class DisabledPartialCleanupStrategy(DjangoStrategy):
+    EXPIRE_PARTIAL_PIPELINES_ON_LOAD = False
+
+
 class TestCodeExpiry(TestCase):
     @override_settings(TIME_ZONE="Europe/Prague")
     def test_lifetime_across_daylight_saving_time(self):
@@ -1017,8 +1028,9 @@ class TestPartial(TestCase):
         self.assertFalse(Partial.objects.exists())
 
     @override_settings(SOCIAL_AUTH_EMAIL_VALIDATION_EXPIRED_THRESHOLD=60)
-    def test_expiry_follows_email_validation(self):
-        self.assertIsNone(DjangoStrategy(DjangoStorage).partial_load(self.create_partial(timedelta(seconds=61)).token))
+    def test_expiry_does_not_follow_email_validation(self):
+        partial = self.create_partial(timedelta(seconds=61))
+        self.assertEqual(DjangoStrategy(DjangoStorage).partial_load(partial.token), partial)
 
     @override_settings(
         SOCIAL_AUTH_EMAIL_VALIDATION_EXPIRED_THRESHOLD=60,
@@ -1032,10 +1044,9 @@ class TestPartial(TestCase):
         self.assertIsNone(strategy.partial_load(partial.token))
 
     @override_settings(SOCIAL_AUTH_EMAIL_VALIDATION_EXPIRED_THRESHOLD=10 * 24 * 60 * 60)
-    def test_longer_effective_email_lifetime_is_honored(self):
+    def test_longer_email_lifetime_does_not_extend_partial(self):
         partial = self.create_partial(timedelta(days=8))
-        self.assertEqual(DjangoStrategy(DjangoStorage).partial_load(partial.token), partial)
-        Partial.destroy(partial.token)
+        self.assertIsNone(DjangoStrategy(DjangoStorage).partial_load(partial.token))
 
     def test_disabled_expiry(self):
         for threshold in (None, 0):
@@ -1046,6 +1057,83 @@ class TestPartial(TestCase):
                 partial = self.create_partial(timedelta(days=30))
                 self.assertEqual(DjangoStrategy(DjangoStorage).partial_load(partial.token), partial)
                 Partial.destroy(partial.token)
+
+    def test_cleanup_expired_uses_default_lifetime(self):
+        active = self.create_partial(timedelta(days=6))
+        expired = self.create_partial(timedelta(days=8))
+
+        self.assertEqual(Partial.cleanup_expired(), 1)
+        self.assertEqual(list(Partial.objects.values_list("pk", flat=True)), [active.pk])
+        self.assertFalse(Partial.objects.filter(pk=expired.pk).exists())
+
+    @override_settings(
+        SOCIAL_AUTH_PARTIAL_PIPELINE_EXPIRED_THRESHOLD=30 * 24 * 60 * 60,
+        SOCIAL_AUTH_GITHUB_PARTIAL_PIPELINE_EXPIRED_THRESHOLD=24 * 60 * 60,
+    )
+    def test_cleanup_expired_uses_saved_backend_setting(self):
+        global_active = self.create_partial(timedelta(days=15))
+        github_expired = self.create_partial(timedelta(days=2))
+        Partial.objects.filter(pk=github_expired.pk).update(backend="github")
+
+        self.assertEqual(Partial.cleanup_expired(), 1)
+        self.assertEqual(list(Partial.objects.values_list("pk", flat=True)), [global_active.pk])
+
+    def test_cleanup_expired_honors_disabled_settings(self):
+        for threshold in (None, 0):
+            with (
+                self.subTest(threshold=threshold),
+                override_settings(SOCIAL_AUTH_PARTIAL_PIPELINE_EXPIRED_THRESHOLD=threshold),
+            ):
+                partial = self.create_partial(timedelta(days=30))
+                self.assertEqual(Partial.cleanup_expired(), 0)
+                self.assertTrue(Partial.objects.filter(pk=partial.pk).exists())
+                partial.delete()
+
+    @override_settings(
+        SOCIAL_AUTH_PARTIAL_PIPELINE_EXPIRED_THRESHOLD=60,
+        SOCIAL_AUTH_GITHUB_PARTIAL_PIPELINE_EXPIRED_THRESHOLD=None,
+    )
+    def test_cleanup_expired_honors_disabled_backend(self):
+        github = self.create_partial(timedelta(days=30))
+        Partial.objects.filter(pk=github.pk).update(backend="github")
+        global_expired = self.create_partial(timedelta(days=1))
+
+        self.assertEqual(Partial.cleanup_expired(), 1)
+        self.assertEqual(list(Partial.objects.values_list("pk", flat=True)), [github.pk])
+        self.assertFalse(Partial.objects.filter(pk=global_expired.pk).exists())
+
+    def test_cleanup_expired_uses_configured_strategy(self):
+        partial = self.create_partial(timedelta(days=8))
+        with mock.patch("social_django.utils.STRATEGY", "tests.test_models.ExtendedPartialCleanupStrategy"):
+            self.assertEqual(Partial.cleanup_expired(), 0)
+        self.assertTrue(Partial.objects.filter(pk=partial.pk).exists())
+
+    def test_cleanup_expired_honors_strategy_disabled_expiry(self):
+        partial = self.create_partial(timedelta(days=30))
+        with mock.patch("social_django.utils.STRATEGY", "tests.test_models.DisabledPartialCleanupStrategy"):
+            self.assertEqual(Partial.cleanup_expired(), 0)
+        self.assertTrue(Partial.objects.filter(pk=partial.pk).exists())
+
+    def test_cleanup_expired_uses_original_pause_time(self):
+        partial = self.create_partial(timedelta(0))
+        partial.data = {
+            "args": [],
+            "kwargs": {"partial_pipeline_timestamp": int(timezone.now().timestamp()) - 8 * 86400},
+        }
+        partial.save(update_fields=["data"])
+
+        self.assertEqual(Partial.cleanup_expired(), 1)
+        self.assertFalse(Partial.objects.exists())
+
+    @override_settings(SOCIAL_AUTH_PARTIAL_PIPELINE_EXPIRED_THRESHOLD=30 * 24 * 60 * 60)
+    def test_clearsocial_age_does_not_shorten_partial_lifetime(self):
+        active = self.create_partial(timedelta(days=2))
+        expired = self.create_partial(timedelta(days=31))
+
+        call_command("clearsocial", age=1)
+
+        self.assertEqual(list(Partial.objects.values_list("pk", flat=True)), [active.pk])
+        self.assertFalse(Partial.objects.filter(pk=expired.pk).exists())
 
 
 class TestDjangoStorage(TestCase):
