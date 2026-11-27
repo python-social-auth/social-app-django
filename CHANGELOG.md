@@ -5,26 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
-## [Unreleased]
-
-### Changed
-
-- Partial pipelines use a separate configurable lifetime. Both the previous
-  email-code default and the new partial default are seven days, but a shorter
-  configured email-code lifetime no longer shortens partials.
-
-### Breaking
-
-- Require social-auth-core 7.3.0 for partial-pipeline expiry and initiator binding.
-- `clearsocial --age` no longer limits partial retention. Partial cleanup now
-  follows the configured per-backend or global expiry policy, including disabled expiry.
-
-### Security
-
-- Preserve the original expiry time when a legacy Django partial resumes and
-  halts again.
-
-## [8.1.0](https://github.com/python-social-auth/social-app-django/releases/tag/8.1.0) - 2026-11-12
+## [8.2.0](https://github.com/python-social-auth/social-app-django/releases/tag/8.2.0) - 2026-11-27
 
 ### Added
 
@@ -34,6 +15,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
   `iss`, `next`, and CSRF token fields cannot be overridden.
 - Accept `app_launch` navigations from other subdomains or sites when their
   `Referer` matches the new `SOCIAL_AUTH_APP_LAUNCH_ALLOWED_ORIGINS` setting.
+- Both launch bridges provide a `fields` list of name-value pairs for custom
+  `social_django/launch.html` templates. Use it to render hidden fields so
+  a forwarded parameter named `items` cannot shadow `params.items`. For automatic
+  submission, call `HTMLFormElement.prototype.submit.call(form)` to handle
+  forwarded fields named `submit`.
 
 ### Changed
 
@@ -43,6 +29,30 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Accept `app_launch` navigations with `Sec-Fetch-Site: none`, which browsers
   send for user-initiated navigations such as links opened from native apps.
   Missing Fetch Metadata still requires a trusted `Referer`.
+- Partial pipelines now default to seven days independently of the email
+  verification lifetime. Set `SOCIAL_AUTH_PARTIAL_PIPELINE_EXPIRED_THRESHOLD`
+  to override the lifetime globally or for a specific backend.
+
+### Breaking
+
+- Require social-auth-core 7.3.0 for partial-pipeline expiry and initiator binding.
+- `clearsocial --age` applies only to verification codes and nonces. Partial
+  cleanup follows the same expiry policy as resuming a partial, including
+  per-backend overrides and disabled expiry.
+
+### Security
+
+- Preserve the original expiry time when a legacy Django partial resumes and
+  halts again.
+
+### Fixed
+
+- Launch authentication for signed-in users in `app_launch` so the bridge can
+  link accounts and reauthenticate like a login form. Applications that relied
+  on the redirect to `next` or `LOGIN_REDIRECT_URL` should check authentication
+  before sending users to the bridge. `idp_launch` still redirects signed-in users.
+
+## [8.1.0](https://github.com/python-social-auth/social-app-django/releases/tag/8.1.0) - 2026-11-12
 
 ### Security
 
@@ -65,11 +75,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Keep migration 0013 forward and reverse writes on the database alias being migrated.
 - Treat configured social login session limits as fixed end times rather than sliding inactivity timeouts.
 - Claim email verification codes atomically so simultaneous uses cannot both succeed.
-- Launch authentication for signed-in users in `app_launch` instead of
-  redirecting them to `next` or `LOGIN_REDIRECT_URL`, so the bridge can link
-  accounts and reauthenticate like a login form. Applications that relied on
-  the redirect should check authentication before sending users to the bridge.
-  `idp_launch` still redirects signed-in users.
 
 ## [8.0.0](https://github.com/python-social-auth/social-app-django/releases/tag/8.0.0) - 2026-11-09
 
